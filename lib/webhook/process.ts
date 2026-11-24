@@ -15,6 +15,7 @@
  */
 
 import { insertAlertRaw, markAlertRawProcessed, upsertAlert } from "../db/alerts";
+import { computeAndStoreSectorMetrics } from "../db/sector-metrics-orchestrator";
 import { upsertSectorSnapshot } from "../db/sectors";
 import { resolveOrCreateSymbolMapping } from "../db/symbol-map";
 import { marketFromExchange } from "../market";
@@ -189,4 +190,8 @@ async function processSectorBoard(body: Record<string, unknown>): Promise<void> 
       source: "alert",
     });
   }
+
+  // Keep rank/Δ13-26-52/focus current the moment a snapshot arrives,
+  // rather than waiting for someone to open the Sectors page first.
+  await computeAndStoreSectorMetrics(market, weekEnding);
 }
