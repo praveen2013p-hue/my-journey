@@ -1,0 +1,541 @@
+{
+  "allowed_users": [],
+  "app_settings": {
+    "id": 1,
+    "site_name": "My Journey",
+    "bench_in": "NSE:NIFTY_TOTAL_MKT",
+    "bench_in_sector": "NSE:CNX500",
+    "bench_us": "SP:SPX",
+    "bench_us_sector": "SP:SPX",
+    "updated_at": "2026-11-24T13:59:27.510Z"
+  },
+  "alerts_raw": [],
+  "alerts": [],
+  "sector_snapshots": [
+    {
+      "id": 1,
+      "market": "IN",
+      "week_ending": "2026-11-20",
+      "sector": "PSU Bank",
+      "stage": 2,
+      "mrs": 12.4,
+      "rs_up": true,
+      "vs_ma": 15,
+      "chg4": 6,
+      "focus": true,
+      "source": "alert",
+      "created_at": "2026-11-24T13:59:27.516Z"
+    }
+  ],
+  "sector_metrics": [
+    {
+      "id": 1,
+      "market": "IN",
+      "week_ending": "2026-11-20",
+      "sector": "PSU Bank",
+      "rank": 1,
+      "mrs": 12.4,
+      "d4": 3,
+      "d13": 2,
+      "d26": null,
+      "d52": null,
+      "traded_value": null,
+      "tv_avg10": null,
+      "tv_ratio": null,
+      "is_focus": true,
+      "price_chg_1w": null,
+      "rs_chg_1w": null,
+      "traded_value_chg_1w": null,
+      "rank_move_1w": null,
+      "created_at": "2026-11-24T13:59:27.517Z"
+    }
+  ],
+  "sector_map": [
+    {
+      "id": 1,
+      "market": "IN",
+      "display_name": "Bank",
+      "tv_symbol": "NSE:BANKNIFTY",
+      "provider_symbol": "NSE:BANKNIFTY",
+      "kind": "sector"
+    },
+    {
+      "id": 2,
+      "market": "IN",
+      "display_name": "PSU Bank",
+      "tv_symbol": "NSE:CNXPSUBANK",
+      "provider_symbol": "NSE:CNXPSUBANK",
+      "kind": "sector"
+    },
+    {
+      "id": 3,
+      "market": "IN",
+      "display_name": "Private Bank",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 4,
+      "market": "IN",
+      "display_name": "Financial Svcs",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 5,
+      "market": "IN",
+      "display_name": "Capital Markets",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 6,
+      "market": "IN",
+      "display_name": "IT",
+      "tv_symbol": "NSE:CNXIT",
+      "provider_symbol": "NSE:CNXIT",
+      "kind": "sector"
+    },
+    {
+      "id": 7,
+      "market": "IN",
+      "display_name": "Auto",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 8,
+      "market": "IN",
+      "display_name": "EV & New Auto",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 9,
+      "market": "IN",
+      "display_name": "Pharma",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 10,
+      "market": "IN",
+      "display_name": "Healthcare",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 11,
+      "market": "IN",
+      "display_name": "FMCG",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 12,
+      "market": "IN",
+      "display_name": "Consumption",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 13,
+      "market": "IN",
+      "display_name": "Cons Durables",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 14,
+      "market": "IN",
+      "display_name": "Metal",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 15,
+      "market": "IN",
+      "display_name": "Commodities",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 16,
+      "market": "IN",
+      "display_name": "Chemicals",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 17,
+      "market": "IN",
+      "display_name": "Energy",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 18,
+      "market": "IN",
+      "display_name": "Oil & Gas",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 19,
+      "market": "IN",
+      "display_name": "Realty",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 20,
+      "market": "IN",
+      "display_name": "Housing",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 21,
+      "market": "IN",
+      "display_name": "Infrastructure",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 22,
+      "market": "IN",
+      "display_name": "Manufacturing",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 23,
+      "market": "IN",
+      "display_name": "Defence",
+      "tv_symbol": "NSE:NIFTY_IND_DEFENCE",
+      "provider_symbol": "NSE:NIFTY_IND_DEFENCE",
+      "kind": "sector"
+    },
+    {
+      "id": 24,
+      "market": "IN",
+      "display_name": "Railways PSU",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 25,
+      "market": "IN",
+      "display_name": "PSE",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 26,
+      "market": "IN",
+      "display_name": "Media",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 27,
+      "market": "IN",
+      "display_name": "Digital",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 28,
+      "market": "IN",
+      "display_name": "Tourism",
+      "tv_symbol": null,
+      "provider_symbol": null,
+      "kind": "sector"
+    },
+    {
+      "id": 29,
+      "market": "US",
+      "display_name": "Technology",
+      "tv_symbol": "AMEX:XLK",
+      "provider_symbol": "AMEX:XLK",
+      "kind": "sector"
+    },
+    {
+      "id": 30,
+      "market": "US",
+      "display_name": "Financials",
+      "tv_symbol": "AMEX:XLF",
+      "provider_symbol": "AMEX:XLF",
+      "kind": "sector"
+    },
+    {
+      "id": 31,
+      "market": "US",
+      "display_name": "Energy",
+      "tv_symbol": "AMEX:XLE",
+      "provider_symbol": "AMEX:XLE",
+      "kind": "sector"
+    },
+    {
+      "id": 32,
+      "market": "US",
+      "display_name": "Health Care",
+      "tv_symbol": "AMEX:XLV",
+      "provider_symbol": "AMEX:XLV",
+      "kind": "sector"
+    },
+    {
+      "id": 33,
+      "market": "US",
+      "display_name": "Cons Discretionary",
+      "tv_symbol": "AMEX:XLY",
+      "provider_symbol": "AMEX:XLY",
+      "kind": "sector"
+    },
+    {
+      "id": 34,
+      "market": "US",
+      "display_name": "Cons Staples",
+      "tv_symbol": "AMEX:XLP",
+      "provider_symbol": "AMEX:XLP",
+      "kind": "sector"
+    },
+    {
+      "id": 35,
+      "market": "US",
+      "display_name": "Industrials",
+      "tv_symbol": "AMEX:XLI",
+      "provider_symbol": "AMEX:XLI",
+      "kind": "sector"
+    },
+    {
+      "id": 36,
+      "market": "US",
+      "display_name": "Materials",
+      "tv_symbol": "AMEX:XLB",
+      "provider_symbol": "AMEX:XLB",
+      "kind": "sector"
+    },
+    {
+      "id": 37,
+      "market": "US",
+      "display_name": "Utilities",
+      "tv_symbol": "AMEX:XLU",
+      "provider_symbol": "AMEX:XLU",
+      "kind": "sector"
+    },
+    {
+      "id": 38,
+      "market": "US",
+      "display_name": "Real Estate",
+      "tv_symbol": "AMEX:XLRE",
+      "provider_symbol": "AMEX:XLRE",
+      "kind": "sector"
+    },
+    {
+      "id": 39,
+      "market": "US",
+      "display_name": "Comm Services",
+      "tv_symbol": "AMEX:XLC",
+      "provider_symbol": "AMEX:XLC",
+      "kind": "sector"
+    },
+    {
+      "id": 40,
+      "market": "US",
+      "display_name": "Semiconductors",
+      "tv_symbol": "NASDAQ:SMH",
+      "provider_symbol": "NASDAQ:SMH",
+      "kind": "industry"
+    },
+    {
+      "id": 41,
+      "market": "US",
+      "display_name": "Software",
+      "tv_symbol": "CBOE:IGV",
+      "provider_symbol": "CBOE:IGV",
+      "kind": "industry"
+    },
+    {
+      "id": 42,
+      "market": "US",
+      "display_name": "Cybersecurity",
+      "tv_symbol": "NASDAQ:CIBR",
+      "provider_symbol": "NASDAQ:CIBR",
+      "kind": "industry"
+    },
+    {
+      "id": 43,
+      "market": "US",
+      "display_name": "Cloud Computing",
+      "tv_symbol": "NASDAQ:SKYY",
+      "provider_symbol": "NASDAQ:SKYY",
+      "kind": "industry"
+    },
+    {
+      "id": 44,
+      "market": "US",
+      "display_name": "Biotech",
+      "tv_symbol": "AMEX:XBI",
+      "provider_symbol": "AMEX:XBI",
+      "kind": "industry"
+    },
+    {
+      "id": 45,
+      "market": "US",
+      "display_name": "Pharma",
+      "tv_symbol": "AMEX:XPH",
+      "provider_symbol": "AMEX:XPH",
+      "kind": "industry"
+    },
+    {
+      "id": 46,
+      "market": "US",
+      "display_name": "Medical Devices",
+      "tv_symbol": "AMEX:IHI",
+      "provider_symbol": "AMEX:IHI",
+      "kind": "industry"
+    },
+    {
+      "id": 47,
+      "market": "US",
+      "display_name": "Regional Banks",
+      "tv_symbol": "AMEX:KRE",
+      "provider_symbol": "AMEX:KRE",
+      "kind": "industry"
+    },
+    {
+      "id": 48,
+      "market": "US",
+      "display_name": "Homebuilders",
+      "tv_symbol": "AMEX:XHB",
+      "provider_symbol": "AMEX:XHB",
+      "kind": "industry"
+    },
+    {
+      "id": 49,
+      "market": "US",
+      "display_name": "Home Construction",
+      "tv_symbol": "CBOE:ITB",
+      "provider_symbol": "CBOE:ITB",
+      "kind": "industry"
+    },
+    {
+      "id": 50,
+      "market": "US",
+      "display_name": "Retail",
+      "tv_symbol": "AMEX:XRT",
+      "provider_symbol": "AMEX:XRT",
+      "kind": "industry"
+    },
+    {
+      "id": 51,
+      "market": "US",
+      "display_name": "Aerospace & Defense",
+      "tv_symbol": "CBOE:ITA",
+      "provider_symbol": "CBOE:ITA",
+      "kind": "industry"
+    },
+    {
+      "id": 52,
+      "market": "US",
+      "display_name": "Oil & Gas E&P",
+      "tv_symbol": "AMEX:XOP",
+      "provider_symbol": "AMEX:XOP",
+      "kind": "industry"
+    },
+    {
+      "id": 53,
+      "market": "US",
+      "display_name": "Oil Services",
+      "tv_symbol": "AMEX:OIH",
+      "provider_symbol": "AMEX:OIH",
+      "kind": "industry"
+    },
+    {
+      "id": 54,
+      "market": "US",
+      "display_name": "Airlines",
+      "tv_symbol": "AMEX:JETS",
+      "provider_symbol": "AMEX:JETS",
+      "kind": "industry"
+    },
+    {
+      "id": 55,
+      "market": "US",
+      "display_name": "Metals & Mining",
+      "tv_symbol": "AMEX:XME",
+      "provider_symbol": "AMEX:XME",
+      "kind": "industry"
+    },
+    {
+      "id": 56,
+      "market": "US",
+      "display_name": "Gold Miners",
+      "tv_symbol": "AMEX:GDX",
+      "provider_symbol": "AMEX:GDX",
+      "kind": "industry"
+    },
+    {
+      "id": 57,
+      "market": "US",
+      "display_name": "Solar",
+      "tv_symbol": "AMEX:TAN",
+      "provider_symbol": "AMEX:TAN",
+      "kind": "industry"
+    }
+  ],
+  "sector_constituents": [
+    {
+      "id": 1,
+      "market": "IN",
+      "sector": "PSU Bank",
+      "ticker": "SBIN",
+      "updated_at": "2026-11-24T13:59:27.511Z"
+    },
+    {
+      "id": 2,
+      "market": "IN",
+      "sector": "Bank",
+      "ticker": "SBIN",
+      "updated_at": "2026-11-24T13:59:27.514Z"
+    }
+  ],
+  "symbol_map": [],
+  "provider_session": [],
+  "quotes": [],
+  "backup_log": [],
+  "price_history": [],
+  "holidays": [],
+  "user_settings": [],
+  "strategy_tags": [],
+  "trades": [],
+  "stock_notes": [],
+  "weekly_reflections": [],
+  "_seq": {
+    "sector_map": 57
+  }
+}

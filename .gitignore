@@ -41,5 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local dev data (mock Supabase store) - never commit real trade data
-/data/dev-store.json
+# local dev data (mock Supabase store) now lives under the OS temp dir
+# (lib/db/local-store.ts), never inside the project - nothing to ignore here.

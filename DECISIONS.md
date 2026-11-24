@@ -12,8 +12,15 @@ stop and ask for these.
   Every repository function in `lib/db/*` checks `isSupabaseConfigured()`
   and calls the real Postgres query when Supabase env vars are present,
   otherwise falls back to the local store — so wiring in the real project
-  later is flipping env vars, not a rewrite. The local store file lives at
-  `data/dev-store.json` and is git-ignored (never commit real trade data).
+  later is flipping env vars, not a rewrite. The local store file lives
+  under the OS temp directory (`os.tmpdir()`), not the project folder —
+  deployed to Vercel without Supabase, the project bundle itself is
+  read-only, and `/tmp` is the only writable path a serverless function
+  gets. That also means data doesn't persist reliably on a Vercel
+  deployment without Supabase: `/tmp` is wiped on every cold start and
+  isn't shared between concurrent instances, so two people (or two
+  requests) can see different data. Fine for "look around the pages";
+  Supabase is the real fix once it exists.
 - **Cache Components (Next.js 16's new default caching model) is turned
   off** (`next.config.ts`). This is a small, always-dynamic, two-user app
   (live prices, per-user auth) — the simpler "nothing cached unless you

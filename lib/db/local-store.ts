@@ -1,11 +1,21 @@
 /**
  * Local dev persistence standing in for Supabase (DECISIONS.md). A single
- * JSON file under `data/`, read-modify-written through one queue so
- * concurrent requests in `next dev` don't clobber each other. Never used
- * once `isSupabaseConfigured()` is true.
+ * JSON file, read-modify-written through one queue so concurrent requests
+ * in `next dev` don't clobber each other. Never used once
+ * `isSupabaseConfigured()` is true.
+ *
+ * Lives under the OS temp directory, not the project folder: Vercel's
+ * serverless functions can only write to `/tmp` (the deployed bundle
+ * itself is read-only), and `os.tmpdir()` resolves to exactly that in
+ * production, while still being an ordinary writable folder in local dev.
+ * This is why Supabase is the real answer for anything beyond "look
+ * around" on a deployed URL - `/tmp` on Vercel is wiped on every cold
+ * start and isn't shared between concurrent instances, so two people (or
+ * even two requests) can see different data.
  */
 
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import type {
   AlertRawRow,
@@ -29,7 +39,7 @@ import type {
   WeeklyReflectionRow,
 } from "./schema-types";
 
-const STORE_PATH = path.join(process.cwd(), "data", "dev-store.json");
+const STORE_PATH = path.join(os.tmpdir(), "my-journey-dev-store.json");
 
 export interface DevStoreShape {
   allowed_users: AllowedUserRow[];

@@ -1,10 +1,11 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetStoreForTests } from "./local-store";
 import { getUserSettings } from "./settings";
 
-const STORE_PATH = path.join(process.cwd(), "data", "dev-store.json");
+const STORE_PATH = path.join(os.tmpdir(), "my-journey-dev-store.json");
 
 beforeEach(async () => {
   await __resetStoreForTests();
