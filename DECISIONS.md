@@ -208,3 +208,41 @@ stop and ask for these.
   to a new secret. Zero message edits needed for the two stock-alert
   duplicates as a result - only the sector-board duplicate needs the
   URL's `?secret=` fallback above.
+
+## Zerodha Kite Connect (India live data)
+
+- **India switches from mock to the real Kite provider the moment
+  `KITE_API_KEY`/`KITE_API_SECRET` are set** (`lib/providers/index.ts`) -
+  not conditioned on "is there a valid token right now." Once connected
+  at all, an expired daily login should show the last good cached price
+  marked stale (BRIEF.md §10: "fall back to last close, never crash"),
+  which `lib/quotes-cache.ts` already does whenever a provider returns
+  nothing - silently swapping back to fabricated mock numbers on a lapsed
+  Kite session would be worse, not more honest.
+- **Plain `fetch` calls instead of the `kiteconnect` npm SDK**
+  (`lib/zerodha/auth.ts`, `lib/providers/kite.ts`) - only three REST
+  calls are ever needed (build the login URL, exchange `request_token`,
+  quotes/historical), so a whole SDK dependency for that is more surface
+  than it's worth.
+- **Token expiry is estimated as the next 6:00 AM IST**, since Kite's API
+  never actually returns an explicit expiry - it just invalidates the
+  previous day's session around that time (`lib/zerodha/auth.ts`'s
+  `next6amIst`). Shown in Settings so "reconnect" never comes as a
+  surprise.
+- **Historical candles need Kite's own numeric `instrument_token`, not a
+  trading symbol** - `lib/zerodha/instruments.ts` fetches and caches
+  NSE's full instruments dump (a large CSV) once per process (24h TTL)
+  and looks up each ticker by `tradingsymbol`. The parser reads the token
+  and symbol columns positionally rather than with a general CSV parser,
+  since both come before the one column (`name`) that can itself contain
+  a comma - tested against exactly that case.
+- **The 2-year sector/stock history backfill (BRIEF.md §7.2) is not
+  built yet**, even though the Kite provider itself is live. That's a
+  separate, rate-limited (Kite: ~3 req/s), chunked/resumable batch job
+  across every tracked sector and ticker - real infra of its own, not
+  something to rush alongside wiring up the connection itself. Sectors
+  still work from webhook data alone in the meantime; only "2 years of
+  backfilled history" is missing.
+- **No nightly Saturday refresh cron for Kite data either** - same
+  reasoning as the backup/health crons already noted above: real infra
+  that doesn't exist yet, not quietly assumed to work.

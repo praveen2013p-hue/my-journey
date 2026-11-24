@@ -3,9 +3,11 @@ import { StrategyTagsManager } from "@/components/settings/StrategyTagsManager";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader } from "@/components/PageHeader";
 import { verifySession } from "@/lib/auth/dal";
+import { isOwnerEmail } from "@/lib/auth/allowed-emails";
 import { getAlertHealth } from "@/lib/alert-health";
 import { getConstituentCounts } from "@/lib/db/sector-constituents";
 import { listAllQuotes } from "@/lib/db/quotes";
+import { getZerodhaSession } from "@/lib/db/provider-session";
 import { listSectorMap, listUnresolvedSectors, seedSectorMapIfEmpty } from "@/lib/db/sector-map";
 import { getAppSettings } from "@/lib/db/settings";
 import { listStrategyTags } from "@/lib/db/strategy-tags";
@@ -13,11 +15,17 @@ import { listUnmappedSymbols } from "@/lib/db/symbol-map";
 import { getFreshnessData } from "@/lib/freshness-data";
 import { formatIst } from "@/lib/format-ist";
 import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
+import { buildKiteLoginUrl } from "@/lib/zerodha/auth";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ zerodha?: string }>;
+}) {
   const session = await verifySession();
+  const sp = await searchParams;
   await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
-  const [freshness, appSettings, health, unmapped, indiaSectors, unresolvedSectors, constituentCounts, quotes, strategyTags] =
+  const [freshness, appSettings, health, unmapped, indiaSectors, unresolvedSectors, constituentCounts, quotes, strategyTags, zerodhaSession] =
     await Promise.all([
       getFreshnessData(),
       getAppSettings(),
@@ -28,7 +36,11 @@ export default async function SettingsPage() {
       getConstituentCounts("IN"),
       listAllQuotes(),
       listStrategyTags(session.userId),
+      getZerodhaSession(),
     ]);
+
+  const kiteConfigured = Boolean(process.env.KITE_API_KEY && process.env.KITE_API_SECRET);
+  const isOwner = isOwnerEmail(session.email);
 
   return (
     <>
@@ -189,23 +201,51 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-border bg-panel p-5">
         <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Zerodha connection</h2>
+        {sp.zerodha === "connected" && (
+          <div className="mb-3 rounded-[10px] border border-pos-border bg-pos-wash px-4 py-2.5 text-sm font-medium text-pos">
+            Connected. India prices will start using Kite shortly.
+          </div>
+        )}
+        {sp.zerodha === "error" && (
+          <div className="mb-3 rounded-[10px] border border-neg-border bg-neg-wash px-4 py-2.5 text-sm font-medium text-neg">
+            Couldn&apos;t connect — the Kite login was cancelled or failed. Try again.
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full border border-border-strong bg-chip-neutral px-2.5 py-0.5 text-xs font-semibold text-muted">
-            Not connected
-          </span>
-          <button
-            type="button"
-            disabled
-            title="Needs a Kite Connect API key and secret, and Praveen's ₹500/month plan (BRIEF.md §2) - set KITE_API_KEY and KITE_API_SECRET first."
-            className="min-h-[40px] cursor-not-allowed rounded-lg border border-border-strong bg-panel-alt px-3.5 text-sm font-medium text-muted"
+          <span
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+              zerodhaSession
+                ? "border-pos-border bg-pos-wash text-pos"
+                : "border-border-strong bg-chip-neutral text-muted"
+            }`}
           >
-            Connect Zerodha
-          </button>
+            {zerodhaSession ? "Connected" : "Not connected"}
+          </span>
+          {!isOwner ? (
+            <span className="text-xs text-muted">Only the account owner can connect Zerodha.</span>
+          ) : !kiteConfigured ? (
+            <button
+              type="button"
+              disabled
+              title="Needs a Kite Connect API key and secret, and Praveen's ₹500/month plan (BRIEF.md §2) - set KITE_API_KEY and KITE_API_SECRET first."
+              className="min-h-[40px] cursor-not-allowed rounded-lg border border-border-strong bg-panel-alt px-3.5 text-sm font-medium text-muted"
+            >
+              Connect Zerodha
+            </button>
+          ) : (
+            <a
+              href={buildKiteLoginUrl()}
+              className="flex min-h-[40px] items-center rounded-lg border border-gold bg-gold px-3.5 text-sm font-semibold text-bg hover:bg-gold-hover"
+            >
+              {zerodhaSession ? "Reconnect Zerodha (10 seconds)" : "Connect Zerodha"}
+            </a>
+          )}
         </div>
         <p className="mt-2.5 text-xs text-muted">
-          India prices use the mock provider until Zerodha is connected. Token expiry: —. Reminder: the Kite Connect
-          plan is a paid ₹500/month subscription Praveen activates when ready (BRIEF.md §2) - this app never places
-          orders through it, data access only.
+          India prices use the mock provider until Zerodha is connected. Token expiry:{" "}
+          {formatIst(zerodhaSession?.expiresAt ?? null)}. Kite logs out every day, so reconnecting daily is normal,
+          not a problem. Reminder: the Kite Connect plan is a paid ₹500/month subscription (BRIEF.md §2) - this app
+          never places orders through it, data access only.
         </p>
       </section>
 

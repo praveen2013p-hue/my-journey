@@ -226,20 +226,27 @@ nothing requires all of them at once.
 
 ### Setting up Zerodha Kite Connect (India live data)
 
-Only needed once you're ready to pay for the ₹500/month plan — the app
-runs on mock India prices until then.
+Live and working once you've done this once:
 
-1. Go to [developers.kite.trade](https://developers.kite.trade/) and
-   create an app. Set the redirect URL to
+1. Go to [developers.kite.trade](https://developers.kite.trade/), pay for
+   the ₹500/month plan, and create an app. Set the redirect URL to
    `https://<your-site>/api/zerodha/callback`.
 2. Copy the **API key** and **API secret** into `KITE_API_KEY` /
    `KITE_API_SECRET`.
-3. The Settings page shows a Zerodha connection status, but the actual
-   "Connect Zerodha" OAuth flow (callback, token exchange, daily
-   reconnect) isn't wired up yet - it needs those two keys to exist
-   first, and is the next real step once you've bought the plan. Tell me
-   when you've set `KITE_API_KEY`/`KITE_API_SECRET` and I'll build that
-   flow and switch India prices over from the mock provider.
+3. On Settings, click **Connect Zerodha** (only the owner account - the
+   first email in `ALLOWED_EMAILS` - sees this button) and log in with
+   your Kite credentials. The app never sees or stores your password,
+   only an access token, encrypted at rest (`TOKEN_ENC_KEY`).
+4. Kite logs that token out every day (~6am IST) - Settings shows the
+   exact expiry and a **Reconnect Zerodha** button once it's expired.
+   This is expected daily maintenance, not a bug: pages never crash or
+   block on it, they just show the last good price marked stale until
+   you reconnect.
+
+Not built yet even with Kite connected: the 2-year historical backfill
+for sector indices (BRIEF.md §7.2) and the Saturday refresh/nightly
+backup crons (§11) - all three are separate, bigger pieces of
+infrastructure on their own (see `DECISIONS.md`).
 
 ### Deploying to Vercel
 
