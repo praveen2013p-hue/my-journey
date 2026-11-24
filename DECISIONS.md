@@ -6,21 +6,36 @@ stop and ask for these.
 
 ## Infra / environment
 
-- **No Supabase project yet.** Praveen couldn't create one in this session.
-  Phase 1 runs against a local JSON-file store (`lib/db/local-store.ts`) that
-  mirrors the exact table/column shapes in `supabase/migrations/0001_init.sql`.
-  Every repository function in `lib/db/*` checks `isSupabaseConfigured()`
-  and calls the real Postgres query when Supabase env vars are present,
+- **Supabase project connected** (as of this entry). Until now, the app ran
+  against a local JSON-file store (`lib/db/local-store.ts`) that mirrors the
+  exact table/column shapes in `supabase/migrations/0001_init.sql`. Every
+  repository function in `lib/db/*` checks `isSupabaseConfigured()` and
+  calls the real Postgres query when Supabase env vars are present,
   otherwise falls back to the local store — so wiring in the real project
-  later is flipping env vars, not a rewrite. The local store file lives
-  under the OS temp directory (`os.tmpdir()`), not the project folder —
-  deployed to Vercel without Supabase, the project bundle itself is
-  read-only, and `/tmp` is the only writable path a serverless function
-  gets. That also means data doesn't persist reliably on a Vercel
-  deployment without Supabase: `/tmp` is wiped on every cold start and
-  isn't shared between concurrent instances, so two people (or two
-  requests) can see different data. Fine for "look around the pages";
-  Supabase is the real fix once it exists.
+  was flipping env vars, not a rewrite. The local store still exists and is
+  still what runs with no Supabase configured (e.g. a fresh clone, or local
+  dev with an empty `.env.local`): it lives under the OS temp directory
+  (`os.tmpdir()`), not the project folder, since a Vercel deployment's
+  bundle is read-only and `/tmp` is the only writable path a serverless
+  function gets — and `/tmp` is wiped on every cold start and isn't shared
+  between concurrent instances, so without Supabase two people (or two
+  requests) could see different data. None of that applies now that
+  Supabase is connected.
+- **Mock-session `userId` resolves to a real Supabase Auth user, not the
+  raw email** (`lib/auth/supabase-user-id.ts`), once Supabase is
+  configured. Every per-user table (`trades`, `strategy_tags`,
+  `user_settings`, `stock_notes`, `weekly_reflections`) has
+  `user_id uuid references auth.users (id)` — a real foreign key — so
+  inserting the email string as `user_id` would fail outright. Instead,
+  the first time each allow-listed email is seen, the service-role admin
+  API looks it up (or lazily creates it, `email_confirm: true`, no
+  password) in `auth.users` and uses that row's real id from then on. This
+  keeps "pick your account" working exactly as before while making every
+  per-user table Supabase-compatible immediately, without waiting on full
+  Google OAuth. When real Google sign-in is wired up later, signing in
+  with the same email is expected to link to this same row (Supabase
+  matches existing users by email by default) — worth re-confirming at
+  that point, not assumed here.
 - **Cache Components (Next.js 16's new default caching model) is turned
   off** (`next.config.ts`). This is a small, always-dynamic, two-user app
   (live prices, per-user auth) — the simpler "nothing cached unless you
