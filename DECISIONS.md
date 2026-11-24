@@ -274,39 +274,3 @@ stop and ask for these.
   and the price-history backfill can all be in flight at once and still
   never exceed Kite's real limit. Quotes are exempt - one batched call
   covers any number of symbols, so there's nothing to throttle there.
-
-## Real Google sign-in (Supabase Auth)
-
-- **The mock "pick your account" buttons only render when Supabase isn't
-  configured** (`app/login/page.tsx`) - real "Continue with Google"
-  replaces them entirely once it is, rather than offering both. Keeps
-  exactly one sign-in path active at a time: local dev without Supabase
-  still works via mock auth, and a configured deployment never shows a
-  stand-in next to the real thing.
-- **`lib/auth/dal.ts` branches the same way**: `supabase.auth.getUser()`
-  (re-validated against Supabase's own servers, not `getSession()`'s
-  cookie-only read) when configured, the original mock-cookie path
-  otherwise. The allow-list is re-checked in both branches and again in
-  `app/auth/callback/route.ts` - completing Google OAuth proves who you
-  are, not that you're one of the two people this app is for (BRIEF.md
-  §2's "Anyone else is signed out").
-- **`lib/auth/supabase-user-id.ts` (the mock-session-to-real-UUID lookup
-  added when Supabase was first connected) is deleted, not kept
-  alongside.** Once Supabase is configured, the login page no longer
-  offers the mock buttons that function depended on, so it had no
-  remaining caller - the `auth.users` rows it already created for
-  Praveen's two emails stay in Supabase regardless of whether that file
-  exists; only the lookup code itself was unused.
-- **`proxy.ts` now does the real work of two different auth schemes**
-  depending on `isSupabaseConfigured()`, including refreshing the
-  Supabase session cookie on every request (their documented Next.js
-  pattern) - a Server Component can't write cookies itself, so without
-  this a renewed token would never reach the browser.
-- **Flagged, not silently assumed: whether Supabase links a real Google
-  sign-in to an `auth.users` row already created (by the now-deleted
-  lookup) for the same email**, rather than erroring as "already
-  registered." Asked Praveen to check Supabase's Authentication → Users
-  list and delete any pre-existing rows for his two emails before first
-  testing real Google sign-in, since no meaningful data was tied to them
-  in production - sidesteps the whole question instead of relying on
-  Supabase's default identity-linking behaviour working as hoped.
