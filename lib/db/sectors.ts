@@ -66,3 +66,25 @@ export async function countSectorSnapshotsForWeek(
   const store = await readStore();
   return store.sector_snapshots.filter((s) => s.market === market && s.week_ending === weekEnding).length;
 }
+
+/** Latest sector snapshot's received time, for the data-freshness strip (BRIEF.md §14.2). */
+export async function getLatestSectorSnapshotTime(): Promise<string | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("sector_snapshots")
+      .select("created_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.created_at ?? null;
+  }
+  const { readStore } = await import("./local-store");
+  const store = await readStore();
+  if (store.sector_snapshots.length === 0) return null;
+  return store.sector_snapshots.reduce(
+    (latest, s) => (s.created_at > latest ? s.created_at : latest),
+    store.sector_snapshots[0].created_at,
+  );
+}

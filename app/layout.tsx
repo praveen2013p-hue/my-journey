@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Cormorant_Garamond } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 const inter = Inter({
@@ -19,11 +20,17 @@ export const metadata: Metadata = {
   description: "Private swing-trading workspace for Praveen and his wife.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Fast, non-authoritative theme guess from the cookie the toggle sets
+  // client-side, so there's no flash on reload. The (app) layout syncs this
+  // against the signed-in user's saved preference once it has a session.
+  const cookieStore = await cookies();
+  const theme = cookieStore.get("mj_theme")?.value === "light" ? "light" : "dark";
+
   return (
     <html
       lang="en"
-      data-theme="dark"
+      data-theme={theme}
       className={`${inter.variable} ${cormorant.variable} h-full antialiased`}
       suppressHydrationWarning
     >

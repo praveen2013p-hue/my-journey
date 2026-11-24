@@ -333,3 +333,42 @@ export async function findLatestBreakout(
     .sort((a, b) => (a.week_ending < b.week_ending ? 1 : -1));
   return matches[0] ?? null;
 }
+
+/** Latest time a secret-valid alert was received, for the data-freshness strip (BRIEF.md §14.2). */
+export async function getLatestAcceptedRawReceivedAt(): Promise<string | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("alerts_raw")
+      .select("received_at")
+      .eq("accepted", true)
+      .order("received_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.received_at ?? null;
+  }
+  const store = await readStore();
+  const accepted = store.alerts_raw.filter((r) => r.accepted);
+  if (accepted.length === 0) return null;
+  return accepted.reduce((latest, r) => (r.received_at > latest ? r.received_at : latest), accepted[0].received_at);
+}
+
+/** Every alerts_raw row received since `sinceIso`, for Settings -> "Alert health" (BRIEF.md §17.1). */
+export async function listAlertsRawSince(
+  sinceIso: string,
+): Promise<Array<{ received_at: string; accepted: boolean }>> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("alerts_raw")
+      .select("received_at, accepted")
+      .gte("received_at", sinceIso);
+    if (error) throw error;
+    return data ?? [];
+  }
+  const store = await readStore();
+  return store.alerts_raw
+    .filter((r) => r.received_at >= sinceIso)
+    .map((r) => ({ received_at: r.received_at, accepted: r.accepted }));
+}
