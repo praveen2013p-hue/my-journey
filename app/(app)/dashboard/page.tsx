@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { OpenTradesCard } from "@/components/dashboard/OpenTradesCard";
 import { RegimeCard } from "@/components/dashboard/RegimeCard";
 import { TopSectorsCard } from "@/components/dashboard/TopSectorsCard";
 import { TriggersCard } from "@/components/dashboard/TriggersCard";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
-import { PageHeader, PhaseStub } from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader";
+import { verifySession } from "@/lib/auth/dal";
 import { getDashboardData } from "@/lib/dashboard-data";
+import { getOpenTradesWidgetData } from "@/lib/dashboard-open-trades";
 import { getFreshnessData } from "@/lib/freshness-data";
 
 export default async function DashboardPage({
@@ -13,10 +16,12 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
+  const session = await verifySession();
   const { week } = await searchParams;
-  const [freshness, data] = await Promise.all([
+  const [freshness, data, openTrades] = await Promise.all([
     getFreshnessData(),
     getDashboardData(week),
+    getOpenTradesWidgetData(session.userId),
   ]);
 
   return (
@@ -50,11 +55,7 @@ export default async function DashboardPage({
 
       <TopSectorsCard sectors={data.topSectors} />
 
-      <PhaseStub
-        title="Open trades and P&L widget"
-        phase={3}
-        note="Needs the trades table and Journal (BRIEF.md §7.3 widget 4), which ship together in Phase 3."
-      />
+      <OpenTradesCard india={openTrades.india} us={openTrades.us} />
     </>
   );
 }
