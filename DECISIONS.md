@@ -258,3 +258,19 @@ stop and ask for these.
   `Promise.all` instead. Also made concurrent instrument-token lookups
   (`lib/zerodha/instruments.ts`) share one in-flight fetch of Kite's
   (multi-MB) instruments dump instead of each starting their own.
+- **A real rate limiter (`lib/rate-limiter.ts`) now throttles every Kite
+  historical-candles call to ~3/second** (BRIEF.md §7.2/§11's own number).
+  The parallelization above wasn't the whole story: Praveen reported
+  "almost all pages" slow, not just Performance, and
+  `lib/db/sector-metrics-orchestrator.ts` + `lib/traded-value.ts` already
+  fired off every sector's (and every sector's every constituent's)
+  history fetch via `Promise.all` - correct for the mock/Yahoo providers,
+  but against Kite's real ~3 req/s limit that's hundreds of concurrent
+  requests at once, almost certainly getting throttled/slowed by Kite
+  itself. One shared, lazily-armed limiter (no persistent timer, so it
+  behaves on a serverless instance) wraps the single network call inside
+  `lib/providers/kite.ts`'s `fetchDailyCandles`, so it holds regardless
+  of which page or job is asking - sector-metrics recompute, Performance,
+  and the price-history backfill can all be in flight at once and still
+  never exceed Kite's real limit. Quotes are exempt - one batched call
+  covers any number of symbols, so there's nothing to throttle there.

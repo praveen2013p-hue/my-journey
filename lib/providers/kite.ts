@@ -11,11 +11,22 @@
  */
 
 import { getZerodhaSession } from "../db/provider-session";
+import { createRateLimiter } from "../rate-limiter";
 import { weekEndingForAlert } from "../time";
 import { getInstrumentToken } from "../zerodha/instruments";
 import type { DailyBar, MarketDataProvider, ProviderQuote, WeeklyBar } from "./types";
 
 const KITE_BASE = "https://api.kite.trade";
+
+/**
+ * BRIEF.md §7.2/§11: "Kite historical allows ~3 requests/second." Quotes
+ * are exempt - one batched call covers any number of symbols - but every
+ * historical-candles call is its own request, and callers like the
+ * sector-metrics recompute or Performance's shortlist can easily want
+ * dozens of them at once. One shared limiter per process, not per call
+ * site, so it holds regardless of which page or job triggered the calls.
+ */
+const historicalRateLimit = createRateLimiter(3);
 
 function authHeaders(accessToken: string): HeadersInit {
   return {
@@ -41,7 +52,7 @@ async function fetchDailyCandles(
   toDate: string,
 ): Promise<DailyCandle[]> {
   const url = `${KITE_BASE}/instruments/historical/${instrumentToken}/day?from=${fromDate}&to=${toDate}`;
-  const response = await fetch(url, { headers: authHeaders(accessToken) });
+  const response = await historicalRateLimit(() => fetch(url, { headers: authHeaders(accessToken) }));
   if (!response.ok) return [];
 
   const body = (await response.json().catch(() => null)) as { data?: { candles?: unknown[] } } | null;

@@ -3,6 +3,13 @@ import { getLatestSectorSnapshotTime } from "./db/sectors";
 import { formatIst } from "./format-ist";
 import { isMarketOpen } from "./market-hours";
 
+function getMarketsNote(): string {
+  const indiaLive = Boolean(process.env.KITE_API_KEY);
+  return indiaLive
+    ? "India live via Zerodha Kite · US delayed ~15 min (Yahoo)"
+    : "India mock data until Zerodha is connected · US delayed ~15 min (Yahoo)";
+}
+
 export interface FreshnessData {
   pricesLabel: string;
   pricesLevel: "green" | "amber" | "red";
@@ -22,7 +29,7 @@ export async function getFreshnessData(): Promise<FreshnessData> {
   return {
     pricesLabel: anyMarketOpen ? formatIst(new Date()) : "Market closed — showing last close",
     pricesLevel: anyMarketOpen ? "green" : "amber",
-    marketsNote: "India live · US delayed ~15 min — mock data until the live providers are wired in",
+    marketsNote: getMarketsNote(),
     alertsReceivedLabel: alertsAt ? formatIst(alertsAt) : "none yet",
     sectorSnapshotLabel: sectorAt ? formatIst(sectorAt) : "none yet",
   };
