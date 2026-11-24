@@ -85,25 +85,50 @@ export async function insertAlertRaw(
   body: Record<string, unknown>,
   accepted: boolean,
   reason: string | null,
-): Promise<void> {
+): Promise<number> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("alerts_raw")
-      .insert({ body, accepted, reason });
+      .insert({ body, accepted, reason })
+      .select("id")
+      .single();
     if (error) throw error;
-    return;
+    return data.id as number;
   }
 
-  await mutateStore((store) => {
+  return mutateStore((store) => {
+    const id = nextSeq(store, "alerts_raw");
     store.alerts_raw.push({
-      id: nextSeq(store, "alerts_raw"),
+      id,
       received_at: new Date().toISOString(),
       body,
       accepted,
       reason,
       processed_at: null,
     });
+    return id;
+  });
+}
+
+/** Records that a (secret-valid) raw alert finished its deferred processing. */
+export async function markAlertRawProcessed(
+  id: number,
+  reason: string | null,
+): Promise<void> {
+  const processed_at = new Date().toISOString();
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase.from("alerts_raw").update({ processed_at, reason }).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  await mutateStore((store) => {
+    const row = store.alerts_raw.find((r) => r.id === id);
+    if (row) {
+      row.processed_at = processed_at;
+      row.reason = reason;
+    }
   });
 }
 
