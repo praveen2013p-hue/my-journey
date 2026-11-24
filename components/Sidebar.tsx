@@ -29,17 +29,24 @@ const NAV_ITEMS = [
 
 const COLLAPSE_STORAGE_KEY = "mj.sidebar.collapsed";
 
+type Stage = 1 | 2 | 3 | 4 | null;
+
 interface SidebarProps {
   siteName: string;
   email: string;
-  regime: { india: "green" | "amber" | "red" | null; us: "green" | "amber" | "red" | null };
+  regime: { india: Stage; us: Stage };
 }
 
-function regimeDotClass(status: "green" | "amber" | "red" | null): string {
-  if (status === "green") return "bg-pos";
-  if (status === "amber") return "bg-warn";
-  if (status === "red") return "bg-neg";
+/** BRIEF.md §8: green = Stage 2, yellow = Stage 1, red = Stage 3 or 4. */
+function regimeDotClass(stage: Stage): string {
+  if (stage === 2) return "bg-pos";
+  if (stage === 1) return "bg-stage1";
+  if (stage === 3 || stage === 4) return "bg-neg";
   return "bg-border-strong";
+}
+
+function regimeLabel(stage: Stage): string {
+  return stage === null ? "—" : `Stage ${stage}`;
 }
 
 export function Sidebar({ siteName, email, regime }: SidebarProps) {
@@ -100,14 +107,14 @@ export function Sidebar({ siteName, email, regime }: SidebarProps) {
               <span>India</span>
               <span className="flex items-center gap-2 text-text">
                 <span className={`inline-block h-[9px] w-[9px] rounded-full ${regimeDotClass(regime.india)}`} />
-                {regime.india ? "Stage 2" : "—"}
+                {regimeLabel(regime.india)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span>US</span>
               <span className="flex items-center gap-2 text-text">
                 <span className={`inline-block h-[9px] w-[9px] rounded-full ${regimeDotClass(regime.us)}`} />
-                {regime.us ? "Stage 3" : "—"}
+                {regimeLabel(regime.us)}
               </span>
             </div>
           </>

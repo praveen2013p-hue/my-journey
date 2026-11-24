@@ -1,12 +1,15 @@
+import { RegimeBanner } from "@/components/RegimeBanner";
 import { Sidebar } from "@/components/Sidebar";
 import { verifySession } from "@/lib/auth/dal";
 import { getAppSettings, getUserSettings } from "@/lib/db/settings";
+import { getBothMarketRegimes } from "@/lib/regime";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await verifySession();
-  const [appSettings, userSettings] = await Promise.all([
+  const [appSettings, userSettings, { india, us }] = await Promise.all([
     getAppSettings(),
     getUserSettings(session.userId),
+    getBothMarketRegimes(),
   ]);
 
   return (
@@ -15,11 +18,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar
         siteName={appSettings.site_name}
         email={session.email}
-        // Regime light wiring (price_history -> weinsteinStage) lands with
-        // the rest of the Sectors/Dashboard engine in Phase 2 (BRIEF.md §12).
-        regime={{ india: null, us: null }}
+        regime={{ india: india.stage, us: us.stage }}
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden p-4 md:p-7">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden p-4 md:p-7">
+        <RegimeBanner india={india} us={us} />
+        {children}
+      </div>
     </div>
   );
 }
