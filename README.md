@@ -3,27 +3,46 @@
 A private swing-trading workspace for Praveen and his wife — built from
 `BRIEF.md`. This README is written for Praveen, not assuming you write code.
 
-## What's built so far (Phase 1)
+## What's built (Phases 1, 2 and 3 - everything in BRIEF.md)
 
 - Sign-in restricted to two Google accounts (allow-listed by email)
-- A webhook that receives your TradingView alerts and stores them
+- A webhook that receives your TradingView alerts (stock alerts and the
+  weekly sector-board snapshot) and stores them
 - Breakouts and Pullbacks pages: filter by week, date range, market, grade,
   sector, industry; live/last prices; a detail panel per stock with a
   weekly chart, your own notes, and fundamentals when the alert includes them
-- The "New since last visit" banner and badges
-- A Settings page showing alert health and any ticker that needs a manual
-  symbol mapping
+- Sectors page: ranked table (Stage, Mansfield RS, 4/13/26/52-week RS
+  change, traded value, 1-week deltas), focus-star rule, India/US toggle
+- Dashboard: this week's triggers, top focus sectors, market regime light,
+  open trades and P&L (India and US always kept separate)
+- Journal: log buy/sell trades, strategy tags, win rate/expectancy/
+  per-strategy results, open and closed tabs
+- Weekly Review: an auto-generated summary of each week (triggers, focus
+  sector changes, trades, win rate) plus your own free-text reflection
+- Performance: time-frame and market filters, trade stats (win rate,
+  profit factor, max drawdown, equity curve...), "if I had held" vs. your
+  actual exits, and how every triggered stock performed whether you bought
+  it or not
+- Settings: alert health, symbol mapping, sector constituents upload,
+  login-page quotes manager, strategy tags manager, Zerodha connection
+  status, and CSV/Excel downloads of your alerts, trades and sector data
+- The "New since last visit" banner and badges, data-freshness strip,
+  market-regime red banner
 - A login page, sidebar, dark/light theme — matching your `design/` reference
 
-Full list of what's deferred to Phase 2/3, and every default I picked
-instead of stopping to ask, is in `DECISIONS.md`.
+Every default I picked instead of stopping to ask - and every place a
+real account (Supabase, Zerodha) is still needed before something becomes
+fully real instead of mock data - is written down in `DECISIONS.md`.
 
 ## Running it right now, with no setup
 
 The app works today with **no Supabase project and no real Google
 sign-in** — it falls back to a local file for storage and a "pick your
 account" button instead of "Continue with Google" (see `DECISIONS.md`).
-This is only for Phase 1, while you don't yet have a Supabase project.
+This is fine for trying it out, but on a Vercel deployment without
+Supabase that local file isn't reliable storage (more on this under
+"Setting up Supabase" below) - it's there so you can look around and try
+every page before Supabase exists.
 
 ```bash
 npm install
@@ -75,10 +94,75 @@ curl -X POST http://localhost:3000/api/webhooks/tradingview \
 npm test
 ```
 
-70+ tests cover the Weinstein stage/RS math, the Quality Score, and the
+120+ tests cover the Weinstein stage/RS math, the Quality Score, the
 webhook (secret check, a repeated alert updating in place rather than
 duplicating, rate-limiting only wrong-secret requests, partial sector
-snapshots).
+snapshots), and the Journal/Performance trade math (win rate, expectancy,
+profit factor, max drawdown).
+
+### TradingView alert message format
+
+Point your TradingView alerts' webhook URL at
+`https://<your-site>/api/webhooks/tradingview`, with the alert message set
+to one of these three JSON shapes (every numeric value as a **string** -
+TradingView sends alert messages as plain text, and the site parses them):
+
+**Stock alert** (breakout or pullback):
+
+```json
+{
+  "secret": "your-webhook-secret",
+  "type": "stage2",
+  "ticker": "SBIN",
+  "exchange": "NSE",
+  "price": "812.5",
+  "open": "790.1",
+  "high": "818.9",
+  "low": "788.0",
+  "volume": "54231000",
+  "interval": "W",
+  "time": "2026-11-20 15:45",
+  "signal": "Weinstein Stage 2 breakout",
+  "grade": "A",
+  "breakoutLevel": "801.4",
+  "volRatio": "2.31",
+  "rs": "4.7",
+  "pctAboveMA": "9.8",
+  "overheadPct": "0",
+  "sector": "Finance",
+  "industry": "Regional Banks"
+}
+```
+
+Use `"signal": "Pullback"` (instead of "Weinstein Stage 2 breakout") for a
+pullback alert on the same ticker.
+
+**Fundamentals** (optional - add these same fields to a stock alert above,
+or send as a follow-up alert for the same ticker/week; all nullable):
+`marketCap`, `pe`, `epsTtm`, `epsGrowthYoY`, `epsGrowthQoQ`,
+`salesGrowthYoY`, `salesGrowthQoQ`, `roe`, `roce`, `debtToEquity`,
+`nextEarningsDate`.
+
+**Weekly sector-board snapshot** (one alert per sector/industry, or a
+batched array - a partial batch is accepted and shows "Partial snapshot: n
+of m sectors" rather than failing):
+
+```json
+{
+  "secret": "your-webhook-secret",
+  "type": "sectorBoard",
+  "market": "IN",
+  "week": "2026-11-16",
+  "rows": [
+    { "rank": 1, "sector": "Bank", "stage": 2, "rs": 6.1, "rsUp": true, "vsMA": 8.4, "chg4": 1.2, "focus": true }
+  ]
+}
+```
+
+`week` is the Monday the bar opened on; the site works out `week_ending`
+(that Friday) itself. The site always recomputes its own focus-star rule
+from Stage/RS/Δ4/Δ13 rather than trusting a sector row's own `focus`
+field (see `DECISIONS.md`).
 
 ## What each environment variable is, and how to get it
 
@@ -111,8 +195,11 @@ nothing requires all of them at once.
    `supabase/migrations/0001_init.sql`, and run it. This creates every
    table.
 6. Tell me once this is done — I'll then wire up real Google sign-in
-   through Supabase (replacing the Phase 1 "pick your account" button) and
-   remove the mock-login code.
+   through Supabase (replacing the "pick your account" button) and remove
+   the mock-login code. This is also when data finally persists reliably
+   on a Vercel deployment - without Supabase, the local-file store lives
+   in `/tmp` on Vercel, which is wiped on every cold start and isn't
+   shared between concurrent requests (see `DECISIONS.md`).
 
 ### Setting up Google OAuth (for real sign-in, after Supabase exists)
 
@@ -135,18 +222,29 @@ runs on mock India prices until then.
    `https://<your-site>/api/zerodha/callback`.
 2. Copy the **API key** and **API secret** into `KITE_API_KEY` /
    `KITE_API_SECRET`.
-3. In the app's Settings page (once built further), click **Connect
-   Zerodha** and log in with your Kite credentials — the app never sees or
-   stores your password, only a token that expires daily.
+3. The Settings page shows a Zerodha connection status, but the actual
+   "Connect Zerodha" OAuth flow (callback, token exchange, daily
+   reconnect) isn't wired up yet - it needs those two keys to exist
+   first, and is the next real step once you've bought the plan. Tell me
+   when you've set `KITE_API_KEY`/`KITE_API_SECRET` and I'll build that
+   flow and switch India prices over from the mock provider.
 
 ### Deploying to Vercel
+
+Already live for you at the URL you've been testing on, deployed straight
+from this repo's `master` branch. To redo this from scratch, or on a new
+project:
 
 1. Push this repo to GitHub (you already own GitHub/Vercel accounts per
    BRIEF.md).
 2. In Vercel, **New Project**, import the repo.
 3. Paste in every `.env.local` value as a Vercel **Environment Variable**
    (same names).
-4. Deploy. Use the resulting `https://....vercel.app` URL as your site's
+4. In the project's **Settings → Deployment Protection**, turn off
+   "Vercel Authentication" - it's on by default for new projects and would
+   make your wife sign in with a Vercel account just to reach the login
+   page, which has nothing to do with this app's own two-email sign-in.
+5. Deploy. Use the resulting `https://....vercel.app` URL as your site's
    final URL for the Google OAuth and Kite redirect settings above, and as
    the webhook URL in your TradingView alerts
    (`https://<your-site>/api/webhooks/tradingview`).
@@ -164,14 +262,16 @@ runs on mock India prices until then.
 ## Project layout
 
 ```
-app/              Next.js pages and API routes
-components/       React components (sidebar, tables, side panel, charts)
-lib/              Business logic: Weinstein calculations, Quality Score,
-                  webhook processing, the db layer, market data providers
-lib/db/           Repository functions (branch: real Supabase vs local store)
+app/              Next.js pages (Dashboard, Breakouts, Pullbacks, Sectors,
+                   Journal, Weekly Review, Performance, Settings) and API routes
+app/api/export/    CSV/.xlsx download endpoints (Settings -> Data downloads)
+components/        React components, one subfolder per page
+lib/               Business logic: Weinstein calculations, Quality Score,
+                   trade stats, webhook processing, market data providers
+lib/db/            Repository functions (branch: real Supabase vs local store)
 supabase/migrations/   The real Postgres schema + RLS, ready for when
                         Supabase exists (see "Setting up Supabase" above)
-design/           Your 5 reference screens (visual source of truth)
-scripts/          seed-sample-alerts.mjs - post sample data for testing
-DECISIONS.md      Every default I picked that BRIEF.md didn't settle
+design/            Your 5 reference screens (visual source of truth)
+scripts/           seed-sample-alerts.mjs - post sample data for testing
+DECISIONS.md       Every default I picked that BRIEF.md didn't settle
 ```

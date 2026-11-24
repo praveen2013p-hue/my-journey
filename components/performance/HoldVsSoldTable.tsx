@@ -6,8 +6,8 @@ import type { HoldVsSoldSummary } from "@/lib/performance-data";
 export function HoldVsSoldTable({ market, data }: { market: Market; data: HoldVsSoldSummary }) {
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-border bg-panel p-5" aria-label="If I had held">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">If I had held</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted">If I had held</h2>
         <Chip variant="neutral">Indicative - site math, not TradingView&apos;s</Chip>
       </div>
 
