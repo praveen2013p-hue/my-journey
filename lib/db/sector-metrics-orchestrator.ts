@@ -7,6 +7,9 @@
  */
 
 import { computeSectorRanking, type SnapshotLite } from "../sector-metrics";
+import { computeSectorIndexPriceChange1w, computeTradedValue } from "../traded-value";
+import { listConstituents } from "./sector-constituents";
+import { getSectorMapEntry } from "./sector-map";
 import {
   listSectorSnapshotHistory,
   upsertSectorMetric,
@@ -30,8 +33,22 @@ export async function computeAndStoreSectorMetrics(
   const ranked = computeSectorRanking(historyBySector, weekEnding);
 
   await Promise.all(
-    ranked.map((row) =>
-      upsertSectorMetric({
+    ranked.map(async (row) => {
+      // Each sector's extra metrics (index price, traded value) need
+      // their own provider calls and must never take the others down
+      // with them - the ranking/focus numbers above are already safe.
+      let priceChg1w: number | null = null;
+      let tradedValue: TradedValueFields = EMPTY_TRADED_VALUE;
+      try {
+        const mapEntry = await getSectorMapEntry(market, row.sector);
+        priceChg1w = await computeSectorIndexPriceChange1w(market, mapEntry?.provider_symbol ?? null);
+        const tickers = await listConstituents(market, row.sector);
+        tradedValue = await computeTradedValue(market, tickers, weekEnding);
+      } catch (err) {
+        console.error(`[sector-metrics] extra metrics failed for ${market}/${row.sector}`, err);
+      }
+
+      await upsertSectorMetric({
         market,
         week_ending: row.weekEnding,
         sector: row.sector,
@@ -41,15 +58,28 @@ export async function computeAndStoreSectorMetrics(
         d13: row.delta13,
         d26: row.delta26,
         d52: row.delta52,
-        traded_value: null,
-        tv_avg10: null,
-        tv_ratio: null,
+        traded_value: tradedValue.tradedValue,
+        tv_avg10: tradedValue.tvAvg10,
+        tv_ratio: tradedValue.tvRatio,
         is_focus: row.isFocus,
-        price_chg_1w: null,
+        price_chg_1w: priceChg1w,
         rs_chg_1w: row.rsChg1w,
-        traded_value_chg_1w: null,
+        traded_value_chg_1w: tradedValue.tradedValueChg1w,
         rank_move_1w: row.rankMove1w,
-      }),
-    ),
+      });
+    }),
   );
 }
+
+type TradedValueFields = {
+  tradedValue: number | null;
+  tvAvg10: number | null;
+  tvRatio: number | null;
+  tradedValueChg1w: number | null;
+};
+const EMPTY_TRADED_VALUE: TradedValueFields = {
+  tradedValue: null,
+  tvAvg10: null,
+  tvRatio: null,
+  tradedValueChg1w: null,
+};

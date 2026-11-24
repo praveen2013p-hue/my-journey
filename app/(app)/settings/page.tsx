@@ -1,18 +1,26 @@
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader, PhaseStub } from "@/components/PageHeader";
 import { getAlertHealth } from "@/lib/alert-health";
+import { getConstituentCounts } from "@/lib/db/sector-constituents";
+import { listSectorMap, listUnresolvedSectors, seedSectorMapIfEmpty } from "@/lib/db/sector-map";
 import { getAppSettings } from "@/lib/db/settings";
 import { listUnmappedSymbols } from "@/lib/db/symbol-map";
 import { getFreshnessData } from "@/lib/freshness-data";
 import { formatIst } from "@/lib/format-ist";
+import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
 
 export default async function SettingsPage() {
-  const [freshness, appSettings, health, unmapped] = await Promise.all([
-    getFreshnessData(),
-    getAppSettings(),
-    getAlertHealth(),
-    listUnmappedSymbols(),
-  ]);
+  await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
+  const [freshness, appSettings, health, unmapped, indiaSectors, unresolvedSectors, constituentCounts] =
+    await Promise.all([
+      getFreshnessData(),
+      getAppSettings(),
+      getAlertHealth(),
+      listUnmappedSymbols(),
+      listSectorMap("IN").then((rows) => rows.filter((r) => r.kind === "sector")),
+      listUnresolvedSectors(),
+      getConstituentCounts("IN"),
+    ]);
 
   return (
     <>
@@ -89,6 +97,82 @@ export default async function SettingsPage() {
         <p className="mt-2 text-xs text-muted">
           Editing a mapping (Kite/Yahoo symbol) is coming with the live-provider wiring.
         </p>
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
+          Sector constituents (India)
+        </h2>
+        <form
+          action="/api/sectors/constituents"
+          method="POST"
+          encType="multipart/form-data"
+          className="flex flex-wrap items-end gap-2.5"
+        >
+          <input type="hidden" name="market" value="IN" />
+          <div>
+            <label className="mb-1 block text-xs text-muted" htmlFor="sector-select">
+              Sector
+            </label>
+            <select
+              id="sector-select"
+              name="sector"
+              required
+              className="min-h-[44px] rounded-lg border border-border-strong bg-field px-3 text-text"
+            >
+              {indiaSectors.map((s) => (
+                <option key={s.id} value={s.display_name}>
+                  {s.display_name} {constituentCounts[s.display_name] ? `(${constituentCounts[s.display_name]})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted" htmlFor="csv-file">
+              CSV (one ticker per line)
+            </label>
+            <input
+              id="csv-file"
+              type="file"
+              name="file"
+              accept=".csv,text/csv,text/plain"
+              required
+              className="min-h-[44px] rounded-lg border border-border-strong bg-field px-3 py-2 text-text file:mr-3 file:rounded-md file:border-0 file:bg-panel-alt file:px-2.5 file:py-1 file:text-text"
+            />
+          </div>
+          <button
+            type="submit"
+            className="min-h-[44px] rounded-lg border border-gold bg-gold px-3.5 py-2 font-semibold text-bg hover:bg-gold-hover"
+          >
+            Upload
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-muted">
+          Replaces that sector&apos;s whole constituent list. Used for the Sectors page&apos;s traded-value column -
+          refresh monthly.
+        </p>
+
+        {unresolvedSectors.length > 0 && (
+          <div className="mt-4 border-t border-border pt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+              Unresolved sector indices ({unresolvedSectors.length})
+            </h3>
+            <p className="mb-2 text-xs text-muted">
+              No confirmed TradingView/provider symbol yet, so the Sectors page shows &ldquo;—&rdquo; for these
+              indices&apos; own 1W price change (their Stage/RS from your webhook still works fine).
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {unresolvedSectors.map((s) => (
+                <span
+                  key={s.id}
+                  className="rounded-full border border-warn-border bg-warn-wash px-2.5 py-0.5 text-xs font-semibold text-warn"
+                >
+                  {s.market} · {s.display_name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <PhaseStub
