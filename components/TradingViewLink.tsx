@@ -1,3 +1,5 @@
+"use client";
+
 /** BRIEF.md §14.1: opens in a NEW tab, in the user's own signed-in TradingView. */
 export function tradingViewUrl(exchange: string, ticker: string): string {
   return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(exchange)}%3A${encodeURIComponent(ticker)}`;

@@ -1,5 +1,6 @@
 import { RegimeBannerClient } from "@/components/RegimeBanner";
 import { Sidebar } from "@/components/Sidebar";
+import { SyncThemeFromSettings } from "@/components/SyncThemeFromSettings";
 import { verifySession } from "@/lib/auth/dal";
 import { getAppSettings, getUserSettings } from "@/lib/db/settings";
 
@@ -24,17 +25,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </div>
     </div>
-  );
-}
-
-/** Reconciles <html data-theme> with the signed-in user's saved preference (lib/db/settings.ts). */
-function SyncThemeFromSettings({ theme }: { theme: "dark" | "light" }) {
-  return (
-    <script
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{
-        __html: `(function(){try{document.documentElement.setAttribute('data-theme','${theme}');document.cookie='mj_theme=${theme}; path=/; max-age=31536000; samesite=lax';}catch(e){}})();`,
-      }}
-    />
   );
 }
