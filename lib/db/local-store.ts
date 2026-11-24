@@ -125,14 +125,25 @@ export function readStore(): Promise<DevStoreShape> {
  * Read-modify-write under the queue. `fn` mutates `store` in place (or
  * returns a value to hand back to the caller); the result is persisted
  * before the next queued operation runs.
+ *
+ * Skips the actual disk write when `fn` didn't change anything (e.g. a
+ * "find or create" call that found an existing row). This matters beyond
+ * performance: `data/dev-store.json` sits inside the project directory,
+ * so writing it on every request — even read-only "does this exist yet"
+ * checks — touches a file Next's dev server watches, which re-triggers a
+ * Fast Refresh reload, which re-runs the same request, which writes
+ * again: an infinite reload loop. Only a real change should touch the file.
  */
 export function mutateStore<T>(
   fn: (store: DevStoreShape) => T,
 ): Promise<T> {
   const task = queue.then(async () => {
     const store = await readStoreFile();
+    const before = JSON.stringify(store);
     const result = fn(store);
-    await writeStoreFile(store);
+    if (JSON.stringify(store) !== before) {
+      await writeStoreFile(store);
+    }
     return result;
   });
   queue = task.then(
