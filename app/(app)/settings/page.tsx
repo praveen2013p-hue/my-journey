@@ -1,17 +1,23 @@
+import { QuotesManager } from "@/components/settings/QuotesManager";
+import { StrategyTagsManager } from "@/components/settings/StrategyTagsManager";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
-import { PageHeader, PhaseStub } from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader";
+import { verifySession } from "@/lib/auth/dal";
 import { getAlertHealth } from "@/lib/alert-health";
 import { getConstituentCounts } from "@/lib/db/sector-constituents";
+import { listAllQuotes } from "@/lib/db/quotes";
 import { listSectorMap, listUnresolvedSectors, seedSectorMapIfEmpty } from "@/lib/db/sector-map";
 import { getAppSettings } from "@/lib/db/settings";
+import { listStrategyTags } from "@/lib/db/strategy-tags";
 import { listUnmappedSymbols } from "@/lib/db/symbol-map";
 import { getFreshnessData } from "@/lib/freshness-data";
 import { formatIst } from "@/lib/format-ist";
 import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
 
 export default async function SettingsPage() {
+  const session = await verifySession();
   await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
-  const [freshness, appSettings, health, unmapped, indiaSectors, unresolvedSectors, constituentCounts] =
+  const [freshness, appSettings, health, unmapped, indiaSectors, unresolvedSectors, constituentCounts, quotes, strategyTags] =
     await Promise.all([
       getFreshnessData(),
       getAppSettings(),
@@ -20,6 +26,8 @@ export default async function SettingsPage() {
       listSectorMap("IN").then((rows) => rows.filter((r) => r.kind === "sector")),
       listUnresolvedSectors(),
       getConstituentCounts("IN"),
+      listAllQuotes(),
+      listStrategyTags(session.userId),
     ]);
 
   return (
@@ -51,8 +59,8 @@ export default async function SettingsPage() {
         <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Alert health</h2>
         {health.missingThisWeek && (
           <div className="mb-3 flex items-center gap-3 rounded-[10px] border border-neg-border bg-neg-wash px-4 py-3 font-medium text-neg">
-            No alert has arrived yet this week (past Saturday 12:00 IST) — check TradingView's alert list and this
-            webhook's URL/secret.
+            No alert has arrived yet this week (past Saturday 12:00 IST) — check TradingView&apos;s alert list and
+            this webhook&apos;s URL/secret.
           </div>
         )}
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -175,11 +183,67 @@ export default async function SettingsPage() {
         )}
       </section>
 
-      <PhaseStub
-        title="Remaining Settings sections"
-        phase={3}
-        note="Quotes manager, strategy tags, Zerodha connection, data downloads and backup status (BRIEF.md §7.6) ship in Phase 3."
-      />
+      <QuotesManager quotes={quotes} />
+
+      <StrategyTagsManager tags={strategyTags} />
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Zerodha connection</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full border border-border-strong bg-chip-neutral px-2.5 py-0.5 text-xs font-semibold text-muted">
+            Not connected
+          </span>
+          <button
+            type="button"
+            disabled
+            title="Needs a Kite Connect API key and secret, and Praveen's ₹500/month plan (BRIEF.md §2) - set KITE_API_KEY and KITE_API_SECRET first."
+            className="min-h-[40px] cursor-not-allowed rounded-lg border border-border-strong bg-panel-alt px-3.5 text-sm font-medium text-muted"
+          >
+            Connect Zerodha
+          </button>
+        </div>
+        <p className="mt-2.5 text-xs text-muted">
+          India prices use the mock provider until Zerodha is connected. Token expiry: —. Reminder: the Kite Connect
+          plan is a paid ₹500/month subscription Praveen activates when ready (BRIEF.md §2) - this app never places
+          orders through it, data access only.
+        </p>
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Data downloads</h2>
+        <div className="flex flex-col gap-2.5">
+          {[
+            { key: "alerts", label: "Alerts" },
+            { key: "trades", label: "My trades" },
+            { key: "sector-snapshots", label: "Sector snapshots" },
+          ].map((d) => (
+            <div key={d.key} className="flex flex-wrap items-center gap-2.5">
+              <span className="w-36 font-medium">{d.label}</span>
+              <a
+                href={`/api/export/${d.key}?format=csv`}
+                className="rounded-lg border border-border-strong bg-panel-alt px-3 py-1.5 text-sm font-medium hover:bg-panel"
+              >
+                Download CSV
+              </a>
+              <a
+                href={`/api/export/${d.key}?format=xlsx`}
+                className="rounded-lg border border-border-strong bg-panel-alt px-3 py-1.5 text-sm font-medium hover:bg-panel"
+              >
+                Download Excel
+              </a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Backup status</h2>
+        <p className="text-sm text-muted">
+          No nightly backup is running yet - that needs a Vercel Cron job, which isn&apos;t set up on this
+          deployment yet (BRIEF.md §11). Use the data downloads above any time in the meantime; they always reflect
+          everything currently stored.
+        </p>
+      </section>
     </>
   );
 }

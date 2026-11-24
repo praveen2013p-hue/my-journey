@@ -13,6 +13,46 @@ export async function listActiveQuotes(): Promise<QuoteRow[]> {
   return store.quotes.filter((q) => q.active);
 }
 
+/** Every quote (active and removed), for the Settings -> quotes manager (BRIEF.md §7.6). */
+export async function listAllQuotes(): Promise<QuoteRow[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase.from("quotes").select("*").order("id", { ascending: true });
+    if (error) throw error;
+    return data as QuoteRow[];
+  }
+  const store = await readStore();
+  return [...store.quotes].sort((a, b) => a.id - b.id);
+}
+
+export async function updateQuoteText(id: number, text: string, author: string | null): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase.from("quotes").update({ text, author }).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  await mutateStore((store) => {
+    const row = store.quotes.find((q) => q.id === id);
+    if (row) {
+      row.text = text;
+      row.author = author;
+    }
+  });
+}
+
+export async function deleteQuote(id: number): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase.from("quotes").delete().eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  await mutateStore((store) => {
+    store.quotes = store.quotes.filter((q) => q.id !== id);
+  });
+}
+
 export async function addQuote(
   text: string,
   author: string | null,
