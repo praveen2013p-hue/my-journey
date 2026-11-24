@@ -5,6 +5,7 @@
  */
 
 import { computeQualityScore } from "../quality";
+import { getSectorContextsForTicker } from "../sector-context";
 import { approxMa30w } from "../weinstein";
 import { getSupabaseServiceClient, isSupabaseConfigured } from "./config";
 import { mutateStore, nextSeq, readStore } from "./local-store";
@@ -59,24 +60,31 @@ export interface UpsertAlertResult {
   wasUpdate: boolean;
 }
 
-function buildComputedFields(input: UpsertAlertInput) {
+function toQualityFundamentals(fundamentals: AlertFundamentals | null) {
+  return fundamentals
+    ? {
+        salesGrowthYoY: fundamentals.salesGrowthYoY,
+        epsGrowthYoY: fundamentals.epsGrowthYoY,
+        roe: fundamentals.roe,
+        debtToEquity: fundamentals.debtToEquity,
+      }
+    : null;
+}
+
+async function buildComputedFields(input: UpsertAlertInput) {
   const ma30w = approxMa30w(input.trigger_price, input.pct_above_ma);
+  // Known to belong to a sector but its Stage/RS not known for this exact
+  // week yet (sector board hasn't fired), or no sector_constituents
+  // uploaded at all - either way computeQualityScore treats it as missing,
+  // never guessed (BRIEF.md §9).
+  const sectors = await getSectorContextsForTicker(input.market, input.ticker, input.week_ending);
   const quality = computeQualityScore({
     grade: input.grade,
     volRatio: input.vol_ratio,
     mrs: input.mrs,
     overheadPct: input.overhead_pct,
-    // Sector context (focus star, stage) isn't wired up until Phase 2's
-    // sector_constituents mapping exists; recomputed then (BRIEF.md §9).
-    sectors: [],
-    fundamentals: input.fundamentals
-      ? {
-          salesGrowthYoY: input.fundamentals.salesGrowthYoY,
-          epsGrowthYoY: input.fundamentals.epsGrowthYoY,
-          roe: input.fundamentals.roe,
-          debtToEquity: input.fundamentals.debtToEquity,
-        }
-      : null,
+    sectors,
+    fundamentals: toQualityFundamentals(input.fundamentals),
   });
   return { ma30w, quality };
 }
@@ -135,7 +143,7 @@ export async function markAlertRawProcessed(
 export async function upsertAlert(
   input: UpsertAlertInput,
 ): Promise<UpsertAlertResult> {
-  const { ma30w, quality } = buildComputedFields(input);
+  const { ma30w, quality } = await buildComputedFields(input);
   const nowIso = new Date().toISOString();
 
   if (isSupabaseConfigured()) {
@@ -371,4 +379,50 @@ export async function listAlertsRawSince(
   return store.alerts_raw
     .filter((r) => r.received_at >= sinceIso)
     .map((r) => ({ received_at: r.received_at, accepted: r.accepted }));
+}
+
+async function updateAlertQuality(
+  id: string,
+  qualityScore: number,
+  qualityBreakdown: Record<string, unknown>,
+): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase
+      .from("alerts")
+      .update({ quality_score: qualityScore, quality_breakdown: qualityBreakdown, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  await mutateStore((store) => {
+    const row = store.alerts.find((a) => a.id === id);
+    if (row) {
+      row.quality_score = qualityScore;
+      row.quality_breakdown = qualityBreakdown;
+      row.updated_at = new Date().toISOString();
+    }
+  });
+}
+
+/**
+ * Recomputes every alert's Quality Score for a market/week once new sector
+ * data arrives (BRIEF.md §9: "recomputed when sector data... arrives").
+ * Never touches grade, stage, or anything else TradingView already sent -
+ * only the sector-strength bucket (and therefore the total) can change.
+ */
+export async function recomputeQualityForWeek(market: Market, weekEnding: string): Promise<void> {
+  const rows = await listAlerts({ market, weekEnding });
+  for (const row of rows) {
+    const sectors = await getSectorContextsForTicker(market, row.ticker, row.week_ending);
+    const quality = computeQualityScore({
+      grade: row.grade,
+      volRatio: row.vol_ratio,
+      mrs: row.mrs,
+      overheadPct: row.overhead_pct,
+      sectors,
+      fundamentals: toQualityFundamentals(row.fundamentals as AlertFundamentals | null),
+    });
+    await updateAlertQuality(row.id, quality.score, quality.breakdown as unknown as Record<string, unknown>);
+  }
 }

@@ -174,6 +174,32 @@ describe("sector board ingestion", () => {
     expect(result.status).toBe(200);
     await expect(result.deferredWork?.()).resolves.toBeUndefined();
   });
+
+  it("recomputes an existing alert's Quality Score once its sector shows up as Stage 2 with positive RS", async () => {
+    const { replaceConstituents } = await import("../db/sector-constituents");
+    await replaceConstituents("IN", "PSU Bank", ["SBIN"]);
+
+    const stockResult = await processWebhookQuickPath(stockAlertBody(), "1.2.3.4");
+    await stockResult.deferredWork?.();
+    const before = (await listAlerts())[0];
+    expect(before.quality_breakdown).toMatchObject({ sector: 0 }); // no sector data yet this week
+
+    // Week "2026-11-16" (Monday) -> week_ending 2026-11-20, matching the stock alert's week.
+    // Only one week of sector history exists, so the app's own focus rule
+    // (needs Δ13 > 0, BRIEF.md §7.2) correctly can't confirm "focus" yet -
+    // it still scores "Stage 2 + RS > 0" even though the payload's own
+    // `focus: true` flag says yes, because that flag is never trusted
+    // directly (BRIEF.md §9's own rule, computed from what's actually stored).
+    const sectorResult = await processWebhookQuickPath(
+      sectorBoardBody({ rows: [{ rank: 1, sector: "PSU Bank", stage: 2, rs: 12.4, rsUp: true, vsMA: 15.2, chg4: 6.1, focus: true }] }),
+      "1.2.3.4",
+    );
+    await sectorResult.deferredWork?.();
+
+    const after = (await listAlerts())[0];
+    expect(after.quality_breakdown).toMatchObject({ sector: 10 }); // Stage 2 + RS > 0, not yet confirmed focus
+    expect(after.quality_score).toBeGreaterThan(before.quality_score!);
+  });
 });
 
 describe("malformed bodies", () => {

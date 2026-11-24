@@ -14,7 +14,7 @@
  * calls, per BRIEF.md's own testing ask.
  */
 
-import { insertAlertRaw, markAlertRawProcessed, upsertAlert } from "../db/alerts";
+import { insertAlertRaw, markAlertRawProcessed, recomputeQualityForWeek, upsertAlert } from "../db/alerts";
 import { computeAndStoreSectorMetrics } from "../db/sector-metrics-orchestrator";
 import { upsertSectorSnapshot } from "../db/sectors";
 import { resolveOrCreateSymbolMapping } from "../db/symbol-map";
@@ -194,4 +194,8 @@ async function processSectorBoard(body: Record<string, unknown>): Promise<void> 
   // Keep rank/Δ13-26-52/focus current the moment a snapshot arrives,
   // rather than waiting for someone to open the Sectors page first.
   await computeAndStoreSectorMetrics(market, weekEnding);
+
+  // Any stock alert for this same week may now have a stronger/weaker
+  // sector-strength bucket in its Quality Score (BRIEF.md §9).
+  await recomputeQualityForWeek(market, weekEnding);
 }

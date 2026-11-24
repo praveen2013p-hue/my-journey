@@ -73,3 +73,35 @@ stop and ask for these.
   webhook payload) but not each sector's Stage/RS/focus-star, since that
   needs the `sector_constituents` mapping and `sector_metrics` engine,
   both Phase 2 work (BRIEF.md §7.2, §12).
+
+## Phase 2
+
+- **The sector-board payload's own `focus` field is never trusted
+  directly.** BRIEF.md §7.2 gives the app its own focus rule (Stage 2 +
+  RS > 0 + Δ4 > 0 + Δ13 > 0) and says to make it "a small configurable
+  function" - so `lib/sector-metrics.ts` always recomputes `is_focus`
+  from what's actually stored, even when the payload says `focus: true`.
+  With only one week of history, Δ13 is unknowable, so a sector that the
+  Pine script marks focus can still show as "Stage 2 + RS > 0" (10
+  points) rather than "focus" (15) in the Quality Score until enough
+  weekly snapshots exist - confirmed in
+  `lib/webhook/process.test.ts`.
+- **Quality Score's sector-strength bucket needs an explicit
+  `sector_constituents` upload** (ticker -> one of the 28 tracked India
+  sectors / US sectors+industries) - it never infers this from the
+  alert's own free-text `sector`/`industry` fields, since those are
+  TradingView's own categories and don't reliably match the tracked
+  index names. Until Praveen uploads a sector's constituents, every
+  stock in it scores 0/missing for that bucket - correct and honest, not
+  a bug.
+- **Quality Score is recomputed per affected week whenever a sector-board
+  snapshot arrives** (`recomputeQualityForWeek`, BRIEF.md §9), not on a
+  schedule - the only thing that can change is the sector-strength
+  bucket, so re-running it on every relevant webhook hit is cheap and
+  always current.
+- **India's sector-index 1W price change stays "—" for 24 of 28
+  sectors.** Same honesty principle as symbol mapping: BRIEF.md §5c gives
+  confirmed TradingView symbols for only 4 India sectors (Bank, PSU Bank,
+  IT, Defence); the rest need a live Kite instruments-dump lookup this
+  app doesn't have yet. Their Stage/RS (from the webhook) work fine
+  regardless - only the index's own weekly price change is affected.

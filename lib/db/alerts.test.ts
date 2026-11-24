@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getLatestWeekEnding, listAlerts, upsertAlert } from "./alerts";
+import { replaceConstituents } from "./sector-constituents";
 import { __resetStoreForTests } from "./local-store";
+import { upsertSectorMetric, upsertSectorSnapshot } from "./sectors";
 
 function sampleInput(overrides: Partial<Parameters<typeof upsertAlert>[0]> = {}) {
   return {
@@ -93,5 +95,50 @@ describe("listAlerts filters", () => {
   it("getLatestWeekEnding finds the most recent week with alerts", async () => {
     await upsertAlert(sampleInput({ ticker: "TANLA", week_ending: "2026-11-27" }));
     expect(await getLatestWeekEnding()).toBe("2026-11-27");
+  });
+});
+
+describe("upsertAlert sector strength (Quality Score)", () => {
+  it("scores sector strength as 0/missing with no constituents uploaded", async () => {
+    const { row } = await upsertAlert(sampleInput({ ticker: "SBIN" }));
+    expect((row.quality_breakdown as { sector: number }).sector).toBe(0);
+  });
+
+  it("awards full sector points once constituents + a focus-starred sector_metrics row exist", async () => {
+    await replaceConstituents("IN", "PSU Bank", ["SBIN"]);
+    await upsertSectorSnapshot({
+      market: "IN",
+      week_ending: "2026-11-20",
+      sector: "PSU Bank",
+      stage: 2,
+      mrs: 12.4,
+      rs_up: true,
+      vs_ma: 15,
+      chg4: 6,
+      focus: true,
+      source: "alert",
+    });
+    await upsertSectorMetric({
+      market: "IN",
+      week_ending: "2026-11-20",
+      sector: "PSU Bank",
+      rank: 1,
+      mrs: 12.4,
+      d4: 3,
+      d13: 2,
+      d26: null,
+      d52: null,
+      traded_value: null,
+      tv_avg10: null,
+      tv_ratio: null,
+      is_focus: true,
+      price_chg_1w: null,
+      rs_chg_1w: null,
+      traded_value_chg_1w: null,
+      rank_move_1w: null,
+    });
+
+    const { row } = await upsertAlert(sampleInput({ ticker: "SBIN", week_ending: "2026-11-20" }));
+    expect((row.quality_breakdown as { sector: number }).sector).toBe(15); // QUALITY_WEIGHTS.sector.focus
   });
 });

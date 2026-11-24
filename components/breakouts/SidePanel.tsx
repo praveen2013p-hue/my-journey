@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Chip, gradeVariant } from "@/components/Chip";
+import { Chip, gradeVariant, stageVariant } from "@/components/Chip";
 import { CloseIcon, ExternalLinkIcon, PlusIcon } from "@/components/icons";
 import { TradingViewLink, tradingViewUrl } from "@/components/TradingViewLink";
 import type { BreakoutRow } from "@/lib/breakouts-data";
 import type { SignalType } from "@/lib/db/schema-types";
+import type { SectorContextDetail } from "@/lib/sector-context";
 import { quoteKey, useQuotes } from "@/lib/use-quotes";
 import { WeeklyChart, type WeeklyChartBar } from "./WeeklyChart";
 
@@ -58,6 +59,15 @@ export function SidePanel({
       cancelled = true;
     };
   }, [row.market, row.providerSymbol]);
+
+  const [sectorContexts, setSectorContexts] = useState<SectorContextDetail[] | null>(null);
+  useEffect(() => {
+    setSectorContexts(null);
+    fetch(`/api/sectors/context?market=${row.market}&ticker=${encodeURIComponent(row.ticker)}&weekEnding=${row.weekEnding}`)
+      .then((res) => res.json())
+      .then((data) => setSectorContexts(data.contexts ?? []))
+      .catch(() => setSectorContexts([]));
+  }, [row.market, row.ticker, row.weekEnding]);
 
   const [note, setNote] = useState("");
   const [noteLoaded, setNoteLoaded] = useState(false);
@@ -215,12 +225,33 @@ export function SidePanel({
 
       <section>
         <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">Sector context</h3>
-        <div className="text-sm">
-          {row.sector ?? "—"} {row.industry ? `· ${row.industry}` : ""}
+        <div className="mb-2 text-sm text-muted">
+          TradingView label: {row.sector ?? "—"} {row.industry ? `· ${row.industry}` : ""}
         </div>
-        <p className="mt-1 text-xs text-muted">
-          Sector Stage/RS ranking and the focus star arrive with the Sectors engine (BRIEF.md §7.2, Phase 2).
-        </p>
+        {sectorContexts === null ? (
+          <p className="text-sm text-muted">Loading…</p>
+        ) : sectorContexts.length === 0 ? (
+          <p className="text-sm text-muted">
+            Not in any uploaded sector constituent list yet - upload one in Settings to see this stock&apos;s
+            tracked sectors&apos; Stage and RS here.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {sectorContexts.map((ctx) => (
+              <div key={ctx.sector} className="flex items-center justify-between gap-2.5 text-sm">
+                <span className="flex items-center gap-1.5">
+                  {ctx.isFocus && <span className="text-gold-light">★</span>} {ctx.sector}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Chip variant={stageVariant(ctx.stage)}>{ctx.stage ? `Stage ${ctx.stage}` : "—"}</Chip>
+                  <span className={`tabular-nums ${ctx.mrs !== null && ctx.mrs > 0 ? "text-pos" : "text-muted"}`}>
+                    {ctx.mrs !== null ? `RS ${ctx.mrs > 0 ? "+" : ""}${ctx.mrs.toFixed(1)}` : "RS —"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
