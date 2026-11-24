@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { LoginQuoteRotator } from "@/components/LoginQuoteRotator";
 import { getAllowedEmails } from "@/lib/auth/allowed-emails";
 import { getOptionalSession } from "@/lib/auth/dal";
+import { isSupabaseConfigured } from "@/lib/db/config";
 import { getAppSettings } from "@/lib/db/settings";
 import { listActiveQuotes, seedQuotesIfEmpty } from "@/lib/db/quotes";
 import { QUOTE_SEED } from "@/lib/quotes-seed";
@@ -19,6 +21,10 @@ export default async function LoginPage({
   await seedQuotesIfEmpty(QUOTE_SEED);
   const [appSettings, quoteRows] = await Promise.all([getAppSettings(), listActiveQuotes()]);
   const quotes = quoteRows.map((q) => ({ text: q.text, author: q.author }));
+  // This Server Component renders once per request (no re-render/memoization
+  // to destabilize) - picking a random starting quote per page load is the
+  // intended behaviour, not an impurity bug.
+  // eslint-disable-next-line react-hooks/purity
   const initialIndex = quotes.length > 0 ? Math.floor(Math.random() * quotes.length) : 0;
 
   const allowedEmails = getAllowedEmails();
@@ -71,6 +77,8 @@ export default async function LoginPage({
           <p className="rounded-lg border border-warn-border bg-warn-wash px-3 py-2 text-sm text-warn">
             No <code>ALLOWED_EMAILS</code> configured yet — set it in your environment to sign in.
           </p>
+        ) : isSupabaseConfigured() ? (
+          <GoogleSignInButton />
         ) : (
           <div className="flex flex-col gap-2.5">
             {allowedEmails.map((email) => (
@@ -89,7 +97,7 @@ export default async function LoginPage({
 
         <p className="text-xs text-muted">
           Private workspace. Only two approved Google accounts can enter.
-          {allowedEmails.length > 0 && " (Phase 1: pick your account above — real Google sign-in replaces this once Supabase is connected.)"}
+          {allowedEmails.length > 0 && !isSupabaseConfigured() && " (Local dev: pick your account above — this is a stand-in for real Google sign-in, used only when Supabase isn't configured.)"}
         </p>
       </section>
     </div>
