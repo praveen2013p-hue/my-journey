@@ -89,44 +89,49 @@ export async function getHoldVsSoldData(userId: string, market: Market, timeFram
     .map((t) => ({ trade: t, closed: closedTradePnl(t)! }));
 
   const tickers = Array.from(new Set(closed.map((c) => c.trade.ticker)));
-  const symbolByTicker = new Map<string, string | null>();
-  for (const ticker of tickers) {
-    const mapping = await getSymbolMapping(market, ticker);
-    symbolByTicker.set(
-      ticker,
-      mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null,
-    );
-  }
+  // All symbol lookups and the quote batch run in parallel rather than one
+  // ticker at a time - with a real market-data provider (Kite/Yahoo) each
+  // of these is a network round trip, and this page can easily have
+  // dozens of closed trades.
+  const symbolEntries = await Promise.all(
+    tickers.map(async (ticker) => {
+      const mapping = await getSymbolMapping(market, ticker);
+      const symbol = mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null;
+      return [ticker, symbol] as const;
+    }),
+  );
+  const symbolByTicker = new Map(symbolEntries);
   const knownSymbols = Array.from(symbolByTicker.values()).filter((s): s is string => s !== null);
   const quotes = await getCachedQuotes(market, knownSymbols);
 
-  const rows: HoldVsSoldRow[] = [];
-  for (const { trade, closed: c } of closed) {
-    const symbol = symbolByTicker.get(trade.ticker) ?? null;
-    const currentPrice = symbol ? quotes.get(symbol)?.price ?? null : null;
-    const heldReturnPct = currentPrice !== null ? ((currentPrice - trade.buy_price) / trade.buy_price) * 100 : null;
-    const diffPts = heldReturnPct !== null ? heldReturnPct - c.pnlPct : null;
-    const verdict: HoldVsSoldRow["verdict"] =
-      diffPts === null ? "unknown" : diffPts > 0 ? "sold_too_early" : "good_exit";
+  const rows: HoldVsSoldRow[] = await Promise.all(
+    closed.map(async ({ trade, closed: c }) => {
+      const symbol = symbolByTicker.get(trade.ticker) ?? null;
+      const currentPrice = symbol ? quotes.get(symbol)?.price ?? null : null;
+      const heldReturnPct = currentPrice !== null ? ((currentPrice - trade.buy_price) / trade.buy_price) * 100 : null;
+      const diffPts = heldReturnPct !== null ? heldReturnPct - c.pnlPct : null;
+      const verdict: HoldVsSoldRow["verdict"] =
+        diffPts === null ? "unknown" : diffPts > 0 ? "sold_too_early" : "good_exit";
 
-    let peakPriceAfterSell: number | null = null;
-    let pctMissedVsPeak: number | null = null;
-    if (symbol) {
-      const history = await getDailyHistoryWithBackfill(
-        market,
-        trade.ticker,
-        symbol,
-        trade.sell_date as string,
-        timeFrame.toDate,
-      );
-      if (history.length > 0) {
-        peakPriceAfterSell = Math.max(...history.map((h) => h.close));
-        pctMissedVsPeak = ((peakPriceAfterSell - (trade.sell_price as number)) / (trade.sell_price as number)) * 100;
+      let peakPriceAfterSell: number | null = null;
+      let pctMissedVsPeak: number | null = null;
+      if (symbol) {
+        const history = await getDailyHistoryWithBackfill(
+          market,
+          trade.ticker,
+          symbol,
+          trade.sell_date as string,
+          timeFrame.toDate,
+        );
+        if (history.length > 0) {
+          peakPriceAfterSell = Math.max(...history.map((h) => h.close));
+          pctMissedVsPeak = ((peakPriceAfterSell - (trade.sell_price as number)) / (trade.sell_price as number)) * 100;
+        }
       }
-    }
 
-    rows.push({ trade, actualReturnPct: c.pnlPct, heldReturnPct, diffPts, verdict, peakPriceAfterSell, pctMissedVsPeak });
-  }
+      return { trade, actualReturnPct: c.pnlPct, heldReturnPct, diffPts, verdict, peakPriceAfterSell, pctMissedVsPeak };
+    }),
+  );
 
   const totalActualPnl = closed.reduce((s, c) => s + c.closed.pnlAbs, 0);
   const knownHeld = rows.filter((r) => r.heldReturnPct !== null);
@@ -186,41 +191,51 @@ export async function getShortlistPerformanceData(
   const [allAlerts, trades] = await Promise.all([listAlerts({ market }), listTrades(userId, market)]);
   const alerts = allAlerts.filter((a) => inRange(a.week_ending, timeFrame.fromDate, timeFrame.toDate));
 
-  const rows: ShortlistRow[] = [];
-  for (const alert of alerts) {
-    const mapping = await getSymbolMapping(market, alert.ticker);
-    const symbol = mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null;
-
-    let currentPrice: number | null = null;
-    let returnSinceTriggerPct: number | null = null;
-    let maxGainSinceTriggerPct: number | null = null;
-    let maxDrawdownSinceTriggerPct: number | null = null;
-
-    if (symbol) {
-      const quotes = await getCachedQuotes(market, [symbol]);
-      currentPrice = quotes.get(symbol)?.price ?? null;
-      const history = await getDailyHistoryWithBackfill(
-        market,
-        alert.ticker,
-        symbol,
-        alert.week_ending,
-        timeFrame.toDate,
+  // Resolve every alert's symbol, then fetch all quotes in one batched
+  // call and all history lookups in parallel - with a real provider
+  // (Kite/Yahoo), doing this one ticker at a time for a whole shortlist
+  // (easily dozens of triggered stocks) made the Performance page
+  // painfully slow (each step is a network round trip).
+  const symbolByTicker = new Map<string, string | null>();
+  await Promise.all(
+    Array.from(new Set(alerts.map((a) => a.ticker))).map(async (ticker) => {
+      const mapping = await getSymbolMapping(market, ticker);
+      symbolByTicker.set(
+        ticker,
+        mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null,
       );
-      if (currentPrice !== null) {
-        returnSinceTriggerPct = ((currentPrice - alert.trigger_price) / alert.trigger_price) * 100;
-      }
-      if (history.length > 0) {
-        const maxClose = Math.max(...history.map((h) => h.close));
-        const minClose = Math.min(...history.map((h) => h.close));
-        maxGainSinceTriggerPct = ((maxClose - alert.trigger_price) / alert.trigger_price) * 100;
-        maxDrawdownSinceTriggerPct = ((minClose - alert.trigger_price) / alert.trigger_price) * 100;
-      }
-    }
+    }),
+  );
+  const knownSymbols = Array.from(new Set(Array.from(symbolByTicker.values()).filter((s): s is string => s !== null)));
+  const quotes = await getCachedQuotes(market, knownSymbols);
 
-    const bought: ShortlistRow["bought"] = trades.some((t) => t.ticker === alert.ticker) ? "yes" : "skipped";
+  const rows: ShortlistRow[] = await Promise.all(
+    alerts.map(async (alert) => {
+      const symbol = symbolByTicker.get(alert.ticker) ?? null;
 
-    rows.push({ alert, currentPrice, returnSinceTriggerPct, maxGainSinceTriggerPct, maxDrawdownSinceTriggerPct, bought });
-  }
+      let currentPrice: number | null = null;
+      let returnSinceTriggerPct: number | null = null;
+      let maxGainSinceTriggerPct: number | null = null;
+      let maxDrawdownSinceTriggerPct: number | null = null;
+
+      if (symbol) {
+        currentPrice = quotes.get(symbol)?.price ?? null;
+        const history = await getDailyHistoryWithBackfill(market, alert.ticker, symbol, alert.week_ending, timeFrame.toDate);
+        if (currentPrice !== null) {
+          returnSinceTriggerPct = ((currentPrice - alert.trigger_price) / alert.trigger_price) * 100;
+        }
+        if (history.length > 0) {
+          const maxClose = Math.max(...history.map((h) => h.close));
+          const minClose = Math.min(...history.map((h) => h.close));
+          maxGainSinceTriggerPct = ((maxClose - alert.trigger_price) / alert.trigger_price) * 100;
+          maxDrawdownSinceTriggerPct = ((minClose - alert.trigger_price) / alert.trigger_price) * 100;
+        }
+      }
+
+      const bought: ShortlistRow["bought"] = trades.some((t) => t.ticker === alert.ticker) ? "yes" : "skipped";
+      return { alert, currentPrice, returnSinceTriggerPct, maxGainSinceTriggerPct, maxDrawdownSinceTriggerPct, bought };
+    }),
+  );
 
   function avg(values: Array<number | null>): number | null {
     const known = values.filter((v): v is number => v !== null);

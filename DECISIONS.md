@@ -246,3 +246,15 @@ stop and ask for these.
 - **No nightly Saturday refresh cron for Kite data either** - same
   reasoning as the backup/health crons already noted above: real infra
   that doesn't exist yet, not quietly assumed to work.
+- **Performance page: quote/history lookups for a whole shortlist run in
+  parallel, not one ticker at a time.** Found immediately after Zerodha
+  went live: `lib/performance-data.ts` used to `await` a quote fetch and
+  a history backfill per ticker inside a plain `for` loop - invisible
+  with the near-instant mock provider, but with a real provider (Kite or
+  Yahoo) each of those is a genuine network round trip, and a shortlist
+  of dozens of triggered stocks made the whole page painfully slow.
+  Fixed by resolving all symbol mappings, batching the quote fetch into
+  one call, and running the per-ticker history backfills with
+  `Promise.all` instead. Also made concurrent instrument-token lookups
+  (`lib/zerodha/instruments.ts`) share one in-flight fetch of Kite's
+  (multi-MB) instruments dump instead of each starting their own.

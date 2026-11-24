@@ -14,6 +14,7 @@ interface CachedInstruments {
 }
 
 let cache: CachedInstruments | null = null;
+let inFlight: Promise<Map<string, number>> | null = null;
 
 /**
  * Minimal positional CSV parse: Kite's columns are
@@ -53,12 +54,23 @@ async function fetchInstruments(accessToken: string): Promise<Map<string, number
   return parseTokensBySymbol(await response.text());
 }
 
-/** Null if the dump can't be fetched or the symbol isn't in it - never throws (BRIEF.md §17.5). */
+/**
+ * Null if the dump can't be fetched or the symbol isn't in it - never
+ * throws (BRIEF.md §17.5). Callers for many tickers at once (the
+ * Performance page resolves a whole shortlist in parallel) share one
+ * in-flight fetch of the dump instead of each starting their own -
+ * it's several MB, not something to download N times concurrently.
+ */
 export async function getInstrumentToken(accessToken: string, tradingsymbol: string): Promise<number | null> {
   const now = Date.now();
   if (!cache || now - cache.fetchedAt > CACHE_TTL_MS) {
+    if (!inFlight) {
+      inFlight = fetchInstruments(accessToken).finally(() => {
+        inFlight = null;
+      });
+    }
     try {
-      cache = { tokenBySymbol: await fetchInstruments(accessToken), fetchedAt: now };
+      cache = { tokenBySymbol: await inFlight, fetchedAt: now };
     } catch (err) {
       console.error("[zerodha instruments] fetch failed", err);
       return null;
