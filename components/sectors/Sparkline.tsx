@@ -1,4 +1,4 @@
-export function Sparkline({ values }: { values: number[] }) {
+export function Sparkline({ values, label = "RS trend sparkline" }: { values: number[]; label?: string }) {
   if (values.length < 2) return <span className="text-xs text-muted">—</span>;
 
   const width = 84;
@@ -18,7 +18,7 @@ export function Sparkline({ values }: { values: number[] }) {
   const rising = values[values.length - 1] >= values[0];
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="RS trend sparkline">
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
       <polyline
         points={points}
         fill="none"

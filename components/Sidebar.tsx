@@ -11,6 +11,7 @@ import {
   DashboardIcon,
   JournalIcon,
   MenuIcon,
+  PerformanceIcon,
   PullbacksIcon,
   SectorsIcon,
   SettingsIcon,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/sectors", label: "Sectors", Icon: SectorsIcon },
   { href: "/journal", label: "Journal", Icon: JournalIcon },
   { href: "/review", label: "Weekly Review", Icon: WeeklyReviewIcon },
+  { href: "/performance", label: "Performance", Icon: PerformanceIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
@@ -57,7 +59,11 @@ export function Sidebar({ siteName, email }: SidebarProps) {
   const regime = { india: india.stage, us: us.stage };
 
   useEffect(() => {
+    // One-time sync from localStorage (a client-only external system) on
+    // mount - can't be a lazy useState initializer without a server/client
+    // hydration mismatch, since this value doesn't exist during SSR.
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1");
     } catch {
       // localStorage unavailable (private window etc.) - default to expanded.
@@ -201,6 +207,9 @@ function ThemeToggleButton({ compact }: { compact: boolean }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
+    // One-time sync from the <html data-theme> the root layout already set
+    // server-side - can't be a lazy initializer without a hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme((document.documentElement.getAttribute("data-theme") as "dark" | "light") ?? "dark");
   }, []);
 

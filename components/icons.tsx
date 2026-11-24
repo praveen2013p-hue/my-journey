@@ -54,6 +54,15 @@ export function PullbacksIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function PerformanceIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 19h16" />
+      <path d="M7 19V9M12 19V5M17 19v-7" />
+    </Icon>
+  );
+}
+
 export function SectorsIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

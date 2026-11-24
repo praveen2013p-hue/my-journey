@@ -21,10 +21,22 @@ export interface WeeklyBar {
   volume: number;
 }
 
+export interface DailyBar {
+  date: string; // yyyy-mm-dd
+  close: number;
+}
+
 export interface MarketDataProvider {
   readonly name: string;
   /** Batched quote fetch; failed/unknown symbols are simply absent from the result, never thrown. */
   getQuotes(symbols: string[]): Promise<Map<string, ProviderQuote>>;
   /** Weekly closes, oldest first, for the Weinstein calculations and the weekly chart. */
   getWeeklyHistory(symbol: string, weeks: number): Promise<WeeklyBar[]>;
+  /**
+   * Daily closes, oldest first, for the Performance page's "if I had
+   * held" and shortlist return/drawdown stats (BRIEF.md §15). Never
+   * throws - an empty array means "couldn't fetch right now," not "no
+   * history exists."
+   */
+  getDailyHistory(symbol: string, fromDate: string, toDate: string): Promise<DailyBar[]>;
 }

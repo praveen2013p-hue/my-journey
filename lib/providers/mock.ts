@@ -5,7 +5,7 @@
  * requests look "live" without actually being random noise on every call.
  */
 
-import type { MarketDataProvider, ProviderQuote, WeeklyBar } from "./types";
+import type { DailyBar, MarketDataProvider, ProviderQuote, WeeklyBar } from "./types";
 
 function hashSymbol(symbol: string): number {
   let hash = 0;
@@ -71,6 +71,25 @@ export class MockMarketDataProvider implements MarketDataProvider {
         close: Math.round(price * 100) / 100,
         volume,
       });
+    }
+    return bars;
+  }
+
+  async getDailyHistory(symbol: string, fromDate: string, toDate: string): Promise<DailyBar[]> {
+    const hash = hashSymbol(symbol);
+    const base = basePrice(symbol);
+    const from = new Date(`${fromDate}T00:00:00Z`);
+    const to = new Date(`${toDate}T00:00:00Z`);
+    const bars: DailyBar[] = [];
+
+    let price = base * 0.85;
+    for (let d = new Date(from); d <= to; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dayOfWeek = d.getUTCDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends, like a real exchange
+      const dayIndex = Math.round((d.getTime() - from.getTime()) / 86_400_000);
+      const noise = Math.sin((hash % 97) + dayIndex * 0.3) * 0.01;
+      price = Math.max(1, price * (1 + 0.0006 + noise));
+      bars.push({ date: d.toISOString().slice(0, 10), close: Math.round(price * 100) / 100 });
     }
     return bars;
   }

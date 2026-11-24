@@ -135,3 +135,36 @@ stop and ask for these.
   page load. The webhook already recomputes this the moment a
   sector-board snapshot arrives, so the page now only recomputes as a
   fallback when nothing has been computed yet for that week.
+
+## Phase 3 - Performance page
+
+- **No real nightly cron for `price_history` backfill.** BRIEF.md §15
+  says daily closes are "updated by the nightly job," but this app has no
+  Vercel Cron set up yet (nightly backup, weekly sector refresh, and this
+  are all cron items BRIEF mentions that don't exist - a bigger, separate
+  piece of infra than the Performance page itself). Instead,
+  `lib/price-history-backfill.ts` fetches and stores a ticker's daily
+  closes **on demand**, the first time the Performance page needs them for
+  a date range, and skips re-fetching once the most recent trading day is
+  already stored - so a real cron can be added later purely as "call this
+  same function for every tracked ticker on a schedule" without changing
+  how the page reads the data.
+- **"Max gain/drawdown since trigger" is close-to-close, not
+  intraday.** `price_history` only stores daily closes (BRIEF.md's own
+  schema), so these are the best/worst *closing* prices since the trigger
+  week, not the literal intraday high/low. With the India mock provider,
+  this can look unintuitive in a demo: the mock's daily-history series and
+  its live-quote series are two independently-seeded mock generators (see
+  the existing "mock prices aren't anchored to trigger price" note above),
+  so a "max drawdown since trigger" can come back positive (price never
+  closed below the trigger in the mock series) - shown in muted grey, not
+  red, exactly because it isn't a real drawdown. Real Kite/Yahoo data
+  won't have this artifact.
+- **Trade stats' "max drawdown" (§15.1) is a currency amount, not a %.**
+  The peak-to-trough decline in cumulative realised P&L, in the trade's
+  own currency - this app never tracks account size, so a true
+  percentage-of-capital drawdown isn't knowable (lib/trade-stats.ts).
+- **"If I had held" is labelled indicative**, per BRIEF.md §17.4: any
+  site-calculated number from Kite/Yahoo data (not something TradingView
+  itself sent) is the site's own best-effort math, shown as a chip on the
+  section, not a silent fact.
