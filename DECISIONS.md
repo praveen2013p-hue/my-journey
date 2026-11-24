@@ -112,3 +112,26 @@ stop and ask for these.
   IT, Defence); the rest need a live Kite instruments-dump lookup this
   app doesn't have yet. Their Stage/RS (from the webhook) work fine
   regardless - only the index's own weekly price change is affected.
+
+## Performance (found after deploying to Vercel)
+
+- **The market regime fetch (India + US Weinstein stage) no longer blocks
+  any page's server render.** It used to be awaited in the shared
+  `(app)/layout.tsx`, so every single page - Dashboard, Breakouts,
+  Settings, all of them - waited on a real Yahoo Finance network call
+  before responding. On Vercel's serverless functions, which get recycled
+  constantly, the in-memory 1-hour cache almost never got to help, so
+  this was effectively a live Yahoo round-trip on every page view -
+  confirmed by timing requests before/after (warm pages went from
+  blocking on an external call to under 250ms locally). Fixed by moving
+  it to `/api/regime` + `lib/use-regime.ts`, fetched client-side after
+  the page has already painted; the Sidebar dots and the red banner
+  briefly show "—" and fill in a moment later instead of holding up
+  everything behind them.
+- **The Sectors page no longer always recomputes sector_metrics.** It
+  used to call `computeAndStoreSectorMetrics` unconditionally on every
+  view, which (for US) makes a Yahoo call per sector/industry for the 1W
+  price and the traded-value engine - up to ~30 external calls on one
+  page load. The webhook already recomputes this the moment a
+  sector-board snapshot arrives, so the page now only recomputes as a
+  fallback when nothing has been computed yet for that week.

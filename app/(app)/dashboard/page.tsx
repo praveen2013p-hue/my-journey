@@ -7,7 +7,6 @@ import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader, PhaseStub } from "@/components/PageHeader";
 import { getDashboardData } from "@/lib/dashboard-data";
 import { getFreshnessData } from "@/lib/freshness-data";
-import { getBothMarketRegimes } from "@/lib/regime";
 
 export default async function DashboardPage({
   searchParams,
@@ -15,10 +14,9 @@ export default async function DashboardPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await searchParams;
-  const [freshness, data, regimes] = await Promise.all([
+  const [freshness, data] = await Promise.all([
     getFreshnessData(),
     getDashboardData(week),
-    getBothMarketRegimes(),
   ]);
 
   return (
@@ -47,7 +45,7 @@ export default async function DashboardPage({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <TriggersCard triggers={data.triggers} />
-        <RegimeCard india={regimes.india} us={regimes.us} />
+        <RegimeCard />
       </div>
 
       <TopSectorsCard sectors={data.topSectors} />

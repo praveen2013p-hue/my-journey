@@ -1,4 +1,13 @@
+"use client";
+
 import type { MarketRegime } from "@/lib/regime";
+import { useMarketRegimes } from "@/lib/use-regime";
+
+/** Fetches the regime client-side (see DECISIONS.md) and renders RegimeBanner once it resolves. */
+export function RegimeBannerClient() {
+  const { india, us } = useMarketRegimes();
+  return <RegimeBanner india={india} us={us} />;
+}
 
 /** BRIEF.md §8: a red banner only, at the top of the content area, no blocking/dimming. */
 export function RegimeBanner({ india, us }: { india: MarketRegime; us: MarketRegime }) {

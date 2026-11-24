@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useMarketRegimes } from "@/lib/use-regime";
 import {
   BreakoutsIcon,
   ChevronLeftIcon,
@@ -34,7 +35,6 @@ type Stage = 1 | 2 | 3 | 4 | null;
 interface SidebarProps {
   siteName: string;
   email: string;
-  regime: { india: Stage; us: Stage };
 }
 
 /** BRIEF.md §8: green = Stage 2, yellow = Stage 1, red = Stage 3 or 4. */
@@ -49,10 +49,12 @@ function regimeLabel(stage: Stage): string {
   return stage === null ? "—" : `Stage ${stage}`;
 }
 
-export function Sidebar({ siteName, email, regime }: SidebarProps) {
+export function Sidebar({ siteName, email }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { india, us } = useMarketRegimes();
+  const regime = { india: india.stage, us: us.stage };
 
   useEffect(() => {
     try {

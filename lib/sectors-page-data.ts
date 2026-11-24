@@ -45,11 +45,19 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
   const weekEnding = await getLatestSectorWeekEnding(market);
   if (!weekEnding) return { weekEnding: null, rows: [] };
 
-  await computeAndStoreSectorMetrics(market, weekEnding);
+  // The webhook already recomputes sector_metrics (rank/focus/1W-price/
+  // traded-value - each of those needing its own provider call) every time
+  // a sector-board snapshot arrives. Re-running that on every page view
+  // was making the Sectors page wait on ~30 Yahoo calls per visit; only
+  // do it here as a fallback for a week nothing has computed yet.
+  let metricsRows = await listSectorMetricsForWeek(market, weekEnding);
+  if (metricsRows.length === 0) {
+    await computeAndStoreSectorMetrics(market, weekEnding);
+    metricsRows = await listSectorMetricsForWeek(market, weekEnding);
+  }
 
-  const [sectorMapRows, metricsRows, history, alertsThisWeek] = await Promise.all([
+  const [sectorMapRows, history, alertsThisWeek] = await Promise.all([
     listSectorMap(market),
-    listSectorMetricsForWeek(market, weekEnding),
     listSectorSnapshotHistory(market),
     listAlerts({ weekEnding }),
   ]);

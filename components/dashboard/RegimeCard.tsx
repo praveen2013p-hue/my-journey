@@ -1,4 +1,7 @@
+"use client";
+
 import type { MarketRegime } from "@/lib/regime";
+import { useMarketRegimes } from "@/lib/use-regime";
 
 const STAGE_DESCRIPTION: Record<number, string> = {
   1: "Flat 30-week average, base-building",
@@ -39,7 +42,9 @@ function Row({ label, name, regime }: { label: string; name: string; regime: Mar
   );
 }
 
-export function RegimeCard({ india, us }: { india: MarketRegime; us: MarketRegime }) {
+/** Fetches the regime client-side (see DECISIONS.md) instead of the Dashboard page awaiting it server-side. */
+export function RegimeCard() {
+  const { india, us } = useMarketRegimes();
   return (
     <section className="rounded-xl border border-border bg-panel p-4.5" aria-label="Market regime">
       <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Market regime</h2>
