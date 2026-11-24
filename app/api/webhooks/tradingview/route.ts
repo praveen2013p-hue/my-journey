@@ -19,7 +19,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   // TradingView may send text/plain; always read the raw body and parse it
   // ourselves (BRIEF.md §5).
   const rawBody = await request.text();
-  const result = await processWebhookQuickPath(rawBody, clientKeyFor(request));
+  const querySecret = new URL(request.url).searchParams.get("secret") ?? undefined;
+  const result = await processWebhookQuickPath(rawBody, clientKeyFor(request), querySecret);
 
   if (result.deferredWork) {
     after(result.deferredWork);

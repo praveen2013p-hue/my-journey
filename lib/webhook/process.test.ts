@@ -83,6 +83,30 @@ describe("secret check", () => {
     expect(result.deferredWork).toBeInstanceOf(Function);
   });
 
+  it("falls back to a URL query-string secret when the body has none", async () => {
+    // Some Pine scripts build their own alert message with no room to add
+    // a "secret" field (e.g. a sector-board script shared with a
+    // Google-Sheet-bound alert, BRIEF.md §2) - the webhook URL itself can
+    // carry the secret instead.
+    const body = JSON.parse(sectorBoardBody());
+    delete body.secret;
+    const result = await processWebhookQuickPath(JSON.stringify(body), "1.2.3.4", SECRET);
+    expect(result.status).toBe(200);
+    expect(result.deferredWork).toBeInstanceOf(Function);
+  });
+
+  it("rejects a wrong query-string secret the same as a wrong body secret", async () => {
+    const body = JSON.parse(sectorBoardBody());
+    delete body.secret;
+    const result = await processWebhookQuickPath(JSON.stringify(body), "1.2.3.4", "wrong");
+    expect(result.status).toBe(401);
+  });
+
+  it("prefers a correct body secret over a wrong query-string secret", async () => {
+    const result = await processWebhookQuickPath(stockAlertBody(), "1.2.3.4", "wrong");
+    expect(result.status).toBe(200);
+  });
+
   it("rate-limits repeated wrong-secret requests from the same client, never the right secret", async () => {
     let lastStatus = 0;
     for (let i = 0; i < 25; i++) {

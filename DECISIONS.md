@@ -183,3 +183,28 @@ stop and ask for these.
   site-calculated number from Kite/Yahoo data (not something TradingView
   itself sent) is the site's own best-effort math, shown as a chip on the
   section, not a silent fact.
+
+## Connecting the real TradingView alerts
+
+- **The webhook secret can also travel in the URL's query string**
+  (`?secret=...`), not only the alert message's `"secret"` field
+  (`lib/webhook/process.ts` - `processWebhookQuickPath`'s new optional
+  `querySecret` parameter; the body wins when it actually has a secret).
+  Found necessary once Praveen's real alerts were inspected (via the
+  TradingView MCP's alert-log tool): his two stock-alert scripts
+  (`W-Stage2 - US`/`- INDIA`) already build the *exact* JSON this site
+  expects, secret included - but the `Sector Board – Weekly` alert's
+  message is built entirely inside a Pine `alert()` call with no
+  `"secret"` field, and that same script/alert also still feeds Praveen's
+  Google Sheet (BRIEF.md §2, "keep that untouched"). Editing the live
+  script to add one would risk that working Sheet pipeline for an app
+  feature. Putting the secret in the URL instead needs no Pine edit at
+  all: duplicate the alert in TradingView (never edit the original). The
+  README documents this as the fallback for exactly this situation.
+- **Production `WEBHOOK_SECRET` was set to match what's already embedded
+  in Praveen's live Pine scripts** (seen in the same alert-log
+  inspection - never written down here or anywhere else in the repo),
+  rather than asking him to change three real, currently-working alerts
+  to a new secret. Zero message edits needed for the two stock-alert
+  duplicates as a result - only the sector-board duplicate needs the
+  URL's `?secret=` fallback above.

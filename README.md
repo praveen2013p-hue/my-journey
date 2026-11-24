@@ -164,6 +164,18 @@ of m sectors" rather than failing):
 from Stage/RS/Δ4/Δ13 rather than trusting a sector row's own `focus`
 field (see `DECISIONS.md`).
 
+**If your Pine script builds the alert message itself** (so there's no
+room to add a `"secret"` field without editing a live indicator you don't
+want to touch - e.g. one still feeding your Google Sheet), put the secret
+in the webhook URL instead and leave the message exactly as it is:
+
+```
+https://<your-site>/api/webhooks/tradingview?secret=your-webhook-secret
+```
+
+A `secret` inside the message always wins if present; the URL is only a
+fallback for when the message has none.
+
 ## What each environment variable is, and how to get it
 
 Copy `.env.example` to `.env.local` and fill these in as you get them —

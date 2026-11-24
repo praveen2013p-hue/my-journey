@@ -48,6 +48,7 @@ function tooLargeOrRateLimited(rawBody: string, clientKey: string): boolean {
 export async function processWebhookQuickPath(
   rawBody: string,
   clientKey: string,
+  querySecret?: string,
 ): Promise<WebhookResult> {
   let parsedUnknown: unknown;
   try {
@@ -73,7 +74,13 @@ export async function processWebhookQuickPath(
   }
 
   const parsed = parsedUnknown as Record<string, unknown>;
-  const providedSecret = typeof parsed.secret === "string" ? parsed.secret : "";
+  // Some Pine scripts build the alert message themselves (no room to add a
+  // "secret" field without editing a live indicator shared with other
+  // alerts - e.g. one that also still feeds a Google Sheet, BRIEF.md §2).
+  // For those, the webhook URL itself carries the secret as a query
+  // param instead. The body wins when it actually has one.
+  const bodySecret = typeof parsed.secret === "string" ? parsed.secret : "";
+  const providedSecret = bodySecret.length > 0 ? bodySecret : (querySecret ?? "");
   const expectedSecret = process.env.WEBHOOK_SECRET ?? "";
   const secretOk = expectedSecret.length > 0 && safeCompare(providedSecret, expectedSecret);
 
