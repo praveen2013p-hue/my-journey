@@ -1,18 +1,61 @@
+import Link from "next/link";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { RegimeCard } from "@/components/dashboard/RegimeCard";
+import { TopSectorsCard } from "@/components/dashboard/TopSectorsCard";
+import { TriggersCard } from "@/components/dashboard/TriggersCard";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader, PhaseStub } from "@/components/PageHeader";
+import { getDashboardData } from "@/lib/dashboard-data";
 import { getFreshnessData } from "@/lib/freshness-data";
+import { getBothMarketRegimes } from "@/lib/regime";
 
-export default async function DashboardPage() {
-  const freshness = await getFreshnessData();
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const { week } = await searchParams;
+  const [freshness, data, regimes] = await Promise.all([
+    getFreshnessData(),
+    getDashboardData(week),
+    getBothMarketRegimes(),
+  ]);
 
   return (
     <>
       <DataFreshnessStrip {...freshness} />
-      <PageHeader title="Dashboard" subtitle="Week ending — none yet" />
+      <PageHeader
+        title="Dashboard"
+        subtitle={`Week ending ${data.weekEnding ?? "— none yet"}`}
+        actions={
+          <>
+            <Link
+              href={`/dashboard?week=${data.prevWeek}`}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-border-strong bg-panel-alt px-3.5 text-text hover:bg-panel"
+            >
+              <ChevronLeftIcon /> Prev week
+            </Link>
+            <Link
+              href={`/dashboard?week=${data.nextWeek}`}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-border-strong bg-panel-alt px-3.5 text-text hover:bg-panel"
+            >
+              Next week <ChevronRightIcon />
+            </Link>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <TriggersCard triggers={data.triggers} />
+        <RegimeCard india={regimes.india} us={regimes.us} />
+      </div>
+
+      <TopSectorsCard sectors={data.topSectors} />
+
       <PhaseStub
-        title="Dashboard widgets"
-        phase={2}
-        note="This week's triggers, market regime light, top sectors and open trades/P&L land with the Sectors and Journal work (BRIEF.md §7.3, §12)."
+        title="Open trades and P&L widget"
+        phase={3}
+        note="Needs the trades table and Journal (BRIEF.md §7.3 widget 4), which ship together in Phase 3."
       />
     </>
   );
