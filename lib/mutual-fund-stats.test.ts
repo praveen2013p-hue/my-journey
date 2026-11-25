@@ -19,6 +19,7 @@ function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow 
     planned_amount: null,
     current_value: 0,
     notes: null,
+    negative_amount_note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -258,6 +259,16 @@ describe("buildMutualFundView", () => {
     ];
     const { byYear } = buildMutualFundView(entries);
     expect(byYear[0].yearInvested).toBe(9000); // (10000 + 2000) - 3000
+  });
+
+  it("a negative amount_added (a correction/reversal) reduces both cumulative totals, not just one", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-02-01", amount_added: -2000, current_value: 7500 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[1].cumulativeAdded).toBe(8000); // 10000 - 2000
+    expect(rows[1].cumulativeInvested).toBe(8000); // 10000 + (-2000) - 0
   });
 });
 

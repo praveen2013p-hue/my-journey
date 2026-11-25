@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
 
 function defaultMonthValue(): string {
   const now = new Date();
@@ -14,6 +15,8 @@ export function AddEntryModal() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amountAddedText, setAmountAddedText] = useState("");
+  const [negativeAmountNote, setNegativeAmountNote] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -56,12 +59,15 @@ export function AddEntryModal() {
           planned_amount: plannedAmount === "" ? null : Number(plannedAmount),
           current_value: currentValue,
           notes: notes || null,
+          negative_amount_note: Number(amountAdded) < 0 ? negativeAmountNote.trim() || null : null,
         }),
       });
       if (!res.ok) throw new Error("Couldn't save that month's entry.");
 
       setOpen(false);
       formRef.current?.reset();
+      setAmountAddedText("");
+      setNegativeAmountNote("");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -115,15 +121,27 @@ export function AddEntryModal() {
                 <label htmlFor="mf_amount_added" className="mb-1 block text-xs text-muted">
                   Amount added this month <span className="text-muted">(0 if none)</span>
                 </label>
-                <input
-                  id="mf_amount_added"
-                  name="amount_added"
-                  type="number"
-                  step="any"
-                  min="0"
-                  placeholder="0"
-                  className="min-h-[44px] w-full rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
-                />
+                <span className="flex items-center gap-1">
+                  <input
+                    id="mf_amount_added"
+                    name="amount_added"
+                    type="number"
+                    step="any"
+                    placeholder="0"
+                    value={amountAddedText}
+                    onChange={(e) => setAmountAddedText(e.target.value)}
+                    className={`min-h-[44px] w-full rounded-lg border bg-field px-3 py-2 ${
+                      Number(amountAddedText) < 0 ? "border-neg-border text-neg" : "border-border-strong text-text"
+                    }`}
+                  />
+                  {amountAddedText !== "" && Number(amountAddedText) < 0 && (
+                    <NegativeAmountNoteButton
+                      initialValue={negativeAmountNote}
+                      hasNote={!!negativeAmountNote}
+                      onSave={setNegativeAmountNote}
+                    />
+                  )}
+                </span>
               </div>
 
               <div>

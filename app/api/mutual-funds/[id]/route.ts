@@ -22,6 +22,7 @@ export async function PATCH(
     planned_amount?: number | null;
     current_value?: number;
     notes?: string | null;
+    negative_amount_note?: string | null;
   } = {};
 
   if (body?.amount_added !== undefined) {
@@ -54,6 +55,12 @@ export async function PATCH(
   }
   if (body?.notes !== undefined) {
     update.notes = typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+  }
+  if (body?.negative_amount_note !== undefined) {
+    update.negative_amount_note =
+      typeof body.negative_amount_note === "string" && body.negative_amount_note.trim()
+        ? body.negative_amount_note.trim()
+        : null;
   }
 
   const entry = await updateMutualFundEntry(session.userId, id, update);

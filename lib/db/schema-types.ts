@@ -227,6 +227,8 @@ export interface MutualFundEntryRow {
   planned_amount: number | null;
   current_value: number;
   notes: string | null;
+  /** Why this month's amount_added is negative (a correction/reversal, say) - null unless amount_added < 0 and the user has explained it. */
+  negative_amount_note: string | null;
   created_at: string;
   updated_at: string;
 }

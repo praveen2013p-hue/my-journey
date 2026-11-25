@@ -16,6 +16,7 @@ export interface UpsertMutualFundEntryInput {
   planned_amount: number | null;
   current_value: number;
   notes: string | null;
+  negative_amount_note: string | null;
 }
 
 export async function listMutualFundEntries(userId: string): Promise<MutualFundEntryRow[]> {
@@ -96,7 +97,10 @@ export async function upsertMutualFundEntry(
 }
 
 export type MutualFundEntryUpdateInput = Partial<
-  Pick<MutualFundEntryRow, "amount_added" | "withdrawal" | "planned_amount" | "current_value" | "notes">
+  Pick<
+    MutualFundEntryRow,
+    "amount_added" | "withdrawal" | "planned_amount" | "current_value" | "notes" | "negative_amount_note"
+  >
 >;
 
 export async function updateMutualFundEntry(

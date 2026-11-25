@@ -5,11 +5,14 @@ import { useState } from "react";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/mutual-fund-stats";
 import type { MutualFundEntryView, MutualFundYearGroup } from "@/lib/mutual-fund-stats";
+import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
 
 function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () => void }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amountAddedText, setAmountAddedText] = useState(String(row.entry.amount_added));
+  const [negativeAmountNote, setNegativeAmountNote] = useState(row.entry.negative_amount_note ?? "");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,6 +46,7 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
           planned_amount: plannedAmount,
           current_value: currentValue,
           notes: notes || null,
+          negative_amount_note: amountAdded < 0 ? negativeAmountNote.trim() || null : null,
         }),
       });
       if (!res.ok) throw new Error("Couldn't save changes.");
@@ -60,17 +64,28 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
       onSubmit={handleSubmit}
       className="flex flex-wrap items-center gap-2 rounded-lg border border-border-strong bg-panel-alt p-2.5"
     >
-      <input
-        type="number"
-        step="any"
-        min="0"
-        name="amount_added"
-        required
-        defaultValue={row.entry.amount_added}
-        aria-label="Amount added"
-        placeholder="Amount added"
-        className="min-h-[36px] w-32 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-      />
+      <span className="inline-flex items-center">
+        <input
+          type="number"
+          step="any"
+          name="amount_added"
+          required
+          value={amountAddedText}
+          onChange={(e) => setAmountAddedText(e.target.value)}
+          aria-label="Amount added"
+          placeholder="Amount added"
+          className={`min-h-[36px] w-32 rounded-md border bg-field px-2 text-sm ${
+            Number(amountAddedText) < 0 ? "border-neg-border text-neg" : "border-border-strong text-text"
+          }`}
+        />
+        {Number(amountAddedText) < 0 && (
+          <NegativeAmountNoteButton
+            initialValue={negativeAmountNote}
+            hasNote={!!negativeAmountNote}
+            onSave={setNegativeAmountNote}
+          />
+        )}
+      </span>
       <input
         type="number"
         step="any"
@@ -181,7 +196,23 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             <tr key={row.entry.id} className="border-b border-border/60">
               <td className="whitespace-nowrap px-3 py-2.5 font-medium">{monthLabel(row.entry.month)}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {formatMoney("IN", row.entry.amount_added)}
+                <span className={row.entry.amount_added < 0 ? "text-neg" : undefined}>
+                  {formatMoney("IN", row.entry.amount_added)}
+                </span>
+                {row.entry.amount_added < 0 && (
+                  <NegativeAmountNoteButton
+                    initialValue={row.entry.negative_amount_note ?? ""}
+                    hasNote={!!row.entry.negative_amount_note}
+                    onSave={async (text) => {
+                      await fetch(`/api/mutual-funds/${row.entry.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ negative_amount_note: text || null }),
+                      });
+                      router.refresh();
+                    }}
+                  />
+                )}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {formatMoney("IN", row.cumulativeAdded)}

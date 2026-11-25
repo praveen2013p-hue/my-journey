@@ -983,3 +983,31 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   (since inception, as of year-end): -98.5%").
 - Verified live: both figures for the same year match each other and
   match that year's last-row XIRR in the table.
+
+## Mutual Funds: allow negative SIP Amount, with an auto comment prompt, 2026-11-25
+
+- Requested directly: allow entering a negative value in the SIP
+  Amount column (a correction/reversal from the AMC, say), highlight it
+  in red, and automatically offer a small "i" button to enter and save
+  a comment explaining it.
+- Removed the `min="0"` restriction on amount_added in both the Add
+  entry modal and the inline Edit form - the backend already accepted
+  negative amounts (no change needed there; the sign convention in
+  `lib/mutual-fund-stats.ts` already treats a negative amount_added
+  correctly - it reduces both cumulativeAdded and cumulativeInvested,
+  and flips the XIRR cash-flow sign the same way a withdrawal does,
+  since a negative contribution is economically identical to money
+  coming back out). Added a test locking this in.
+- New `negative_amount_note` column on `mutual_fund_entries` (migration
+  0006) - separate from the general Notes column, since this is
+  specifically "why is this one negative," not a general comment.
+- New shared `NegativeAmountNoteButton` component: a small "i" badge
+  that appears automatically next to the SIP Amount figure whenever
+  it's negative (in the Add modal, the Edit form, and the saved-row
+  table cell), opening a tiny popover to type and save a comment. Badge
+  turns gold once a comment exists, so it's visible at a glance which
+  negative months still need an explanation.
+- Verified live: typed -2000 in the Add modal, the "i" button appeared
+  immediately, saved "NAV correction from the AMC," and confirmed it
+  shows up in the saved table row in red with the gold "has a note"
+  badge, text persisted correctly.

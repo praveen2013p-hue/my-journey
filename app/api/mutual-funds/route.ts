@@ -29,6 +29,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     plannedAmountRaw === null || plannedAmountRaw === undefined || plannedAmountRaw === "" ? null : Number(plannedAmountRaw);
   const currentValue = Number(body?.current_value);
   const notes = typeof body?.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+  const negativeAmountNote =
+    amountAdded < 0 && typeof body?.negative_amount_note === "string" && body.negative_amount_note.trim()
+      ? body.negative_amount_note.trim()
+      : null;
 
   if (
     !/^\d{4}-\d{2}-01$/.test(month) ||
@@ -49,6 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     planned_amount: plannedAmount,
     current_value: currentValue,
     notes,
+    negative_amount_note: negativeAmountNote,
   });
   return NextResponse.json({ entry }, { status: 201 });
 }

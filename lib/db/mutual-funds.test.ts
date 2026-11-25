@@ -18,6 +18,7 @@ function sampleEntry(overrides: Partial<Parameters<typeof upsertMutualFundEntry>
     planned_amount: null,
     current_value: 10500,
     notes: null,
+    negative_amount_note: null,
     ...overrides,
   };
 }
