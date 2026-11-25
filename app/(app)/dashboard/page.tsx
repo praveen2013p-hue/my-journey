@@ -49,14 +49,14 @@ export default async function DashboardPage({
         }
       />
 
+      <MarketSnapshotCard india={indiaSnapshot} us={usSnapshot} />
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <TriggersCard triggers={data.triggers} weekEnding={data.weekEnding} />
         <RegimeCard />
       </div>
 
       <TopSectorsCard sectors={data.topSectors} />
-
-      <MarketSnapshotCard india={indiaSnapshot} us={usSnapshot} />
     </>
   );
 }
