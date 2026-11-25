@@ -161,6 +161,12 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               XIRR
             </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Notes</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="Safe SWP @ 4% of the portfolio, as a monthly amount - see the note below the table"
+            >
+              Safe SWP*
+            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Actions</th>
           </tr>
         </thead>
@@ -207,6 +213,9 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 )}
               </td>
               <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-muted">{row.entry.notes ?? "—"}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {formatMoney("IN", row.safeSwpMonthly)}/mo
+              </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">
                 <div className="flex justify-end gap-2">
                   <button
@@ -228,7 +237,7 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             </tr>,
             editingId === row.entry.id ? (
               <tr key={`${row.entry.id}-edit`} className="border-b border-border/60">
-                <td colSpan={11} className="px-3 py-2.5">
+                <td colSpan={12} className="px-3 py-2.5">
                   <EditEntryForm row={row} onDone={() => setEditingId(null)} />
                 </td>
               </tr>
@@ -239,6 +248,10 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
       <p className="mt-2 text-xs text-muted">
         Planned: <span className="text-pos">green</span> when that month&apos;s Added met or exceeded the plan,{" "}
         <span className="text-neg">red</span> when it fell short.
+      </p>
+      <p className="mt-1 text-xs text-muted">
+        * Safe SWP = 4% of that month&apos;s portfolio value a year, as a monthly amount - assumes a life expectancy
+        of 90 years, nothing left as legacy, and future returns continuing at that month&apos;s own XIRR.
       </p>
     </div>
   );

@@ -60,6 +60,12 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
+  it("safeSwpMonthly is 4% of current_value, converted to a monthly figure", () => {
+    const entries = [entry({ month: "2026-01-01", current_value: 300000 })];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].safeSwpMonthly).toBeCloseTo((300000 * 0.04) / 12, 5); // 1000
+  });
+
   it("pnlChangeAbs is the exact-month-over-month change in Gain, null for the first entry", () => {
     const entries = [
       entry({ month: "2026-01-01", amount_added: 10000, current_value: 10200 }), // gain = 200

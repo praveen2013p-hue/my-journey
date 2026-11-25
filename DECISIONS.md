@@ -825,3 +825,23 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
 - Verified live: Jan (first entry) shows "—" for Change; Feb's Gain
   rose 200→800 shows "▲ ₹600"; Mar's Gain fell back to 200 shows
   "▼ −₹600" - both exactly the hand-computed deltas.
+
+## Mutual Funds: Safe SWP column, 2026-11-25
+
+- Requested directly: a "Safe SWP @ 4% of the portfolio" column after
+  Notes, as a monthly figure, asterisked, with a footnote naming the
+  assumptions (life expectancy 90, nothing left as legacy, returns
+  at that month's own XIRR).
+- Built as the literal flat-4%-of-current-value figure (`current_value
+  * 0.04 / 12`), not a full amortizing annuity calculation that drains
+  the portfolio to exactly zero by age 90 - that would need the user's
+  current age as an input (how many years remain until 90), which isn't
+  captured anywhere in this app. The footnote states the stated
+  assumptions as the rationale/methodology behind calling 4% "safe" for
+  this profile, matching what was asked almost verbatim, rather than as
+  live variables feeding a different formula. Flagged this choice to
+  the user; a true "exhaust to zero by a target age using this month's
+  XIRR" version is a well-defined, buildable follow-up once they give a
+  current age (or birth year) to compute years remaining from.
+- Verified live: a ₹3,00,000 portfolio shows exactly ₹1,000/mo
+  (300000 × 4% ÷ 12).

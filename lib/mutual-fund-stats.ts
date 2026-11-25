@@ -34,6 +34,8 @@ export interface MutualFundEntryView {
   xirrPct: number | null;
   /** This month's Gain minus the exact previous calendar month's Gain - "how much the profit/loss moved this month." Null when there's no entry for that exact prior month (a skipped month, or this is the first one) - never approximated. */
   pnlChangeAbs: number | null;
+  /** 4% of that month's current_value, converted to a monthly figure - see the "Safe SWP" column's footnote for the stated assumptions (age 90, no legacy, return = that month's own XIRR). */
+  safeSwpMonthly: number;
 }
 
 export interface PeriodChange {
@@ -92,6 +94,9 @@ export function shiftMonth(month: string, deltaMonths: number): string {
   return `${newYear}-${String(newMonth + 1).padStart(2, "0")}-01`;
 }
 
+/** "Safe SWP" column, DECISIONS.md: 4% of the portfolio a year, as a monthly figure. */
+const SAFE_SWP_ANNUAL_RATE = 0.04;
+
 function periodChange(current: number, previous: number): PeriodChange {
   return {
     valueChangeAbs: current - previous,
@@ -118,7 +123,14 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
     contributionFlows.push({ days, amount: entry.withdrawal - entry.amount_added });
     const xirrPct = computeXirr([...contributionFlows, { days, amount: entry.current_value }]);
 
-    return { entry, cumulativeInvested: running, gainAbs, gainPct, xirrPct: xirrPct !== null ? xirrPct * 100 : null };
+    return {
+      entry,
+      cumulativeInvested: running,
+      gainAbs,
+      gainPct,
+      xirrPct: xirrPct !== null ? xirrPct * 100 : null,
+      safeSwpMonthly: (entry.current_value * SAFE_SWP_ANNUAL_RATE) / 12,
+    };
   }).map((row, i, all) => {
     const prior = byMonth.has(shiftMonth(row.entry.month, -1)) ? all[i - 1] : undefined;
     return { ...row, pnlChangeAbs: prior ? row.gainAbs - prior.gainAbs : null };
