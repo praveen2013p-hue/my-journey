@@ -1132,3 +1132,27 @@ causes found, in order of actual measured impact:
   lazy-loaded. Not touched.
 - Measured, full tab sweep after the fixes (production build, cold
   dev-store): every tab loads in 570-950ms with nothing broken.
+
+## Mutual Funds: Overview stats no longer overlap when a percentage is huge, 2026-11-25
+
+- Reported directly: when a stat's percentage (e.g. "Overall gain"'s
+  (+X%)) grows wide enough, it was spilling out of its own grid cell
+  and visually colliding with the neighboring stat's label/value.
+- Root cause: a CSS Grid/Flexbox classic - a grid or flex item's
+  default `min-width: auto` lets it grow past its own column to fit
+  its content, instead of respecting the column's width. None of the
+  Overview card's 6 stat cells had `min-w-0` set, so a long enough
+  number/percentage just overflowed into whatever was next to it.
+- Fixed in `MutualFundDashboard.tsx`: every stat cell now has
+  `min-w-0`, and the two cells that pair an amount with a parenthetical
+  percentage (Overall gain, and the "vs last month"/"vs same month
+  last year" lines) wrap the percentage onto its own line first
+  (flex-wrap) and, only if it's still too wide even alone on a line,
+  truncate it with an ellipsis rather than overflow - the full value is
+  always still available via a hover tooltip. The primary rupee amount
+  itself is never truncated, only the secondary percentage.
+- Verified with a deliberately extreme case (a tiny invested base next
+  to a huge current value, producing a 4999999900% swing): confirmed,
+  programmatically (bounding-box overlap check) and visually (desktop +
+  mobile screenshots), that nothing spills into a neighboring stat
+  anymore.

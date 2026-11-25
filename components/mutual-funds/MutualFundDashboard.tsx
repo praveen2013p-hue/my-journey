@@ -4,14 +4,18 @@ import type { MutualFundDashboard as Dashboard, PeriodChange } from "@/lib/mutua
 
 function ChangeLine({ label, change }: { label: string; change: PeriodChange | null }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-xs text-muted">{label}</div>
       {change === null ? (
         <div className="mt-1 text-sm text-muted">—</div>
       ) : (
-        <div className={`mt-1 text-[17px] font-semibold tabular-nums ${change.valueChangeAbs >= 0 ? "text-pos" : "text-neg"}`}>
-          {formatMoney("IN", change.valueChangeAbs)}
-          <span className="ml-1.5 text-sm font-medium">({formatPct(change.valueChangePct)})</span>
+        <div
+          className={`mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[17px] font-semibold tabular-nums ${change.valueChangeAbs >= 0 ? "text-pos" : "text-neg"}`}
+        >
+          <span>{formatMoney("IN", change.valueChangeAbs)}</span>
+          <span className="min-w-0 truncate text-sm font-medium" title={`(${formatPct(change.valueChangePct)})`}>
+            ({formatPct(change.valueChangePct)})
+          </span>
         </div>
       )}
     </div>
@@ -39,29 +43,40 @@ export function MutualFundDashboard({ dashboard }: { dashboard: Dashboard }) {
         <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>
       </div>
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs text-muted">Total invested</div>
-          <div className="mt-1 text-[22px] font-semibold tabular-nums">{formatMoney("IN", dashboard.totalInvested!)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-muted">Current value</div>
-          <div className="mt-1 text-[22px] font-semibold tabular-nums">{formatMoney("IN", dashboard.currentValue!)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-muted">Overall gain</div>
-          <div className={`mt-1 text-[22px] font-semibold tabular-nums ${dashboard.gainAbs! >= 0 ? "text-pos" : "text-neg"}`}>
-            {formatMoney("IN", dashboard.gainAbs!)}
-            <span className="ml-1.5 text-sm font-medium">({formatPct(dashboard.gainPct)})</span>
+          <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested!)}>
+            {formatMoney("IN", dashboard.totalInvested!)}
           </div>
         </div>
-        <div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted">Current value</div>
+          <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.currentValue!)}>
+            {formatMoney("IN", dashboard.currentValue!)}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted">Overall gain</div>
+          <div
+            className={`mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[22px] font-semibold tabular-nums ${dashboard.gainAbs! >= 0 ? "text-pos" : "text-neg"}`}
+          >
+            <span>{formatMoney("IN", dashboard.gainAbs!)}</span>
+            <span className="min-w-0 truncate text-sm font-medium" title={`(${formatPct(dashboard.gainPct)})`}>
+              ({formatPct(dashboard.gainPct)})
+            </span>
+          </div>
+        </div>
+        <div className="min-w-0">
           <div className="text-xs text-muted" title="Annualized return (XIRR), accounting for when each contribution and withdrawal happened">
             XIRR
           </div>
           {dashboard.xirrPct === null ? (
             <div className="mt-1 text-[22px] font-semibold text-muted">—</div>
           ) : (
-            <div className={`mt-1 text-[22px] font-semibold tabular-nums ${dashboard.xirrPct >= 0 ? "text-pos" : "text-neg"}`}>
+            <div
+              className={`mt-1 truncate text-[22px] font-semibold tabular-nums ${dashboard.xirrPct >= 0 ? "text-pos" : "text-neg"}`}
+              title={formatPct(dashboard.xirrPct)}
+            >
               {formatPct(dashboard.xirrPct)}
             </div>
           )}
