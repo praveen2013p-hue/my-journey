@@ -142,11 +142,11 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
           <tr className="border-b border-border text-xs text-muted">
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Month</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Added</th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" title="Required amount to be invested, as per your plan">
               Planned
             </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Withdrawn</th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
               title="How much the Gain moved compared to the previous calendar month"
@@ -178,6 +178,9 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 {formatMoney("IN", row.entry.amount_added)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {formatMoney("IN", row.cumulativeInvested)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {row.entry.planned_amount === null ? (
                   <span className="text-muted">—</span>
                 ) : (
@@ -188,9 +191,6 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {row.entry.withdrawal > 0 ? formatMoney("IN", row.entry.withdrawal) : <span className="text-muted">—</span>}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {formatMoney("IN", row.cumulativeInvested)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {row.pnlChangeAbs === null ? (
