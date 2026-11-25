@@ -1156,3 +1156,29 @@ causes found, in order of actual measured impact:
   programmatically (bounding-box overlap check) and visually (desktop +
   mobile screenshots), that nothing spills into a neighboring stat
   anymore.
+
+## Mutual Funds: fixed "Valuation" showing the same figure as "Invested", 2026-11-25
+
+- Reported directly: "Invested" and "Valuation" columns were showing
+  the same value everywhere.
+- Real bug, not just confusing naming: "Valuation" was wired to
+  `cumulativeInvested` (net cumulative contributions, after
+  withdrawals) instead of `entry.current_value` (the actual portfolio
+  value the user enters each month). Without a withdrawal, net
+  cumulative contributions trivially equals gross cumulative
+  contributions - which is exactly what "Invested" already shows - so
+  the two columns were bound to look identical for anyone who's never
+  used the Withdrawn field.
+- Confirmed by cross-checking the Grid view's year tiles, whose "Value"
+  figure (`yearEndValue`) was already correctly wired to
+  `entry.current_value` - the per-month table's "Valuation" column was
+  the inconsistent one.
+- Fixed: "Valuation" now shows `entry.current_value` directly, with a
+  tooltip ("This month's actual portfolio value, as you entered it").
+  `cumulativeInvested` is untouched and still powers the Dashboard's
+  "Total invested" stat and all the gain/XIRR math - only where it was
+  being displayed changed.
+- Verified live: Jan 2026 (added ₹10,000, current_value ₹10,500) and
+  Feb 2026 (added another ₹10,000, current_value ₹25,000) now show
+  Invested ₹10,000/₹20,000 next to Valuation ₹10,500/₹25,000 - visibly
+  different, as expected.

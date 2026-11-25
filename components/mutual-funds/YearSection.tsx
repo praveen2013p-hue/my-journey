@@ -236,7 +236,12 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             >
               Invested
             </th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="This month's actual portfolio value, as you entered it"
+            >
+              Valuation
+            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" title="Required amount to be invested, as per your plan">
               Planned
             </th>
@@ -309,7 +314,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 {formatMoney("IN", row.cumulativeAdded)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {formatMoney("IN", row.cumulativeInvested)}
+                {formatMoney("IN", row.entry.current_value)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {row.entry.planned_amount === null ? (
