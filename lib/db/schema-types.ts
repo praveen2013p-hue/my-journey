@@ -203,6 +203,28 @@ export interface TradeRow {
   created_at: string;
 }
 
+/**
+ * One month's manual mutual fund snapshot, per user - replaces the
+ * Google Sheet the user used to keep (DECISIONS.md). One aggregate
+ * portfolio number, not per-scheme - deliberately simple, matching how
+ * the user described tracking it ("overall invested and current
+ * amount"). `amount_added` is that month's fresh contribution (0 if
+ * none); "total invested to date" is never stored, only derived by
+ * summing every month's `amount_added` up to and including that month -
+ * one fewer number to type and get wrong each month.
+ */
+export interface MutualFundEntryRow {
+  id: string;
+  user_id: string;
+  /** yyyy-mm-01 - always the first of the month; there's at most one entry per user per month. */
+  month: string;
+  amount_added: number;
+  current_value: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StockNoteRow {
   user_id: string;
   market: Market;

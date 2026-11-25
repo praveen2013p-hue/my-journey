@@ -712,3 +712,40 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   the score actually predicted the outcome, not assumed. New
   `getAlertsByIds` batched lookup in `lib/db/alerts.ts`. New
   `QualityCalibrationTable` section on the Performance page.
+
+## Mutual Funds: manual monthly tracker, 2026-11-25
+
+- Requested directly: replace the user's Google Sheet, where they
+  manually tracked one overall mutual fund portfolio month by month.
+  Asked two scoping questions before building (getting this wrong means
+  re-entering years of history): confirmed **one aggregate number**
+  (not per-scheme), and confirmed each month's entry is **that month's
+  contribution + current portfolio value** - "total invested to date"
+  is never stored, only derived by summing every month's contribution
+  up to and including that month (`lib/mutual-fund-stats.ts`'s
+  `buildMutualFundView`) - one fewer number to type (and get wrong)
+  each month. India-only (₹), since that's this user's context; no
+  market toggle like Journal/Breakouts.
+- New `mutual_fund_entries` table (`supabase/migrations/
+  0003_mutual_fund_entries.sql`), one row per user per calendar month
+  (`unique (user_id, month)`), same per-user RLS pattern as `trades`.
+  `lib/db/mutual-funds.ts` repo mirrors `trades.ts`'s shape
+  (list/get/upsert-by-month/update/delete).
+- All date math in `lib/mutual-fund-stats.ts` (`shiftMonth`,
+  `monthLabel`) is plain integer arithmetic on "yyyy-mm-01" strings,
+  never a `Date` object - the same reason as `lib/journal-calendar.ts`.
+  "vs last month" / "vs same month last year" on the dashboard only
+  fill in when an entry for that *exact* calendar month exists - never
+  approximated from whichever entry happens to be array-adjacent (a
+  skipped month shows "—", not a wrong comparison).
+- New `/mutual-funds` page: `MutualFundDashboard` (totals + both period
+  comparisons), `YearSection` (one collapsible `<details>` per year,
+  most recent year first, months newest-first within it, inline
+  edit/delete per month - same pattern as `TradesTable`'s
+  `CloseTradeForm`), `AddEntryModal` (re-submitting an existing month
+  replaces it, by design - the upsert-by-month constraint). New sidebar
+  nav entry + `MutualFundIcon`.
+- Verified live in a browser (not just unit tests): added 6 months
+  across 2019/2020/2026, confirmed the dashboard, year rollups and
+  per-month cumulative-invested all recompute correctly after an edit
+  and after a delete, on both desktop and mobile viewports.

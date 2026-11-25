@@ -24,6 +24,7 @@ import type {
   AppSettings,
   BackupLogRow,
   HolidayRow,
+  MutualFundEntryRow,
   PriceHistoryRow,
   ProviderSessionRow,
   QuoteRow,
@@ -59,6 +60,7 @@ export interface DevStoreShape {
   user_settings: UserSettingsRow[];
   strategy_tags: StrategyTagRow[];
   trades: TradeRow[];
+  mutual_fund_entries: MutualFundEntryRow[];
   stock_notes: StockNoteRow[];
   weekly_reflections: WeeklyReflectionRow[];
   _seq: Record<string, number>;
@@ -91,6 +93,7 @@ function emptyStore(): DevStoreShape {
     user_settings: [],
     strategy_tags: [],
     trades: [],
+    mutual_fund_entries: [],
     stock_notes: [],
     weekly_reflections: [],
     _seq: {},
