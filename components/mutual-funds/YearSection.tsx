@@ -102,50 +102,56 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
       onSubmit={handleSubmit}
       className="flex flex-wrap items-center gap-2 rounded-lg border border-border-strong bg-panel-alt p-2.5"
     >
-      <span className="flex flex-wrap items-center gap-1.5">
-        <input
-          type="number"
-          step="any"
-          aria-label="SIP"
-          placeholder="SIP"
-          value={sipText}
-          onChange={(e) => setSipText(e.target.value)}
-          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-        />
-        <input
-          type="number"
-          step="any"
-          aria-label="Lumpsum"
-          placeholder="Lumpsum"
-          value={lumpsumText}
-          onChange={(e) => setLumpsumText(e.target.value)}
-          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-        />
-        <input
-          type="number"
-          step="any"
-          aria-label="STP"
-          placeholder="STP"
-          value={stpText}
-          onChange={(e) => setStpText(e.target.value)}
-          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-        />
-        <input
-          type="number"
-          step="any"
-          aria-label="Other"
-          placeholder="Other"
-          value={otherText}
-          onChange={(e) => setOtherText(e.target.value)}
-          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-        />
-        <span className={`text-sm ${total < 0 ? "text-neg" : "text-muted"}`}>= {formatMoney("IN", total)}</span>
-        {total < 0 && (
-          <NegativeAmountNoteButton
-            initialValue={negativeAmountNote}
-            hasNote={!!negativeAmountNote}
-            onSave={setNegativeAmountNote}
+      <span className="flex flex-wrap items-end gap-1.5">
+        <label className="text-[10px] text-muted">
+          SIP
+          <input
+            type="number"
+            step="any"
+            value={sipText}
+            onChange={(e) => setSipText(e.target.value)}
+            className="mt-0.5 block min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
           />
+        </label>
+        <label className="text-[10px] text-muted">
+          Lumpsum
+          <input
+            type="number"
+            step="any"
+            value={lumpsumText}
+            onChange={(e) => setLumpsumText(e.target.value)}
+            className="mt-0.5 block min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+          />
+        </label>
+        <label className="text-[10px] text-muted">
+          STP
+          <input
+            type="number"
+            step="any"
+            value={stpText}
+            onChange={(e) => setStpText(e.target.value)}
+            className="mt-0.5 block min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+          />
+        </label>
+        <label className="text-[10px] text-muted">
+          Other
+          <input
+            type="number"
+            step="any"
+            value={otherText}
+            onChange={(e) => setOtherText(e.target.value)}
+            className="mt-0.5 block min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+          />
+        </label>
+        <span className={`pb-2 text-sm ${total < 0 ? "text-neg" : "text-muted"}`}>= {formatMoney("IN", total)}</span>
+        {total < 0 && (
+          <span className="pb-2">
+            <NegativeAmountNoteButton
+              initialValue={negativeAmountNote}
+              hasNote={!!negativeAmountNote}
+              onSave={setNegativeAmountNote}
+            />
+          </span>
         )}
       </span>
       <input

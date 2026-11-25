@@ -1069,3 +1069,13 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   cell reads ₹27,000 with that exact breakdown on hover; edited a
   pre-existing (legacy) ₹7,000 entry and confirmed its edit form showed
   SIP/Lumpsum/STP = 0 and Other = 7000.
+
+## Mutual Funds: visible labels on the Edit row's breakdown fields, 2026-11-25
+
+- Reported directly: in the inline Edit row, the SIP/Lumpsum/STP/Other
+  fields only had placeholder text, which disappears once prefilled
+  with a value - so editing an already-filled-in month, you couldn't
+  tell which box was which.
+- Replaced `placeholder`/`aria-label` with a real, always-visible
+  `<label>` above each input (same pattern the Add entry modal already
+  used) - the text stays put no matter what's typed in the box.
