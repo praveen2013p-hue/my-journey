@@ -81,7 +81,7 @@ const SectorRowSchema = z.object({
   sector: z.string().min(1),
   stage: z.number().int().min(1).max(4).nullable().optional(),
   rs: z.number().nullable().optional(),
-  rsUp: z.boolean().optional(),
+  rsUp: z.boolean().nullable().optional(),
   vsMA: z.number().nullable().optional(),
   chg4: z.number().nullable().optional(),
   focus: z.boolean().optional(),

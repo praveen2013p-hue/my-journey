@@ -492,3 +492,36 @@ stop and ask for these.
 - US routes through `getProviderForMarket("US")`, not the Yahoo singleton
   directly, so `FORCE_MOCK_US` still works for tests/offline demos - the
   same pattern every other Yahoo-backed feature in this app already uses.
+
+## Bug found testing the sector board alert live, 2026-11-25
+
+- Praveen fired his real "Sector Board – Weekly" Pine script live
+  (market open) to verify the whole pipeline end to end. The alert fired
+  and the webhook returned 200 OK, which looked like success - but
+  Vercel's own runtime-error log showed the *deferred* storage step
+  failing every time with a `ZodError` on `rows[n].rsUp`.
+- Root cause: the Pine script sends `"rsUp":null` for a sector whose
+  `mrsChg` is `na` (not enough RS history yet - true for a couple of this
+  user's actual sectors, e.g. newer/thinner ones). `SectorRowSchema` in
+  `lib/webhook/schemas.ts` had `rsUp: z.boolean().optional()` - missing
+  `.nullable()`, unlike every sibling field (`rs`, `vsMA`, `chg4`), which
+  were already `.nullable().optional()`. Zod validates the whole payload
+  as one object, not row-by-row, so one bad `rsUp` anywhere in `rows`
+  rejected the entire snapshot - not just that one sector (a sharper
+  problem than §17.6's "partial snapshot" case, which is about a
+  shortened `rows` array, not a type mismatch inside a row).
+- Why this looked like success: §17.1's "never throw out of deferred
+  work" principle (`processAcceptedPayload`'s try/catch, logs and moves
+  on) means a 200 OK to TradingView only ever meant "the secret was
+  valid and we queued it for processing" - never "it was stored." This
+  is correct behavior for the webhook contract, but means a schema bug
+  like this one is invisible from TradingView's side entirely; only
+  Vercel's runtime-error log (or Settings -> Alert health, which tracks
+  `alerts_raw.processed_at`/`reason`) would show it.
+- Fixed with one token: `rsUp: z.boolean().nullable().optional()`.
+  `lib/webhook/process.ts` already did `row.rsUp ?? null` on the
+  consuming side, so nothing else needed to change. Added a regression
+  test (`lib/webhook/process.test.ts`) that reproduces the exact failure
+  (two rows, one with `rsUp: null`) and asserts both rows are actually
+  stored - confirmed it fails without the fix (0 rows stored) and passes
+  with it.

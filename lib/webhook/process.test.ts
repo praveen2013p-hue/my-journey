@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listAlerts } from "../db/alerts";
 import { __resetStoreForTests } from "../db/local-store";
+import { listSectorSnapshotHistory } from "../db/sectors";
 import { processWebhookQuickPath } from "./process";
 import { __resetRateLimiterForTests } from "./security";
 
@@ -197,6 +198,32 @@ describe("sector board ingestion", () => {
     const result = await processWebhookQuickPath(sectorBoardBody({ rows: [] }), "1.2.3.4");
     expect(result.status).toBe(200);
     await expect(result.deferredWork?.()).resolves.toBeUndefined();
+  });
+
+  it("stores a sector whose rsUp is null (not enough RS history yet) instead of rejecting the whole snapshot", async () => {
+    // Reproduces a real failure found testing live on 2026-11-25: the Pine
+    // script sends rsUp:null for a sector with no mrsChg yet (na(mrsChg)),
+    // which SectorRowSchema's `rsUp: z.boolean().optional()` rejected -
+    // deferredWork swallows the ZodError (never throws, §17.1), so
+    // TradingView saw 200 OK while every row silently failed to store.
+    const result = await processWebhookQuickPath(
+      sectorBoardBody({
+        rows: [
+          { rank: 1, sector: "PSU Bank", stage: 2, rs: 12.4, rsUp: true, vsMA: 15.2, chg4: 6.1, focus: true },
+          { rank: 2, sector: "Chemicals", stage: 1, rs: -5.6, rsUp: null, vsMA: -3, chg4: 7.8, focus: false },
+        ],
+      }),
+      "1.2.3.4",
+    );
+    expect(result.status).toBe(200);
+    await result.deferredWork?.();
+
+    const history = await listSectorSnapshotHistory("IN");
+    expect(history).toHaveLength(2);
+    const chemicals = history.find((s) => s.sector === "Chemicals");
+    expect(chemicals?.rs_up).toBeNull();
+    const psuBank = history.find((s) => s.sector === "PSU Bank");
+    expect(psuBank?.rs_up).toBe(true);
   });
 
   it("recomputes an existing alert's Quality Score once its sector shows up as Stage 2 with positive RS", async () => {
