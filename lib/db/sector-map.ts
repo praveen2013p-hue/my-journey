@@ -52,6 +52,33 @@ export async function getSectorMapEntry(
   return rows.find((s) => s.display_name === displayName) ?? null;
 }
 
+/**
+ * Confirms a real symbol for a sector (DECISIONS.md's "search Kite
+ * instruments" tool) - sets both tv_symbol and provider_symbol together
+ * so the sector drops out of "unresolved" and the backfill/price-change
+ * calls can use it, in one step.
+ */
+export async function setSectorSymbol(market: Market, displayName: string, symbol: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase
+      .from("sector_map")
+      .update({ tv_symbol: symbol, provider_symbol: symbol })
+      .eq("market", market)
+      .eq("display_name", displayName);
+    if (error) throw error;
+    return;
+  }
+
+  await mutateStore((store) => {
+    const row = store.sector_map.find((s) => s.market === market && s.display_name === displayName);
+    if (row) {
+      row.tv_symbol = symbol;
+      row.provider_symbol = symbol;
+    }
+  });
+}
+
 /** Sectors with no confirmed TradingView/provider symbol yet - shown in Settings (BRIEF.md §5c). */
 export async function listUnresolvedSectors(market?: Market): Promise<SectorMapRow[]> {
   const rows = isSupabaseConfigured()

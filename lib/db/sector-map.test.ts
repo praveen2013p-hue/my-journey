@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetStoreForTests } from "./local-store";
-import { listSectorMap, listUnresolvedSectors, seedSectorMapIfEmpty } from "./sector-map";
+import { listSectorMap, listUnresolvedSectors, seedSectorMapIfEmpty, setSectorSymbol } from "./sector-map";
 import { SECTOR_MAP_SEED } from "../sector-map-seed";
 
 beforeEach(async () => {
@@ -38,5 +38,20 @@ describe("seedSectorMapIfEmpty", () => {
     await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
     const unresolvedUs = await listUnresolvedSectors("US");
     expect(unresolvedUs).toHaveLength(0);
+  });
+});
+
+describe("setSectorSymbol", () => {
+  it("resolves a sector's tv_symbol and provider_symbol together, dropping it out of unresolved", async () => {
+    await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
+    expect((await listUnresolvedSectors("IN")).map((s) => s.display_name)).toContain("Auto");
+
+    await setSectorSymbol("IN", "Auto", "NSE:NIFTYAUTO");
+
+    const unresolved = await listUnresolvedSectors("IN");
+    expect(unresolved.map((s) => s.display_name)).not.toContain("Auto");
+    const auto = (await listSectorMap("IN")).find((s) => s.display_name === "Auto")!;
+    expect(auto.tv_symbol).toBe("NSE:NIFTYAUTO");
+    expect(auto.provider_symbol).toBe("NSE:NIFTYAUTO");
   });
 });

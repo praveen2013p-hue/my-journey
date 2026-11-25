@@ -334,3 +334,21 @@ stop and ask for these.
   (and silently fails) the moment a token is saved. `maxDuration = 60` on
   the route since even rate-limited this is doing real work, not an
   instant API call.
+- **First real run confirmed the suspicion above**: all 4 of India's
+  "known" sector symbols (`BANKNIFTY`, `CNXPSUBANK`, `CNXIT`,
+  `NIFTY_IND_DEFENCE`) returned "no price data" even with Zerodha
+  genuinely connected - they're TradingView's names for these indices,
+  not necessarily Kite's own `tradingsymbol`. Rather than guess the real
+  ones (risk of silently fetching the wrong index), added a small
+  owner-only "Find a sector's real Kite symbol" tool on Settings:
+  `lib/zerodha/instruments.ts` now also parses and caches just the
+  `INDICES`-segment rows from the same instrument dump it was already
+  fetching (`parseIndexInstruments` - reads `segment`/`exchange` from the
+  *end* of the CSV line, since `name` is the field that can contain a
+  comma, same reasoning as the existing tradingsymbol/token parse), and
+  `searchIndexInstruments` matches a query against both tradingsymbol and
+  name. The owner searches (e.g. "bank"), sees Kite's real index names,
+  and confirms the right one per sector (`setSectorSymbol`, new
+  `/api/admin/sector-map-resolve` route) - no code change or redeploy
+  needed to fix a wrong symbol, and the same tool works for any of the
+  24 still-unresolved India sectors as he confirms them over time.

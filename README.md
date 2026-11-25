@@ -248,9 +248,11 @@ Live and working once you've done this once:
    load 2 years of weekly stage/RS history for every sector with a
    resolved index symbol (BRIEF.md §7.2) - safe to re-run any time, and it
    never overwrites a week your real TradingView alerts already sent.
-   Only 4 of India's 28 sectors have a confirmed symbol today; the rest
-   show up in the result and in "unresolved sector indices" below until
-   you confirm a real one (see `DECISIONS.md`).
+   Only 4 of India's 28 sectors have a confirmed symbol today, and even
+   those 4 may be wrong (TradingView's index names don't always match
+   Kite's) - if a sector comes back "no price data," use **Find a
+   sector's real Kite symbol** just above it to search Kite's own index
+   list and confirm the right one (see `DECISIONS.md`).
 
 Not built yet even with Kite connected: the Saturday refresh/nightly
 backup crons (§11) - separate, bigger pieces of infrastructure on their

@@ -16,6 +16,7 @@ import { getFreshnessData } from "@/lib/freshness-data";
 import { formatIst } from "@/lib/format-ist";
 import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
 import { buildKiteLoginUrl } from "@/lib/zerodha/auth";
+import { searchIndexInstruments } from "@/lib/zerodha/instruments";
 
 interface BackfillResult {
   ok: boolean;
@@ -44,7 +45,7 @@ function parseBackfillResult(raw: string | undefined): BackfillResult | null {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ zerodha?: string; backfill?: string }>;
+  searchParams: Promise<{ zerodha?: string; backfill?: string; resolve?: string; q?: string }>;
 }) {
   const session = await verifySession();
   const sp = await searchParams;
@@ -66,6 +67,9 @@ export default async function SettingsPage({
   const kiteConfigured = Boolean(process.env.KITE_API_KEY && process.env.KITE_API_SECRET);
   const isOwner = isOwnerEmail(session.email);
   const backfillResult = parseBackfillResult(sp.backfill);
+  const unresolvedIndiaSectors = unresolvedSectors.filter((s) => s.market === "IN");
+  const instrumentMatches =
+    isOwner && zerodhaSession && sp.q ? await searchIndexInstruments(zerodhaSession.accessToken, sp.q) : [];
 
   return (
     <>
@@ -216,6 +220,94 @@ export default async function SettingsPage({
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {isOwner && zerodhaSession && unresolvedIndiaSectors.length > 0 && (
+          <div className="mt-4 border-t border-border pt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+              Find a sector&apos;s real Kite symbol
+            </h3>
+            <p className="mb-2 text-xs text-muted">
+              Sector symbols above (like &ldquo;BANKNIFTY&rdquo;) are TradingView&apos;s own names, which don&apos;t
+              always match what Kite&apos;s instrument dump calls the same index. Search Kite&apos;s real index
+              list below, then confirm the right one for a sector.
+            </p>
+            <form method="GET" className="mb-3 flex flex-wrap items-center gap-2.5">
+              <input
+                type="text"
+                name="q"
+                defaultValue={sp.q ?? ""}
+                placeholder="e.g. bank, IT, defence"
+                className="min-h-[40px] rounded-lg border border-border-strong bg-field px-3 text-text"
+              />
+              <button
+                type="submit"
+                className="min-h-[40px] rounded-lg border border-border-strong bg-panel-alt px-3.5 text-sm font-medium hover:bg-panel"
+              >
+                Search
+              </button>
+            </form>
+
+            {sp.q && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {instrumentMatches.length === 0 ? (
+                  <span className="text-xs text-muted">No Kite index matched &ldquo;{sp.q}&rdquo;.</span>
+                ) : (
+                  instrumentMatches.map((m) => (
+                    <span
+                      key={m.tradingsymbol}
+                      className="rounded-full border border-border-strong bg-chip-neutral px-2.5 py-0.5 text-xs"
+                    >
+                      <span className="font-semibold">{m.tradingsymbol}</span> — {m.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            )}
+
+            {sp.resolve === "ok" && (
+              <div className="mb-2 rounded-[10px] border border-pos-border bg-pos-wash px-3 py-2 text-xs text-pos">
+                Saved. That sector will use this symbol next time you run the backfill or view Sectors.
+              </div>
+            )}
+            {sp.resolve === "error" && (
+              <div className="mb-2 rounded-[10px] border border-neg-border bg-neg-wash px-3 py-2 text-xs text-neg">
+                Couldn&apos;t save - try again.
+              </div>
+            )}
+
+            <form
+              action="/api/admin/sector-map-resolve"
+              method="POST"
+              className="flex flex-wrap items-center gap-2.5"
+            >
+              <input type="hidden" name="market" value="IN" />
+              <select
+                name="sector"
+                required
+                className="min-h-[40px] rounded-lg border border-border-strong bg-field px-3 text-text"
+              >
+                {unresolvedIndiaSectors.map((s) => (
+                  <option key={s.id} value={s.display_name}>
+                    {s.display_name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                name="symbol"
+                required
+                placeholder="confirmed tradingsymbol, e.g. NIFTY BANK"
+                className="min-h-[40px] w-56 rounded-lg border border-border-strong bg-field px-3 text-text"
+              />
+              <button
+                type="submit"
+                className="min-h-[40px] rounded-lg border border-gold bg-gold px-3.5 text-sm font-semibold text-bg hover:bg-gold-hover"
+              >
+                Save symbol
+              </button>
+            </form>
           </div>
         )}
       </section>
