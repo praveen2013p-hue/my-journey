@@ -11,6 +11,7 @@ import { BENCHMARK_SYMBOL } from "./regime";
 import type { Market } from "./db/schema-types";
 import type { DailyBar } from "./providers/types";
 import { getProviderForMarket } from "./providers";
+import { createTtlCache } from "./ttl-cache";
 
 const WINDOW_SESSIONS = 25;
 const DOWN_THRESHOLD_PCT = -0.2;
@@ -42,7 +43,7 @@ function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export async function getDistributionDayCount(market: Market): Promise<DistributionDayResult> {
+async function computeDistributionDayCount(market: Market): Promise<DistributionDayResult> {
   const benchmarkSymbol = BENCHMARK_SYMBOL[market];
   const provider = getProviderForMarket(market);
   const to = new Date();
@@ -57,4 +58,19 @@ export async function getDistributionDayCount(market: Market): Promise<Distribut
     windowSessions: WINDOW_SESSIONS,
     count: countDistributionDays(bars),
   };
+}
+
+// This is daily-bar data (doesn't change intraday) fetched from a live
+// provider, and every (app) page's Sidebar can trigger a Dashboard
+// pre-render in the background (DECISIONS.md) - cache it so that doesn't
+// mean a fresh provider call on every one of those.
+const DISTRIBUTION_DAYS_CACHE_TTL_MS = 15 * 60 * 1000;
+const cache = createTtlCache<Market, DistributionDayResult>(DISTRIBUTION_DAYS_CACHE_TTL_MS);
+
+export async function getDistributionDayCount(market: Market): Promise<DistributionDayResult> {
+  return cache.getOrCompute(market, () => computeDistributionDayCount(market));
+}
+
+export function __clearDistributionDaysCacheForTests(): void {
+  cache.clear();
 }

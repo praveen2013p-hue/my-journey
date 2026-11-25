@@ -30,18 +30,18 @@ function MarketRow({
   const total = grades.A + grades.B + grades.C;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <Link href={breakoutsHref(market, weekEnding)} className="group">
+      <Link href={breakoutsHref(market, weekEnding)} prefetch={false} className="group">
         <div className="text-xs text-muted group-hover:text-text">{label} · breakouts</div>
         <div className="text-[30px] font-semibold tabular-nums group-hover:text-gold-light">{total}</div>
       </Link>
       <div className="flex gap-2">
-        <Link href={breakoutsHref(market, weekEnding, "A")}>
+        <Link href={breakoutsHref(market, weekEnding, "A")} prefetch={false}>
           <Chip variant="green">● A {grades.A}</Chip>
         </Link>
-        <Link href={breakoutsHref(market, weekEnding, "B")}>
+        <Link href={breakoutsHref(market, weekEnding, "B")} prefetch={false}>
           <Chip variant="amber">● B {grades.B}</Chip>
         </Link>
-        <Link href={breakoutsHref(market, weekEnding, "C")}>
+        <Link href={breakoutsHref(market, weekEnding, "C")} prefetch={false}>
           <Chip variant="red">● C {grades.C}</Chip>
         </Link>
       </div>
@@ -58,10 +58,10 @@ export function TriggersCard({ triggers, weekEnding }: { triggers: TriggerCounts
         <MarketRow label="US" market="US" weekEnding={weekEnding} grades={triggers.breakout.US} />
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
           <span>Pullbacks this week:</span>
-          <Link href={pullbacksHref("IN", weekEnding)} className="hover:text-gold-light hover:underline">
+          <Link href={pullbacksHref("IN", weekEnding)} prefetch={false} className="hover:text-gold-light hover:underline">
             India {triggers.pullback.IN}
           </Link>
-          <Link href={pullbacksHref("US", weekEnding)} className="hover:text-gold-light hover:underline">
+          <Link href={pullbacksHref("US", weekEnding)} prefetch={false} className="hover:text-gold-light hover:underline">
             US {triggers.pullback.US}
           </Link>
         </div>

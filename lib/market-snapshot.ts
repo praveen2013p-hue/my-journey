@@ -19,6 +19,7 @@
 
 import type { Market } from "./db/schema-types";
 import { getProviderForMarket, kite } from "./providers";
+import { createTtlCache } from "./ttl-cache";
 
 export interface MarketSnapshotItem {
   label: string;
@@ -72,6 +73,18 @@ async function getUsSnapshot(): Promise<MarketSnapshotItem[]> {
   });
 }
 
+// Every (app) page's Sidebar can trigger a Dashboard pre-render in the
+// background (DECISIONS.md), and this is a live Kite/Yahoo quote call -
+// too slow/network-dependent to repeat on every single one of those. A
+// couple of minutes old is still a fine "snapshot" at this app's
+// swing-trading cadence.
+const SNAPSHOT_CACHE_TTL_MS = 2 * 60 * 1000;
+const cache = createTtlCache<Market, MarketSnapshotItem[]>(SNAPSHOT_CACHE_TTL_MS);
+
 export async function getMarketSnapshot(market: Market): Promise<MarketSnapshotItem[]> {
-  return market === "IN" ? getIndiaSnapshot() : getUsSnapshot();
+  return cache.getOrCompute(market, () => (market === "IN" ? getIndiaSnapshot() : getUsSnapshot()));
+}
+
+export function __clearMarketSnapshotCacheForTests(): void {
+  cache.clear();
 }

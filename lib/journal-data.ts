@@ -6,7 +6,7 @@
 
 import { listAlerts } from "./db/alerts";
 import { listStrategyTags } from "./db/strategy-tags";
-import { getSymbolMapping } from "./db/symbol-map";
+import { listSymbolMappingsForTickers } from "./db/symbol-map";
 import { listTrades } from "./db/trades";
 import type { Market, TradeRow } from "./db/schema-types";
 import {
@@ -66,14 +66,15 @@ export async function getJournalPageData(userId: string, market: Market): Promis
     a.ticker.localeCompare(b.ticker),
   );
 
-  const symbolCache = new Map<string, string | null>();
-  async function providerSymbolFor(ticker: string): Promise<string | null> {
-    if (symbolCache.has(ticker)) return symbolCache.get(ticker) ?? null;
-    const mapping = await getSymbolMapping(market, ticker);
-    const symbol =
-      mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null;
-    symbolCache.set(ticker, symbol);
-    return symbol;
+  // One batched lookup for every open trade's ticker, instead of one DB
+  // round trip per open trade in the loop below (the same N+1 that
+  // lib/db/symbol-map.ts's listSymbolMappingsForTickers was already built
+  // to fix for Breakouts/Pullbacks - Journal just hadn't been switched over).
+  const openTradeTickers = trades.filter((t) => !closedTradePnl(t)).map((t) => t.ticker);
+  const symbolMappings = await listSymbolMappingsForTickers(market, openTradeTickers);
+  function providerSymbolFor(ticker: string): string | null {
+    const mapping = symbolMappings.get(ticker);
+    return mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null;
   }
 
   const openTrades: TradeRowView[] = [];
@@ -100,7 +101,7 @@ export async function getJournalPageData(userId: string, market: Market): Promis
         rMultiple: closed.rMultiple,
       });
     } else {
-      openTrades.push({ trade, exchange, providerSymbol: await providerSymbolFor(trade.ticker), strategyTagName });
+      openTrades.push({ trade, exchange, providerSymbol: providerSymbolFor(trade.ticker), strategyTagName });
     }
   }
 

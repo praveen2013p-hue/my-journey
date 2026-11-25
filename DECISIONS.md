@@ -1079,3 +1079,56 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
 - Replaced `placeholder`/`aria-label` with a real, always-visible
   `<label>` above each input (same pattern the Add entry modal already
   used) - the text stays put no matter what's typed in the box.
+
+## Performance review: slow tab/page loading, 2026-11-25
+
+Ran a full audit (measured live with Playwright against a production
+build, not guessed) to find why navigation felt slow. Fixed the real
+causes found, in order of actual measured impact:
+
+- **The big one**: every page's Sidebar renders all 9 nav tabs, always
+  visible, and Next.js's `<Link>` prefetches by default when a link is
+  in the viewport - so just sitting on the Dashboard was silently
+  triggering a full background server-render of every other tab,
+  including Breakouts/Pullbacks with 8 different grade/market filter
+  variants (from the Dashboard's own "This week's triggers" quick-links,
+  `TriggersCard.tsx`), re-running each one's entire data fetch
+  (including live Yahoo/Kite calls) for a page the user never clicked.
+  Measured 32 background requests firing from one single Dashboard
+  visit. Added `prefetch={false}` to the Sidebar's 9 tab links and
+  `TriggersCard`'s 8 breakout/pullback quick-links - confirmed by
+  re-measuring: 0 background tab-prefetch requests now, down from 32.
+  Real clicks still navigate immediately; they just aren't silently
+  pre-warmed anymore. (Left the Dashboard's own Prev/Next-week links
+  alone - those stay on the same page and are genuinely likely to be
+  clicked next.)
+- Two of three Yahoo/Kite call sites had no caching, unlike
+  `lib/regime.ts`'s market-regime light, which already had a proven
+  1-hour TTL cache for exactly this reason. `lib/market-snapshot.ts`
+  (Dashboard's index-level widget) and `lib/distribution-days.ts` made
+  a live provider call on every single Dashboard render - and per the
+  finding above, "every single Dashboard render" included background
+  prefetches, multiplying the cost. Factored the TTL-cache pattern out
+  into a small shared `lib/ttl-cache.ts` (unit-tested directly) and
+  used it for both: 2 minutes for market snapshot quotes, 15 minutes
+  for distribution-day counts (daily-bar data that doesn't change
+  intraday anyway).
+- Journal had a real N+1: `lib/journal-data.ts` called
+  `getSymbolMapping` (one DB round trip) per open trade in a loop,
+  of the exact kind `lib/db/symbol-map.ts`'s `listSymbolMappingsForTickers`
+  was already built to fix for Breakouts/Pullbacks - Journal just hadn't
+  been switched over to it. Now one batched lookup for every open
+  trade's ticker instead of N sequential ones.
+- `useMarketRegimes` (Sidebar and the Dashboard's RegimeCard both call
+  it) fired two separate `/api/regime` requests for identical data on
+  every Dashboard visit. Added a tiny client-side in-flight-request-dedup
+  + 60s cache in `lib/use-regime.ts` - verified live: exactly 1 request
+  fires now even though both components mount.
+- Confirmed NOT a problem, worth recording so it isn't re-investigated:
+  the Supabase client is already a memoized singleton, every page's
+  independent data calls already use `Promise.all` (not sequential
+  awaits), `force-dynamic` only appears on API routes (correctly), and
+  the one heavy client dependency (`lightweight-charts`) is already
+  lazy-loaded. Not touched.
+- Measured, full tab sweep after the fixes (production build, cold
+  dev-store): every tab loads in 570-950ms with nothing broken.

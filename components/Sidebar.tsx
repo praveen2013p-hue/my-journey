@@ -138,6 +138,14 @@ export function Sidebar({ siteName, email }: SidebarProps) {
             <Link
               key={href}
               href={href}
+              // Every one of these is always on screen on every page (BRIEF.md
+              // layout), so Next's default viewport prefetch was silently
+              // re-rendering and re-fetching every other tab's server data in
+              // the background on every single page view - including live
+              // Yahoo/Kite calls - well before the user ever clicked it
+              // (DECISIONS.md). Off by default; a real click still navigates
+              // immediately, it just isn't pre-warmed.
+              prefetch={false}
               className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
                 collapsed ? "justify-center px-2.5" : ""
               } ${isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}

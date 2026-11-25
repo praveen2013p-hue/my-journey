@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getMarketSnapshot } from "./market-snapshot";
+import { __clearMarketSnapshotCacheForTests, getMarketSnapshot } from "./market-snapshot";
 
 describe("getMarketSnapshot", () => {
+  beforeEach(() => {
+    __clearMarketSnapshotCacheForTests();
+  });
+
   describe("India (no KITE_API_KEY in tests, so no Zerodha session)", () => {
     it("marks every India index unavailable rather than substituting a different provider's numbers", async () => {
       const snapshot = await getMarketSnapshot("IN");
