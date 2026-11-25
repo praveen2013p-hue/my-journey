@@ -961,3 +961,9 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   bottom on both desktop (1280px) and mobile (390px) - the Overview
   card stays pinned at the top of the viewport the whole time, with a
   shadow separating it from the month rows scrolling underneath.
+
+## Mutual Funds: renamed column labels, 2026-11-25
+
+- Requested directly: "Added" -> "SIP Amount", "Total Added" -> "Invested"
+  in the month-by-month table. Display text only - no change to the
+  underlying fields (`amount_added`, `cumulativeAdded`) or any math.

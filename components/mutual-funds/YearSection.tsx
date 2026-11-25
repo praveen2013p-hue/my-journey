@@ -141,12 +141,12 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         <thead>
           <tr className="border-b border-border text-xs text-muted">
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Month</th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Added</th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">SIP Amount</th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
-              title="Total of your own money added so far - never reduced by a withdrawal"
+              title="Total of your own money invested so far - never reduced by a withdrawal"
             >
-              Total Added
+              Invested
             </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" title="Required amount to be invested, as per your plan">
@@ -259,7 +259,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         </tbody>
       </table>
       <p className="mt-2 text-xs text-muted">
-        Planned: <span className="text-pos">green</span> when that month&apos;s Added met or exceeded the plan,{" "}
+        Planned: <span className="text-pos">green</span> when that month&apos;s SIP Amount met or exceeded the plan,{" "}
         <span className="text-neg">red</span> when it fell short.
       </p>
       <p className="mt-1 text-xs text-muted">
