@@ -118,8 +118,8 @@ export default async function SettingsPage({
           </button>
         </form>
         <p className="mt-2 text-xs text-muted">
-          Used only for Mutual Funds&apos; &ldquo;Safe SWP&rdquo; column (assumes your money should last to age 90).
-          Each person signed in sets their own.
+          Not currently used by any feature - Mutual Funds&apos; &ldquo;Safe SWP&rdquo; column now uses the classic
+          4% rule instead, which doesn&apos;t need this. Each person signed in sets their own.
         </p>
       </section>
 

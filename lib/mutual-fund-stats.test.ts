@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  amortizedPayment,
-  buildMutualFundView,
-  monthLabel,
-  monthsUntilTargetAge,
-  realRatePct,
-  shiftMonth,
-} from "./mutual-fund-stats";
+import { buildMutualFundView, monthLabel, shiftMonth } from "./mutual-fund-stats";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow {
@@ -72,57 +65,27 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
-  it("safeSwpMonthly is null without a birth year set - never guessed", () => {
-    const entries = [
-      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
-      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
-    ];
-    const { rows } = buildMutualFundView(entries); // no birthYear passed
-    expect(rows[1].safeSwpMonthly).toBeNull();
+  it("safeSwpMonthly is the classic 4% rule - 4% of that month's own current_value per year, divided into a monthly amount", () => {
+    const entries = [entry({ month: "2026-01-01", amount_added: 1200000, current_value: 1200000 })];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].safeSwpMonthly).toBeCloseTo((1200000 * 0.04) / 12, 5); // 4,000
   });
 
-  it("safeSwpMonthly is null for the first entry - no XIRR yet to assume a return from", () => {
-    const entries = [entry({ month: "2026-01-01", amount_added: 100000, current_value: 100000 })];
-    const { rows } = buildMutualFundView(entries, 1990);
-    expect(rows[0].xirrPct).toBeNull();
-    expect(rows[0].safeSwpMonthly).toBeNull();
+  it("safeSwpMonthly is recalculated fresh each month against that month's own current_value, not a fixed plan", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 1000000, current_value: 1000000 }),
+      entry({ month: "2026-02-01", amount_added: 0, current_value: 1100000 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].safeSwpMonthly).toBeCloseTo((1000000 * 0.04) / 12, 5);
+    expect(rows[1].safeSwpMonthly).toBeCloseTo((1100000 * 0.04) / 12, 5); // moves with the new value, not the first month's
   });
 
-  it("safeSwpMonthly is null once the target age is already reached", () => {
-    const entries = [
-      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
-      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
-    ];
-    const { rows } = buildMutualFundView(entries, 1930); // already 96 in 2026
-    expect(rows[1].safeSwpMonthly).toBeNull();
-  });
-
-  it("safeSwpMonthly matches the straight-line amount when that month's REAL rate is 0% - nominal XIRR equal to assumed inflation (6%)", () => {
-    const entries = [
-      // 2021-01-01 to 2022-01-01 is exactly 365 days (2021 isn't a leap year) so the
-      // Actual/365 XIRR solves to a flat 6%, not a day-count-skewed value.
-      entry({ month: "2021-01-01", amount_added: 120000, current_value: 120000 }),
-      entry({ month: "2022-01-01", amount_added: 0, current_value: 120000 * 1.06 }), // +6% nominal -> 0% real
-    ];
-    const birthYear = 2022 - 80; // 10 years left to 90, as of 2022-01-01
-    const { rows } = buildMutualFundView(entries, birthYear);
-    expect(rows[1].xirrPct).toBeCloseTo(6, 3);
-    expect(rows[1].safeSwpMonthly).toBeCloseTo((120000 * 1.06) / 120, 2); // straight-line over 120 months
-  });
-
-  it("safeSwpMonthly is noticeably smaller than a naive nominal-rate calculation once inflation is assumed away", () => {
-    // Same scenario as the live 10%-nominal-XIRR case, but computed here to confirm the
-    // inflation haircut actually reduces the withdrawal, not just that it's non-null.
-    const entries = [
-      entry({ month: "2025-01-01", amount_added: 1100000, current_value: 1100000 }),
-      entry({ month: "2026-01-01", amount_added: 0, current_value: 1210000 }), // +10% nominal
-    ];
-    const { rows } = buildMutualFundView(entries, 1992); // age 34 as of 2026-01-01
-    expect(rows[1].xirrPct).toBeCloseTo(10, 3);
-    // A naive (non-inflation-adjusted) calc at 10%/56yrs would be noticeably higher than this.
-    const naiveMonthlyRate = Math.pow(1.1, 1 / 12) - 1;
-    const naive = (1210000 * naiveMonthlyRate) / (1 - Math.pow(1 + naiveMonthlyRate, -672));
-    expect(rows[1].safeSwpMonthly!).toBeLessThan(naive);
+  it("safeSwpMonthly doesn't depend on XIRR or birth year at all - it's always computable", () => {
+    const entries = [entry({ month: "2026-01-01", amount_added: 50000, current_value: 50000 })];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].xirrPct).toBeNull(); // first entry, same-day guard - no XIRR yet
+    expect(rows[0].safeSwpMonthly).toBeCloseTo((50000 * 0.04) / 12, 5); // still computed
   });
 
   it("pnlChangeAbs is the exact-month-over-month change in Gain, null for the first entry", () => {
@@ -273,45 +236,5 @@ describe("buildMutualFundView", () => {
     const { rows } = buildMutualFundView(entries);
     expect(rows[1].cumulativeAdded).toBe(8000); // 10000 - 2000
     expect(rows[1].cumulativeInvested).toBe(8000); // 10000 + (-2000) - 0
-  });
-});
-
-describe("amortizedPayment", () => {
-  it("matches a well-known amortization table value: 100000 principal, 1%/month, 12 payments", () => {
-    // Standard loan-table PMT factor for n=12, i=1% is 0.0888488.
-    expect(amortizedPayment(100000, 0.01, 12)).toBeCloseTo(8884.88, 1);
-  });
-
-  it("is straight-line division when the rate is ~0", () => {
-    expect(amortizedPayment(120000, 0, 120)).toBeCloseTo(1000, 5);
-  });
-});
-
-describe("realRatePct", () => {
-  it("is 0% when the nominal rate equals assumed inflation (6%)", () => {
-    expect(realRatePct(6)).toBeCloseTo(0, 6);
-  });
-
-  it("matches the Fisher equation for a well-known pair (10% nominal, 6% inflation)", () => {
-    // (1.10 / 1.06) - 1 = 0.0377358... computed independently of the code under test.
-    expect(realRatePct(10)).toBeCloseTo(3.77358, 4);
-  });
-
-  it("is negative when the nominal rate is below assumed inflation", () => {
-    expect(realRatePct(2)).toBeLessThan(0);
-  });
-});
-
-describe("monthsUntilTargetAge", () => {
-  it("computes years remaining to 90 from the month's year minus birth year", () => {
-    expect(monthsUntilTargetAge("2026-01-01", 1992)).toBe((90 - 34) * 12);
-  });
-
-  it("is null once the target age is already reached", () => {
-    expect(monthsUntilTargetAge("2026-01-01", 1930)).toBeNull(); // age 96
-  });
-
-  it("is null exactly at the target age (nothing left to amortize over)", () => {
-    expect(monthsUntilTargetAge("2026-01-01", 2026 - 90)).toBeNull();
   });
 });

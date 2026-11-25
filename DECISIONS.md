@@ -1188,3 +1188,26 @@ causes found, in order of actual measured impact:
 - Requested directly: show "Current value" before "Total invested" in
   the Overview row (previously the other way around). Display-order
   only, no change to either figure's math.
+
+## Mutual Funds: Safe SWP switched to the classic 4% rule, 2026-11-25
+
+- User flagged that the age-90-depletion model didn't match how they
+  actually think about SWP. Asked directly, and confirmed: the classic
+  "4% rule" (Bengen/Trinity study) - 4% of the portfolio's CURRENT value
+  per year, recalculated fresh every month - not a one-time amortization
+  plan solved for a target age.
+- Simplified `computeSafeSwpMonthly` to `currentValue * 0.04 / 12`.
+  Removed `realRatePct`, `amortizedPayment`, `monthsUntilTargetAge`,
+  `SWP_TARGET_AGE`, `ASSUMED_INFLATION_PCT`, and the `birthYear`
+  parameter on `buildMutualFundView` - none of them are needed anymore.
+  `safeSwpMonthly` is now a plain `number`, never null (there's no
+  longer a "missing birth year" or "already past target age" case to
+  guard against).
+- Removed the birth-year warning banner from the Mutual Funds page and
+  the now-pointless `getUserSettings` call there. Left the birth_year
+  setting itself in Settings (don't want to silently drop a value the
+  user already entered) but updated its description to say plainly
+  that nothing currently uses it.
+- Verified live: a single Jan 2026 entry of ₹12,00,000 added and valued
+  shows Safe SWP = ₹4,000/mo (exactly 4% ÷ 12), with no birth-year
+  dependency and no warning banner.

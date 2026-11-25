@@ -262,7 +262,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Notes</th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
-              title="Safe SWP @ 4% of the portfolio, as a monthly amount - see the note below the table"
+              title="Safe SWP: the classic 4% rule - 4% of this month's own portfolio value per year, as a monthly amount"
             >
               Safe SWP*
             </th>
@@ -350,11 +350,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               </td>
               <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-muted">{row.entry.notes ?? "—"}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {row.safeSwpMonthly === null ? (
-                  <span className="text-muted">—</span>
-                ) : (
-                  <>{formatMoney("IN", row.safeSwpMonthly)}/mo</>
-                )}
+                {formatMoney("IN", row.safeSwpMonthly)}/mo
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">
                 <div className="flex justify-end gap-2">
@@ -390,9 +386,9 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         <span className="text-neg">red</span> when it fell short.
       </p>
       <p className="mt-1 text-xs text-muted">
-        * Safe SWP: the level monthly withdrawal that runs that month&apos;s portfolio down to exactly zero by age
-        90 (nothing left as legacy), assuming it keeps earning that month&apos;s own XIRR the whole way, adjusted for
-        6% assumed long-run inflation. Needs your birth year set in Settings - shows &ldquo;—&rdquo; until then.
+        * Safe SWP: the classic &ldquo;4% rule&rdquo; - 4% of that month&apos;s own portfolio value per year,
+        divided into a monthly amount. Recalculated fresh every month against that month&apos;s own value, not a
+        fixed plan.
       </p>
     </div>
   );

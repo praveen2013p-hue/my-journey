@@ -1,20 +1,15 @@
-import Link from "next/link";
 import { AddEntryModal } from "@/components/mutual-funds/AddEntryModal";
 import { MutualFundDashboard } from "@/components/mutual-funds/MutualFundDashboard";
 import { YearGroupsView } from "@/components/mutual-funds/YearGroupsView";
 import { PageHeader } from "@/components/PageHeader";
 import { verifySession } from "@/lib/auth/dal";
 import { listMutualFundEntries } from "@/lib/db/mutual-funds";
-import { getUserSettings } from "@/lib/db/settings";
 import { buildMutualFundView } from "@/lib/mutual-fund-stats";
 
 export default async function MutualFundsPage() {
   const session = await verifySession();
-  const [entries, userSettings] = await Promise.all([
-    listMutualFundEntries(session.userId),
-    getUserSettings(session.userId),
-  ]);
-  const { dashboard, byYear } = buildMutualFundView(entries, userSettings.birth_year);
+  const entries = await listMutualFundEntries(session.userId);
+  const { dashboard, byYear } = buildMutualFundView(entries);
 
   return (
     <>
@@ -23,16 +18,6 @@ export default async function MutualFundsPage() {
         subtitle="Aiming for 50 Crore Mutual Fund Portfolio"
         actions={<AddEntryModal />}
       />
-
-      {userSettings.birth_year === null && (
-        <div className="rounded-xl border border-warn-border bg-warn-wash px-4 py-3 text-sm text-warn">
-          Set your birth year in{" "}
-          <Link href="/settings" className="underline">
-            Settings
-          </Link>{" "}
-          to see the &ldquo;Safe SWP&rdquo; column below.
-        </div>
-      )}
 
       <MutualFundDashboard dashboard={dashboard} />
 
