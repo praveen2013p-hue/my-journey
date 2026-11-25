@@ -14,6 +14,8 @@ function sampleEntry(overrides: Partial<Parameters<typeof upsertMutualFundEntry>
   return {
     month: "2026-01-01",
     amount_added: 10000,
+    withdrawal: 0,
+    planned_amount: null,
     current_value: 10500,
     notes: null,
     ...overrides,
@@ -87,5 +89,18 @@ describe("updateMutualFundEntry / deleteMutualFundEntry", () => {
     const created = await upsertMutualFundEntry(USER_ID, sampleEntry());
     await deleteMutualFundEntry("other@example.com", created.id);
     expect(await getMutualFundEntryById(USER_ID, created.id)).not.toBeNull();
+  });
+
+  it("edits withdrawal and planned_amount independently", async () => {
+    const created = await upsertMutualFundEntry(USER_ID, sampleEntry());
+    const updated = await updateMutualFundEntry(USER_ID, created.id, { withdrawal: 2000, planned_amount: 12000 });
+    expect(updated!.withdrawal).toBe(2000);
+    expect(updated!.planned_amount).toBe(12000);
+  });
+
+  it("clears planned_amount back to null", async () => {
+    const created = await upsertMutualFundEntry(USER_ID, sampleEntry({ planned_amount: 12000 }));
+    const updated = await updateMutualFundEntry(USER_ID, created.id, { planned_amount: null });
+    expect(updated!.planned_amount).toBeNull();
   });
 });

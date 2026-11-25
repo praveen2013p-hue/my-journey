@@ -8,6 +8,8 @@ function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow 
     user_id: "u",
     month: "2026-01-01",
     amount_added: 0,
+    withdrawal: 0,
+    planned_amount: null,
     current_value: 0,
     notes: null,
     created_at: "2026-01-01T00:00:00.000Z",
@@ -58,6 +60,23 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
+  it("a withdrawal reduces cumulative invested, since it's money no longer in the fund", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-02-01", amount_added: 0, withdrawal: 3000, current_value: 7500 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[1].cumulativeInvested).toBe(7000); // 10000 - 3000
+    expect(rows[1].gainAbs).toBe(500); // 7500 - 7000
+  });
+
+  it("planned_amount never affects cumulative invested or gain", () => {
+    const entries = [entry({ month: "2026-01-01", amount_added: 5000, planned_amount: 10000, current_value: 5200 })];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].cumulativeInvested).toBe(5000);
+    expect(rows[0].gainAbs).toBe(200);
+  });
+
   it("dashboard reflects the latest month's totals", () => {
     const entries = [
       entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),
@@ -94,6 +113,29 @@ describe("buildMutualFundView", () => {
     expect(dashboard.vsLastYear!.valueChangePct).toBeCloseTo(100, 5); // doubled
   });
 
+  it("computes XIRR exactly 10% for a single month's contribution grown 1.1x over exactly a year", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
+    ];
+    const { rows, dashboard } = buildMutualFundView(entries);
+    // Row 0's own XIRR (invested and valued same day) is undefined - no time has passed yet.
+    expect(rows[0].xirrPct).toBeNull();
+    expect(rows[1].xirrPct).toBeCloseTo(10, 3);
+    expect(dashboard.xirrPct).toBeCloseTo(10, 3); // "final" XIRR = the latest row's
+  });
+
+  it("XIRR is point-in-time: an early month's rate isn't affected by what happens later", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }), // +10% as of here
+      entry({ month: "2027-01-01", amount_added: 0, current_value: 5000 }), // crashes later
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[1].xirrPct).toBeCloseTo(10, 3); // unaffected by the later crash
+    expect(rows[2].xirrPct).toBeLessThan(0);
+  });
+
   it("groups entries by year, most recent year first, and sums that year's contributions", () => {
     const entries = [
       entry({ month: "2019-01-01", amount_added: 5000, current_value: 5000 }),
@@ -106,5 +148,14 @@ describe("buildMutualFundView", () => {
     expect(y2019.yearInvested).toBe(10000);
     expect(y2019.yearEndValue).toBe(10500);
     expect(y2019.rows).toHaveLength(2);
+  });
+
+  it("nets withdrawals out of a year's invested total", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-02-01", amount_added: 2000, withdrawal: 3000, current_value: 9000 }),
+    ];
+    const { byYear } = buildMutualFundView(entries);
+    expect(byYear[0].yearInvested).toBe(9000); // (10000 + 2000) - 3000
   });
 });

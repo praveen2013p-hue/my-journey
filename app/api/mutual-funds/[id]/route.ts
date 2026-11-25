@@ -16,7 +16,13 @@ export async function PATCH(
   if (!existing) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const body = await request.json().catch(() => null);
-  const update: { amount_added?: number; current_value?: number; notes?: string | null } = {};
+  const update: {
+    amount_added?: number;
+    withdrawal?: number;
+    planned_amount?: number | null;
+    current_value?: number;
+    notes?: string | null;
+  } = {};
 
   if (body?.amount_added !== undefined) {
     const amountAdded = Number(body.amount_added);
@@ -24,6 +30,20 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid_amount_added" }, { status: 400 });
     }
     update.amount_added = amountAdded;
+  }
+  if (body?.withdrawal !== undefined) {
+    const withdrawal = Number(body.withdrawal);
+    if (!Number.isFinite(withdrawal) || withdrawal < 0) {
+      return NextResponse.json({ error: "invalid_withdrawal" }, { status: 400 });
+    }
+    update.withdrawal = withdrawal;
+  }
+  if (body?.planned_amount !== undefined) {
+    const plannedAmount = body.planned_amount === null || body.planned_amount === "" ? null : Number(body.planned_amount);
+    if (plannedAmount !== null && (!Number.isFinite(plannedAmount) || plannedAmount < 0)) {
+      return NextResponse.json({ error: "invalid_planned_amount" }, { status: 400 });
+    }
+    update.planned_amount = plannedAmount;
   }
   if (body?.current_value !== undefined) {
     const currentValue = Number(body.current_value);

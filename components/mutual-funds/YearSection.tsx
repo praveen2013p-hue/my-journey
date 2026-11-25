@@ -15,10 +15,18 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const amountAdded = Number(data.get("amount_added"));
+    const withdrawalRaw = String(data.get("withdrawal") ?? "").trim();
+    const plannedAmountRaw = String(data.get("planned_amount") ?? "").trim();
     const currentValue = Number(data.get("current_value"));
     const notes = String(data.get("notes") ?? "").trim();
 
     if (!Number.isFinite(amountAdded) || !Number.isFinite(currentValue) || currentValue < 0) {
+      setError("Enter valid numbers.");
+      return;
+    }
+    const withdrawal = withdrawalRaw === "" ? 0 : Number(withdrawalRaw);
+    const plannedAmount = plannedAmountRaw === "" ? null : Number(plannedAmountRaw);
+    if (!Number.isFinite(withdrawal) || withdrawal < 0 || (plannedAmount !== null && !Number.isFinite(plannedAmount))) {
       setError("Enter valid numbers.");
       return;
     }
@@ -29,7 +37,13 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
       const res = await fetch(`/api/mutual-funds/${row.entry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_added: amountAdded, current_value: currentValue, notes: notes || null }),
+        body: JSON.stringify({
+          amount_added: amountAdded,
+          withdrawal,
+          planned_amount: plannedAmount,
+          current_value: currentValue,
+          notes: notes || null,
+        }),
       });
       if (!res.ok) throw new Error("Couldn't save changes.");
       router.refresh();
@@ -55,6 +69,26 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
         defaultValue={row.entry.amount_added}
         aria-label="Amount added"
         placeholder="Amount added"
+        className="min-h-[36px] w-32 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+      />
+      <input
+        type="number"
+        step="any"
+        min="0"
+        name="planned_amount"
+        defaultValue={row.entry.planned_amount ?? ""}
+        aria-label="Planned amount"
+        placeholder="Planned (optional)"
+        className="min-h-[36px] w-32 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+      />
+      <input
+        type="number"
+        step="any"
+        min="0"
+        name="withdrawal"
+        defaultValue={row.entry.withdrawal}
+        aria-label="Withdrawal"
+        placeholder="Withdrawn"
         className="min-h-[36px] w-32 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
       />
       <input
@@ -108,9 +142,19 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
           <tr className="border-b border-border text-xs text-muted">
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Month</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Added</th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" title="Required amount to be invested, as per your plan">
+              Planned
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Withdrawn</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Invested to date</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Current value</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Gain</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="Annualized return (XIRR) as of this month, using every contribution/withdrawal to date"
+            >
+              XIRR
+            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Notes</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Actions</th>
           </tr>
@@ -123,6 +167,18 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 {formatMoney("IN", row.entry.amount_added)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {row.entry.planned_amount === null ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <span className={row.entry.amount_added >= row.entry.planned_amount ? "text-pos" : "text-neg"}>
+                    {formatMoney("IN", row.entry.planned_amount)}
+                  </span>
+                )}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {row.entry.withdrawal > 0 ? formatMoney("IN", row.entry.withdrawal) : <span className="text-muted">—</span>}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {formatMoney("IN", row.cumulativeInvested)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
@@ -130,6 +186,13 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               </td>
               <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${row.gainAbs >= 0 ? "text-pos" : "text-neg"}`}>
                 {formatMoney("IN", row.gainAbs)} <span className="text-xs">({formatPct(row.gainPct)})</span>
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {row.xirrPct === null ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <span className={row.xirrPct >= 0 ? "text-pos" : "text-neg"}>{formatPct(row.xirrPct)}</span>
+                )}
               </td>
               <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-muted">{row.entry.notes ?? "—"}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">
@@ -153,7 +216,7 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             </tr>,
             editingId === row.entry.id ? (
               <tr key={`${row.entry.id}-edit`} className="border-b border-border/60">
-                <td colSpan={7} className="px-3 py-2.5">
+                <td colSpan={10} className="px-3 py-2.5">
                   <EditEntryForm row={row} onDone={() => setEditingId(null)} />
                 </td>
               </tr>
@@ -161,6 +224,10 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
           ])}
         </tbody>
       </table>
+      <p className="mt-2 text-xs text-muted">
+        Planned: <span className="text-pos">green</span> when that month&apos;s Added met or exceeded the plan,{" "}
+        <span className="text-neg">red</span> when it fell short.
+      </p>
     </div>
   );
 }

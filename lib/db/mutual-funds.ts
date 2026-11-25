@@ -12,6 +12,8 @@ export interface UpsertMutualFundEntryInput {
   /** yyyy-mm-01 */
   month: string;
   amount_added: number;
+  withdrawal: number;
+  planned_amount: number | null;
   current_value: number;
   notes: string | null;
 }
@@ -94,7 +96,7 @@ export async function upsertMutualFundEntry(
 }
 
 export type MutualFundEntryUpdateInput = Partial<
-  Pick<MutualFundEntryRow, "amount_added" | "current_value" | "notes">
+  Pick<MutualFundEntryRow, "amount_added" | "withdrawal" | "planned_amount" | "current_value" | "notes">
 >;
 
 export async function updateMutualFundEntry(

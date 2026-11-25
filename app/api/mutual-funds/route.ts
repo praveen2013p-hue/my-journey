@@ -22,12 +22,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   const month = /^\d{4}-\d{2}$/.test(monthRaw) ? `${monthRaw}-01` : monthRaw;
   const amountAddedRaw = body?.amount_added;
   const amountAdded = amountAddedRaw === null || amountAddedRaw === undefined || amountAddedRaw === "" ? 0 : Number(amountAddedRaw);
+  const withdrawalRaw = body?.withdrawal;
+  const withdrawal = withdrawalRaw === null || withdrawalRaw === undefined || withdrawalRaw === "" ? 0 : Number(withdrawalRaw);
+  const plannedAmountRaw = body?.planned_amount;
+  const plannedAmount =
+    plannedAmountRaw === null || plannedAmountRaw === undefined || plannedAmountRaw === "" ? null : Number(plannedAmountRaw);
   const currentValue = Number(body?.current_value);
   const notes = typeof body?.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
 
   if (
     !/^\d{4}-\d{2}-01$/.test(month) ||
     !Number.isFinite(amountAdded) ||
+    !Number.isFinite(withdrawal) ||
+    withdrawal < 0 ||
+    (plannedAmount !== null && (!Number.isFinite(plannedAmount) || plannedAmount < 0)) ||
     !Number.isFinite(currentValue) ||
     currentValue < 0
   ) {
@@ -37,6 +45,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   const entry = await upsertMutualFundEntry(session.userId, {
     month,
     amount_added: amountAdded,
+    withdrawal,
+    planned_amount: plannedAmount,
     current_value: currentValue,
     notes,
   });

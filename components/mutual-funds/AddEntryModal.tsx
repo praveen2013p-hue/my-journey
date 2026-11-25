@@ -22,6 +22,8 @@ export function AddEntryModal() {
     const data = new FormData(e.currentTarget);
     const month = String(data.get("month") ?? "");
     const amountAdded = String(data.get("amount_added") ?? "").trim();
+    const withdrawal = String(data.get("withdrawal") ?? "").trim();
+    const plannedAmount = String(data.get("planned_amount") ?? "").trim();
     const currentValue = Number(data.get("current_value"));
     const notes = String(data.get("notes") ?? "").trim();
 
@@ -33,6 +35,14 @@ export function AddEntryModal() {
       setError("Amount added must be a number.");
       return;
     }
+    if (withdrawal !== "" && !Number.isFinite(Number(withdrawal))) {
+      setError("Withdrawal must be a number.");
+      return;
+    }
+    if (plannedAmount !== "" && !Number.isFinite(Number(plannedAmount))) {
+      setError("Planned amount must be a number.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -42,6 +52,8 @@ export function AddEntryModal() {
         body: JSON.stringify({
           month,
           amount_added: amountAdded === "" ? 0 : Number(amountAdded),
+          withdrawal: withdrawal === "" ? 0 : Number(withdrawal),
+          planned_amount: plannedAmount === "" ? null : Number(plannedAmount),
           current_value: currentValue,
           notes: notes || null,
         }),
@@ -106,6 +118,35 @@ export function AddEntryModal() {
                 <input
                   id="mf_amount_added"
                   name="amount_added"
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="0"
+                  className="min-h-[44px] w-full rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="mf_planned_amount" className="mb-1 block text-xs text-muted">
+                  Planned <span className="text-muted">(required as per your plan - optional)</span>
+                </label>
+                <input
+                  id="mf_planned_amount"
+                  name="planned_amount"
+                  type="number"
+                  step="any"
+                  min="0"
+                  className="min-h-[44px] w-full rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="mf_withdrawal" className="mb-1 block text-xs text-muted">
+                  Withdrawn this month <span className="text-muted">(0 if none)</span>
+                </label>
+                <input
+                  id="mf_withdrawal"
+                  name="withdrawal"
                   type="number"
                   step="any"
                   min="0"

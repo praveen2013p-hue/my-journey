@@ -749,3 +749,62 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   across 2019/2020/2026, confirmed the dashboard, year rollups and
   per-month cumulative-invested all recompute correctly after an edit
   and after a delete, on both desktop and mobile viewports.
+
+## Mutual Funds: Planned and Withdrawn columns, 2026-11-25
+
+- Two more optional per-month fields, requested directly: `planned_amount`
+  ("required amount to be invested, as per your plan" - purely
+  informational, shown next to Added, color-coded green/red by whether
+  that month's Added met or missed it, with a one-line legend) and
+  `withdrawal` (any amount pulled out that month).
+- Unlike `planned_amount`, `withdrawal` **does** feed the math: it nets
+  out of "invested to date" and the year rollup's "Added" total, the
+  same direction a contribution moves it the other way - money
+  withdrawn is money no longer in the fund. `buildMutualFundView`'s
+  running sum is now `amount_added - withdrawal` per month, not just
+  `amount_added`.
+- New additive migration (`0004_mutual_fund_planned_withdrawal.sql`)
+  rather than editing `0003` - the same reason `stop_loss` got its own
+  `0002` instead of changing `0001`: a migration already run against
+  the live database can't be edited after the fact.
+- Verified live: a month with Added >= Planned shows green, a month
+  short of Planned shows red, and a withdrawal correctly reduces both
+  that month's and the year's invested total.
+
+## Mutual Funds: XIRR, 2026-11-25
+
+- Requested directly, both "at final level and individual month level."
+  The simple gain % already shown doesn't account for *when* each
+  contribution/withdrawal happened - XIRR (Extended IRR, Actual/365 day
+  count, same convention Excel/Sheets and SEBI mutual-fund disclosures
+  use) is the number that actually does, so it's a real upgrade, not
+  just an extra stat.
+- New `lib/xirr.ts`: a from-scratch bisection solver (`computeXirr`),
+  dependency-free like the rest of this app's math. No closed-form
+  solution exists for XIRR, hence the numerical solve; bisection over
+  Newton-Raphson because it can't diverge, which matters more here than
+  raw speed for a handful of monthly cash flows. `daysSinceEpoch` only
+  ever subtracts two `Date.UTC(...)` millisecond values - never reads
+  one back through a local getter - so it can't hit the timezone bug
+  documented at the top of `lib/mutual-fund-stats.ts`.
+- Found and fixed one real bug before shipping: when every cash flow
+  falls on the same calendar day (e.g. a month's own contribution and
+  its current_value, both dated that month), every discount factor is
+  1 regardless of rate, so NPV(rate) is a constant - bisection would
+  otherwise return whatever the midpoint of its search range happened
+  to be (a nonsense ~450% on the first iteration) instead of recognizing
+  there's no rate to solve for. Added an explicit same-day guard; caught
+  by a test built from the simplest real case (the very first month,
+  where no time has passed), not discovered by accident.
+  Tests include one hand-solved multi-flow case (quadratic formula,
+  solved independently of the code under test) as a cross-check beyond
+  the simple single-period cases.
+- `lib/mutual-fund-stats.ts`'s `buildMutualFundView` computes one XIRR
+  per row - "point-in-time," using every contribution/withdrawal up to
+  and including that month plus that month's own `current_value` as the
+  terminal "if I cashed out now" flow. The dashboard's "final" XIRR is
+  just the latest row's value, not a separate calculation - verified an
+  earlier month's XIRR is unaffected by what the portfolio does later.
+  New "XIRR" column (per month) and dashboard stat (overall), both
+  green/red by sign. Verified live with the same 10%-in-one-year case
+  used in the unit tests.

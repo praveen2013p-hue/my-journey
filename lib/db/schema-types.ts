@@ -219,6 +219,10 @@ export interface MutualFundEntryRow {
   /** yyyy-mm-01 - always the first of the month; there's at most one entry per user per month. */
   month: string;
   amount_added: number;
+  /** Any amount pulled out of the portfolio this month - reduces net invested, since it's money that's no longer in the fund. 0 if none. */
+  withdrawal: number;
+  /** What the user's own plan called for investing this month - optional, null if no plan was set for that month. Purely informational; never affects the invested/gain math. */
+  planned_amount: number | null;
   current_value: number;
   notes: string | null;
   created_at: string;
