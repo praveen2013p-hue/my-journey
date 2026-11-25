@@ -8,7 +8,7 @@ import { ConstituentsPanel } from "./ConstituentsPanel";
 import { Sparkline } from "./Sparkline";
 
 type Period = "4W" | "13W" | "26W" | "52W" | "All";
-type SortKey = "rank" | "sector" | "mrs" | "vsMa" | "tradedValue" | "triggerCount";
+type SortKey = "rank" | "sector" | "mrs" | "vsMa" | "tradedValue" | "triggerCount" | "totalStocks" | "rsAbove0";
 
 function fmtPct(value: number | null, digits = 1): string {
   if (value === null || Number.isNaN(value)) return "—";
@@ -30,6 +30,32 @@ function colorForRatio(ratio: number | null): string {
   if (ratio >= 1.5) return "text-pos";
   if (ratio >= 1.0) return "text-warn";
   return "text-neg";
+}
+
+function SortHeader({
+  label,
+  k,
+  className,
+  sortKey,
+  sortDir,
+  onToggle,
+}: {
+  label: string;
+  k: SortKey;
+  className?: string;
+  sortKey: SortKey;
+  sortDir: 1 | -1;
+  onToggle: (k: SortKey) => void;
+}) {
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted hover:text-text ${className ?? ""}`}
+      onClick={() => onToggle(k)}
+    >
+      {label} {sortKey === k && (sortDir === 1 ? "▲" : "▼")}
+    </th>
+  );
 }
 
 export function SectorsTable({
@@ -57,6 +83,8 @@ export function SectorsTable({
       vsMa: (r) => r.vsMa ?? -Infinity,
       tradedValue: (r) => r.tradedValue ?? -Infinity,
       triggerCount: (r) => r.triggerCount,
+      totalStocks: (r) => r.totalStocks ?? -Infinity,
+      rsAbove0: (r) => r.rsAbove0 ?? -Infinity,
     };
     const getKey = keyFns[sortKey];
     return [...filtered].sort((a, b) => {
@@ -74,18 +102,6 @@ export function SectorsTable({
       setSortKey(key);
       setSortDir(-1);
     }
-  }
-
-  function SortHeader({ label, k, className }: { label: string; k: SortKey; className?: string }) {
-    return (
-      <th
-        scope="col"
-        className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted hover:text-text ${className ?? ""}`}
-        onClick={() => toggleSort(k)}
-      >
-        {label} {sortKey === k && (sortDir === 1 ? "▲" : "▼")}
-      </th>
-    );
   }
 
   const singlePeriodDelta: Record<Exclude<Period, "All">, (r: SectorRow) => number | null> = {
@@ -135,8 +151,8 @@ export function SectorsTable({
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-border">
-              <SortHeader label="#" k="rank" />
-              <SortHeader label="Sector" k="sector" />
+              <SortHeader label="#" k="rank" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader label="Sector" k="sector" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted">
                 1W price
               </th>
@@ -152,7 +168,9 @@ export function SectorsTable({
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
                 Stage
               </th>
-              <SortHeader label="Mansfield RS" k="mrs" className="text-right" />
+              <SortHeader label="Mansfield RS" k="mrs" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader label="Stocks" k="totalStocks" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader label="RS > 0" k="rsAbove0" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               {period === "All" ? (
                 <>
                   <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted">
@@ -176,15 +194,15 @@ export function SectorsTable({
                   Δ {period}
                 </th>
               )}
-              <SortHeader label="Traded value vs 10W avg" k="tradedValue" className="text-right" />
-              <SortHeader label="vs 30W MA" k="vsMa" className="text-right" />
-              <SortHeader label="Triggers" k="triggerCount" className="text-right" />
+              <SortHeader label="Traded value vs 10W avg" k="tradedValue" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader label="vs 30W MA" k="vsMa" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader label="Triggers" k="triggerCount" className="text-right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={16} className="px-3 py-8 text-center text-sm text-muted">
+                <td colSpan={18} className="px-3 py-8 text-center text-sm text-muted">
                   No sector data for this market yet.
                 </td>
               </tr>
@@ -227,6 +245,18 @@ export function SectorsTable({
                 </td>
                 <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums font-semibold ${colorForSigned(row.mrs)}`}>
                   {fmtNum(row.mrs)}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted">
+                  {row.totalStocks ?? "—"}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                  {row.totalStocks === null ? (
+                    <span className="text-muted">—</span>
+                  ) : (
+                    <span className={row.rsAbove0 === row.totalStocks ? "text-pos" : row.rsAbove0 === 0 ? "text-neg" : ""}>
+                      {row.rsAbove0}/{row.totalStocks}
+                    </span>
+                  )}
                 </td>
                 {period === "All" ? (
                   <>

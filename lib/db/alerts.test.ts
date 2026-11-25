@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { countAlertsCreatedAfter, getLatestWeekEnding, listAlerts, searchTickerSuggestions, upsertAlert } from "./alerts";
+import {
+  countAlertsCreatedAfter,
+  getLatestMrsForTickers,
+  getLatestWeekEnding,
+  listAlerts,
+  searchTickerSuggestions,
+  upsertAlert,
+} from "./alerts";
 import { replaceConstituents } from "./sector-constituents";
 import { __resetStoreForTests } from "./local-store";
 import { upsertSectorMetric, upsertSectorSnapshot } from "./sectors";
@@ -145,6 +152,34 @@ describe("countAlertsCreatedAfter", () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     await upsertAlert(sampleInput({ ticker: "NEWCO" }));
     expect(await countAlertsCreatedAfter(future)).toBe(0);
+  });
+});
+
+describe("getLatestMrsForTickers", () => {
+  it("returns each ticker's mrs from its most recent alert, in one batch", async () => {
+    await upsertAlert(sampleInput({ ticker: "SBIN", mrs: 4.7, triggered_at: "2026-11-20T15:45:00+05:30" }));
+    await upsertAlert(sampleInput({ ticker: "PNB", mrs: -2.1, triggered_at: "2026-11-20T15:45:00+05:30" }));
+
+    const result = await getLatestMrsForTickers("IN", ["SBIN", "PNB", "NEVERALERTED"]);
+    expect(result.get("SBIN")).toBe(4.7);
+    expect(result.get("PNB")).toBe(-2.1);
+    expect(result.has("NEVERALERTED")).toBe(false);
+  });
+
+  it("picks the most recently triggered alert when a ticker has more than one", async () => {
+    await upsertAlert(
+      sampleInput({ ticker: "SBIN", week_ending: "2026-11-13", mrs: -4, triggered_at: "2026-11-13T15:45:00+05:30" }),
+    );
+    await upsertAlert(
+      sampleInput({ ticker: "SBIN", week_ending: "2026-11-20", mrs: 6, triggered_at: "2026-11-20T15:45:00+05:30" }),
+    );
+
+    const result = await getLatestMrsForTickers("IN", ["SBIN"]);
+    expect(result.get("SBIN")).toBe(6);
+  });
+
+  it("returns an empty map for an empty ticker list, without querying", async () => {
+    expect(await getLatestMrsForTickers("IN", [])).toEqual(new Map());
   });
 });
 

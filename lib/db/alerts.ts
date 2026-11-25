@@ -354,6 +354,47 @@ export async function countAlertsCreatedAfter(sinceIso: string): Promise<number>
   return store.alerts.filter((a) => a.created_at > sinceIso).length;
 }
 
+/**
+ * Each ticker's most recent `mrs` (Mansfield RS), across both signal
+ * types, as of its latest alert - one batched query for every ticker
+ * asked about, not one per ticker (same N+1 lesson as elsewhere in this
+ * file). A ticker that's never triggered an alert is simply absent from
+ * the returned map, never guessed at.
+ */
+export async function getLatestMrsForTickers(
+  market: Market,
+  tickers: string[],
+): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+  if (tickers.length === 0) return result;
+  const wanted = new Set(tickers);
+
+  let candidates: Array<{ ticker: string; mrs: number | null; triggered_at: string }>;
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("ticker, mrs, triggered_at")
+      .eq("market", market)
+      .in("ticker", tickers);
+    if (error) throw error;
+    candidates = data as typeof candidates;
+  } else {
+    const store = await readStore();
+    candidates = store.alerts.filter((a) => a.market === market && wanted.has(a.ticker));
+  }
+
+  const latestAt = new Map<string, string>();
+  for (const row of candidates) {
+    const seenAt = latestAt.get(row.ticker);
+    if (!seenAt || row.triggered_at > seenAt) {
+      latestAt.set(row.ticker, row.triggered_at);
+      result.set(row.ticker, row.mrs);
+    }
+  }
+  return result;
+}
+
 export async function getAlertById(id: string): Promise<AlertRow | null> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();

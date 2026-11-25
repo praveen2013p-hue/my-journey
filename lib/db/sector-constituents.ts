@@ -93,6 +93,31 @@ export async function listSectorsWithConstituents(market: Market): Promise<Set<s
   );
 }
 
+/** Every sector's constituent tickers for a market, in one query - used to compute breadth stats across all sectors at once. */
+export async function listConstituentsBySector(market: Market): Promise<Map<string, string[]>> {
+  const bySector = new Map<string, string[]>();
+  const add = (sector: string, ticker: string) => {
+    const list = bySector.get(sector) ?? [];
+    list.push(ticker);
+    bySector.set(sector, list);
+  };
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase.from("sector_constituents").select("sector, ticker").eq("market", market);
+    if (error) throw error;
+    for (const row of data as Array<Pick<SectorConstituentRow, "sector" | "ticker">>) add(row.sector, row.ticker);
+    return bySector;
+  }
+
+  const store = await readStore();
+  for (const row of store.sector_constituents) {
+    if (row.market !== market) continue;
+    add(row.sector, row.ticker);
+  }
+  return bySector;
+}
+
 export async function getConstituentCounts(market: Market): Promise<Record<string, number>> {
   const store = isSupabaseConfigured() ? null : await readStore();
   if (isSupabaseConfigured()) {

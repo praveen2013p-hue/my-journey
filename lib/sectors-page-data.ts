@@ -3,9 +3,10 @@
  */
 
 import { subWeeks, format } from "date-fns";
-import { listAlerts } from "./db/alerts";
+import { getLatestMrsForTickers, listAlerts } from "./db/alerts";
 import { computeAndStoreSectorMetrics } from "./db/sector-metrics-orchestrator";
 import { listSectorMap } from "./db/sector-map";
+import { listConstituentsBySector } from "./db/sector-constituents";
 import {
   getLatestSectorWeekEnding,
   listSectorMetricsForWeek,
@@ -36,6 +37,10 @@ export interface SectorRow {
   tvRatio: number | null;
   isFocus: boolean;
   triggerCount: number;
+  /** Null when no constituent CSV has been uploaded for this sector yet (Settings -> admin upload), never a guess. */
+  totalStocks: number | null;
+  /** Of totalStocks, how many had mrs > 0 as of their latest alert. Null alongside totalStocks. */
+  rsAbove0: number | null;
   /** Last 13 weeks of mrs, oldest first, for the trend sparkline. */
   sparkline: number[];
 }
@@ -61,11 +66,15 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
   }
 
   const sinceWeekEnding = format(subWeeks(new Date(`${weekEnding}T00:00:00Z`), SPARKLINE_LOOKBACK_WEEKS), "yyyy-MM-dd");
-  const [sectorMapRows, history, alertsThisWeek] = await Promise.all([
+  const [sectorMapRows, history, alertsThisWeek, constituentsBySector] = await Promise.all([
     listSectorMap(market),
     listRecentSectorSnapshotHistory(market, sinceWeekEnding),
     listAlerts({ weekEnding }),
+    listConstituentsBySector(market),
   ]);
+
+  const allConstituentTickers = Array.from(new Set(Array.from(constituentsBySector.values()).flat()));
+  const latestMrsByTicker = await getLatestMrsForTickers(market, allConstituentTickers);
 
   const historyBySector = new Map<string, typeof history>();
   for (const snap of history) {
@@ -92,6 +101,11 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
       .map((s) => s.mrs)
       .filter((v): v is number => v !== null);
 
+    const sectorTickers = constituentsBySector.get(mapRow.display_name) ?? null;
+    const rsAbove0 = sectorTickers
+      ? sectorTickers.filter((ticker) => (latestMrsByTicker.get(ticker) ?? null) !== null && latestMrsByTicker.get(ticker)! > 0).length
+      : null;
+
     return {
       sector: mapRow.display_name,
       kind: mapRow.kind,
@@ -111,6 +125,8 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
       tvRatio: metric?.tv_ratio ?? null,
       isFocus: metric?.is_focus ?? false,
       triggerCount: triggerCountBySector.get(mapRow.display_name) ?? 0,
+      totalStocks: sectorTickers ? sectorTickers.length : null,
+      rsAbove0,
       sparkline,
     };
   });

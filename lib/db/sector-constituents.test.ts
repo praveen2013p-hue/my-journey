@@ -5,6 +5,7 @@ import {
   getConstituentCounts,
   getConstituentQuoteRows,
   listConstituents,
+  listConstituentsBySector,
   listSectorsForTicker,
   listSectorsWithConstituents,
   replaceConstituents,
@@ -43,6 +44,22 @@ describe("replaceConstituents", () => {
 
     const counts = await getConstituentCounts("IN");
     expect(counts["PSU Bank"]).toBe(2);
+  });
+});
+
+describe("listConstituentsBySector", () => {
+  it("groups every sector's tickers in one pass, leaving out sectors with no upload", async () => {
+    await replaceConstituents("IN", "PSU Bank", ["SBIN", "BANKBARODA"]);
+    await replaceConstituents("IN", "IT", ["TCS"]);
+
+    const bySector = await listConstituentsBySector("IN");
+    expect(bySector.get("PSU Bank")!.sort()).toEqual(["BANKBARODA", "SBIN"]);
+    expect(bySector.get("IT")).toEqual(["TCS"]);
+    expect(bySector.has("Media")).toBe(false);
+  });
+
+  it("returns an empty map when nothing's been uploaded for the market", async () => {
+    expect(await listConstituentsBySector("IN")).toEqual(new Map());
   });
 });
 
