@@ -7,7 +7,7 @@ import { YearRows } from "./YearSection";
 
 /** Square year tiles in a grid - an alternative to the stacked list, click a tile to see that year's months below. */
 export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
-  const [selectedYear, setSelectedYear] = useState(groups[0]?.year ?? null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const selected = groups.find((g) => g.year === selectedYear) ?? null;
 
   return (
@@ -19,7 +19,7 @@ export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
             <button
               key={group.year}
               type="button"
-              onClick={() => setSelectedYear(group.year)}
+              onClick={() => setSelectedYear(isSelected ? null : group.year)}
               className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border p-2 text-center transition-colors ${
                 isSelected
                   ? "border-gold-border bg-gold-wash-strong"

@@ -1018,3 +1018,17 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   tracker - replaces the spreadsheet" with "Aiming for 50 Crore Mutual
   Fund Portfolio" - a personal goal headline instead of a description
   of the feature.
+
+## Mutual Funds: Grid view no longer auto-opens a year, 2026-11-25
+
+- Requested directly: Grid view used to default to the most recent
+  year's month-by-month table already open underneath the tiles -
+  wanted it closed until a tile is clicked, matching List view's
+  collapsed-by-default feel.
+- `YearGrid.tsx`: `selectedYear` now starts `null` instead of the most
+  recent year, so no table shows until a tile is clicked. Also made
+  clicking an already-selected tile close it again (toggle), instead
+  of being stuck open once chosen.
+- Verified live: switching to Grid view shows zero tables; clicking a
+  year tile opens its table; clicking that same tile again closes it;
+  clicking a different tile switches to that year.
