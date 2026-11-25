@@ -142,6 +142,12 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
           <tr className="border-b border-border text-xs text-muted">
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Month</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Added</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="Total of your own money added so far - never reduced by a withdrawal"
+            >
+              Total Added
+            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold" title="Required amount to be invested, as per your plan">
               Planned
@@ -176,6 +182,9 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               <td className="whitespace-nowrap px-3 py-2.5 font-medium">{monthLabel(row.entry.month)}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {formatMoney("IN", row.entry.amount_added)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                {formatMoney("IN", row.cumulativeAdded)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                 {formatMoney("IN", row.cumulativeInvested)}
@@ -241,7 +250,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             </tr>,
             editingId === row.entry.id ? (
               <tr key={`${row.entry.id}-edit`} className="border-b border-border/60">
-                <td colSpan={12} className="px-3 py-2.5">
+                <td colSpan={13} className="px-3 py-2.5">
                   <EditEntryForm row={row} onDone={() => setEditingId(null)} />
                 </td>
               </tr>

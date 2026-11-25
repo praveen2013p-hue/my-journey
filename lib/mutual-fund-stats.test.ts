@@ -150,6 +150,16 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainAbs).toBe(500); // 7500 - 7000
   });
 
+  it("cumulativeAdded is gross - unlike cumulativeInvested, a withdrawal never reduces it", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-02-01", amount_added: 5000, withdrawal: 3000, current_value: 12000 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[1].cumulativeAdded).toBe(15000); // 10000 + 5000, withdrawal ignored
+    expect(rows[1].cumulativeInvested).toBe(12000); // 15000 - 3000
+  });
+
   it("planned_amount never affects cumulative invested or gain", () => {
     const entries = [entry({ month: "2026-01-01", amount_added: 5000, planned_amount: 10000, current_value: 5200 })];
     const { rows } = buildMutualFundView(entries);

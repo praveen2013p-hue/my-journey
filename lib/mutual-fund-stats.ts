@@ -18,6 +18,8 @@ import { computeXirr, daysSinceEpoch } from "./xirr";
 
 export interface MutualFundEntryView {
   entry: MutualFundEntryRow;
+  /** Every month's amount_added summed up to and including this one - gross, never netted against withdrawal. "How much of my own money have I put in, in total." */
+  cumulativeAdded: number;
   /** Every month's (amount_added - withdrawal) summed up to and including this one. */
   cumulativeInvested: number;
   gainAbs: number;
@@ -170,9 +172,11 @@ export function buildMutualFundView(entries: MutualFundEntryRow[], birthYear: nu
   for (const e of sorted) byMonth.set(e.month, e);
 
   let running = 0;
+  let runningAdded = 0;
   const contributionFlows: Array<{ days: number; amount: number }> = [];
   const rows: MutualFundEntryView[] = sorted.map((entry) => {
     running += entry.amount_added - entry.withdrawal;
+    runningAdded += entry.amount_added;
     const gainAbs = entry.current_value - running;
     const gainPct = running !== 0 ? (gainAbs / running) * 100 : null;
 
@@ -187,6 +191,7 @@ export function buildMutualFundView(entries: MutualFundEntryRow[], birthYear: nu
 
     return {
       entry,
+      cumulativeAdded: runningAdded,
       cumulativeInvested: running,
       gainAbs,
       gainPct,

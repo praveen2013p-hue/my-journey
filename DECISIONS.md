@@ -918,3 +918,18 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
 - Verified live, desktop and mobile: switching views, clicking
   different year tiles, and that the List/Grid choice survives a page
   reload.
+
+## Mutual Funds: "Total Added" column (gross, distinct from Valuation), 2026-11-25
+
+- Requested directly: "Valuation" (net of withdrawals) wasn't enough -
+  user wanted to see their own cumulative contribution regardless of
+  any withdrawal taken out later.
+- Added `cumulativeAdded` to `MutualFundEntryView`: a running sum of
+  `amount_added` only, never reduced by `withdrawal` - "how much of my
+  own money have I put in, in total," independent of what's since come
+  out. Sits in the table as "Total Added," right after "Added" and
+  before "Valuation."
+- Verified with a withdrawal example: ₹10,000 + ₹5,000 added across two
+  months, ₹3,000 withdrawn in month 2 → Total Added = ₹15,000 (gross),
+  Valuation = ₹12,000 (net). Unit-tested directly; confirmed live via
+  the rendered table.
