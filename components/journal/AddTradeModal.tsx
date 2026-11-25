@@ -33,6 +33,8 @@ export function AddTradeModal({
     const sellDate = String(data.get("sell_date") ?? "").trim();
     const sellPrice = String(data.get("sell_price") ?? "").trim();
     const strategyName = String(data.get("strategy_tag") ?? "").trim();
+    const stopLossRaw = String(data.get("stop_loss") ?? "").trim();
+    const stopLoss = stopLossRaw === "" ? null : Number(stopLossRaw);
 
     if (!ticker || !buyDate || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(buyPrice)) {
       setError("Fill in stock, buy date, quantity and buy price.");
@@ -40,6 +42,10 @@ export function AddTradeModal({
     }
     if (Boolean(sellDate) !== Boolean(sellPrice)) {
       setError("Set both sell date and sell price, or leave both blank for an open trade.");
+      return;
+    }
+    if (stopLoss !== null && !Number.isFinite(stopLoss)) {
+      setError("Stop loss must be a number.");
       return;
     }
 
@@ -69,6 +75,7 @@ export function AddTradeModal({
           sell_date: sellDate || null,
           sell_price: sellPrice || null,
           strategy_tag_id: strategyTagId,
+          stop_loss: stopLoss,
         }),
       });
       if (!res.ok) throw new Error("Couldn't save the trade.");
@@ -169,6 +176,20 @@ export function AddTradeModal({
                   step="any"
                   min="0"
                   required
+                  className="min-h-[44px] w-full rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="stop_loss" className="mb-1 block text-xs text-muted">
+                  Stop loss <span className="text-muted">(optional - for R-multiple)</span>
+                </label>
+                <input
+                  id="stop_loss"
+                  name="stop_loss"
+                  type="number"
+                  step="any"
+                  min="0"
                   className="min-h-[44px] w-full rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
                 />
               </div>

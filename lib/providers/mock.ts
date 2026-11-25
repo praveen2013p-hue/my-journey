@@ -89,7 +89,8 @@ export class MockMarketDataProvider implements MarketDataProvider {
       const dayIndex = Math.round((d.getTime() - from.getTime()) / 86_400_000);
       const noise = Math.sin((hash % 97) + dayIndex * 0.3) * 0.01;
       price = Math.max(1, price * (1 + 0.0006 + noise));
-      bars.push({ date: d.toISOString().slice(0, 10), close: Math.round(price * 100) / 100 });
+      const volume = Math.round(1_000_000 + Math.abs(Math.sin((hash % 53) + dayIndex * 0.7)) * 3_000_000);
+      bars.push({ date: d.toISOString().slice(0, 10), close: Math.round(price * 100) / 100, volume });
     }
     return bars;
   }

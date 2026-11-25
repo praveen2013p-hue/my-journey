@@ -649,3 +649,66 @@ Second round, asked again for "world class" ideas - still just parked:
   sector rotation + benchmark stage, instead of three separate signals.
 - FII/DII flow overlay (India) - institutional buy/sell flow as a macro
   confirmation layer at index Stage transitions.
+
+## Building 7 of the 12 backlog features, 2026-11-25
+
+Asked to "build all" 12. Investigated first and found 3 (market breadth,
+RS/price divergence, VCP) need a new continuous per-stock weekly price
+history subsystem that doesn't exist yet, and FII/DII has no integrated
+data source - presented this and the user chose to build the 7 feasible
+ones now, leaving those 4 as backlog (unchanged above). What shipped:
+
+- **Stock RS Rating**: `lib/rs-rating.ts`'s `computeRsRatingPercentiles`
+  - a 1-99 percentile rank of a ticker's latest `mrs` among every ticker
+  this app has ever alerted on in its market (new
+  `getLatestMrsForAllTickers` in `lib/db/alerts.ts`), not "the whole
+  market." New "RS Rating" column on Breakouts/Pullbacks.
+- **Double RS confirmation**: `lib/constituent-rs.ts`'s `withSectorRs` -
+  a constituent's own RS vs its sector's median RS (leader/laggard/in
+  line). Lives in its own file, not inside
+  `lib/db/sector-constituents.ts`, to avoid a module import cycle
+  (`sector-constituents.ts` -> `sector-context.ts` -> `alerts.ts` would
+  loop back). Wired into `ConstituentsPanel`'s existing stock-list table
+  via the same `/api/sectors/constituents` route.
+- **Sector rotation heatmap**: `lib/sector-rotation.ts` ranks each
+  sector by `mrs` within each of the last 13 weeks (sectors only, not
+  industries - rotation is a sector-level concept) from snapshot history
+  already fetched elsewhere. New grid on the Sectors page,
+  `RotationHeatmap`.
+- **Distribution-day counter**: `lib/distribution-days.ts` - the
+  classic IBD/O'Neil rule (benchmark closes down >=0.2% on higher volume
+  than the prior day), counted over the last 25 sessions for the
+  benchmark only (one symbol, not every stock - keeps it cheap under
+  Kite's 3 req/s historical-data limit). Needed `DailyBar` to carry
+  `volume` (previously parsed by Kite's candle fetch, then dropped) -
+  added to `lib/providers/types.ts` and all three providers
+  (Kite/Yahoo/mock). Shown as a line under each market's index list on
+  Dashboard's Market snapshot card. For India this stays "—" until the
+  benchmark's real Kite symbol is resolved (same known gap as the regime
+  light itself).
+- **Composite Risk-On/Risk-Off score**: `lib/risk-score.ts` - a
+  documented heuristic (not a calibrated model) averaging whichever of
+  three signals are available: benchmark Weinstein stage, % of sectors
+  in Stage 2 this week (a sector-level stand-in for breadth), and
+  sectors' average 1-week RS change. New `RiskScoreCard` on Dashboard.
+- **R-multiple risk management**: added an optional `stop_loss` to
+  trades (nullable, never required). `lib/trade-stats.ts`'s `rMultiple`
+  is null whenever there's no stop, or the stop isn't below the buy
+  price (no defined risk to divide by) - this app only tracks a buy
+  then a sell, no short-side field. New field on both "add to Journal"
+  forms (`AddToButton`, `AddTradeModal`), an "R" column on closed
+  trades, and an "Avg R-multiple" stat card.
+  **Needs a Supabase migration before this works in production**:
+  `supabase/migrations/0002_trades_stop_loss.sql` adds the column.
+  Confirmed via Vercel that this project's `NEXT_PUBLIC_SUPABASE_URL`/
+  `SUPABASE_SERVICE_ROLE_KEY` are set, i.e. production really runs
+  against Supabase (not the local JSON store) - so trade creation/update
+  will error referencing `stop_loss` until that migration is run in the
+  Supabase SQL editor.
+- **Quality Score calibration**: `lib/quality-calibration.ts` groups
+  closed trades (only ones logged from an alert, via `trade.alert_id`)
+  by their alert's Grade and by Quality Score bucket (0-39/40-59/
+  60-79/80-100), showing win rate/avg return/avg R per bucket - whether
+  the score actually predicted the outcome, not assumed. New
+  `getAlertsByIds` batched lookup in `lib/db/alerts.ts`. New
+  `QualityCalibrationTable` section on the Performance page.

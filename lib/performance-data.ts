@@ -8,12 +8,18 @@
  */
 
 import { addDays, format, startOfMonth, startOfYear, subDays, subMonths, subYears } from "date-fns";
-import { listAlerts } from "./db/alerts";
+import { getAlertsByIds, listAlerts } from "./db/alerts";
 import { listTrades } from "./db/trades";
 import { getSymbolMapping } from "./db/symbol-map";
 import type { AlertRow, Market, TradeRow } from "./db/schema-types";
 import { getDailyHistoryWithBackfill } from "./price-history-backfill";
 import { getCachedQuotes } from "./quotes-cache";
+import {
+  computeGradeCalibration,
+  computeQualityScoreCalibration,
+  type GradeCalibrationRow,
+  type QualityScoreBucketRow,
+} from "./quality-calibration";
 import { closedTradePnl } from "./trade-stats";
 
 export type TimeFramePreset = "month" | "3m" | "6m" | "1y" | "ytd" | "all" | "custom";
@@ -153,6 +159,40 @@ export async function getHoldVsSoldData(userId: string, market: Market, timeFram
       goodExits.length > 0
         ? goodExits.reduce((s, r) => s + -(r.diffPts as number), 0) / goodExits.length
         : null,
+  };
+}
+
+export interface QualityCalibrationData {
+  byGrade: GradeCalibrationRow[];
+  byQualityScore: QualityScoreBucketRow[];
+  /** How many closed trades in this window had no alert_id (or a since-deleted one) and so couldn't be calibrated. */
+  uncalibratedCount: number;
+}
+
+/** "Quality Score calibration" (DECISIONS.md backlog) - whether Grade/Quality Score at trigger time actually predicted what happened. */
+export async function getQualityCalibrationData(
+  userId: string,
+  market: Market,
+  timeFrame: ResolvedTimeFrame,
+): Promise<QualityCalibrationData> {
+  const trades = await listTrades(userId, market);
+  const closedInWindow = trades
+    .filter((t) => t.sell_date && inRange(t.sell_date, timeFrame.fromDate, timeFrame.toDate))
+    .map((t) => closedTradePnl(t)!);
+
+  const alertIds = Array.from(
+    new Set(closedInWindow.map((c) => c.trade.alert_id).filter((id): id is string => id !== null)),
+  );
+  const alertById = await getAlertsByIds(alertIds);
+
+  const uncalibratedCount = closedInWindow.filter(
+    (c) => c.trade.alert_id === null || !alertById.has(c.trade.alert_id),
+  ).length;
+
+  return {
+    byGrade: computeGradeCalibration(closedInWindow, alertById),
+    byQualityScore: computeQualityScoreCalibration(closedInWindow, alertById),
+    uncalibratedCount,
   };
 }
 

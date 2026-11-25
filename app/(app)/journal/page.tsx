@@ -63,7 +63,7 @@ export default async function JournalPage({
         <span className="ml-2 text-xs text-muted">India and US are never combined</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-xl border border-border bg-panel p-4.5">
           <div className="text-xs text-muted">Win rate</div>
           <div className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.winRate !== null && data.stats.winRate >= 50 ? "text-pos" : "text-text"}`}>
@@ -90,6 +90,14 @@ export default async function JournalPage({
           <div className="text-xs text-muted">Realised P&amp;L</div>
           <div className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.realizedPnl >= 0 ? "text-pos" : "text-neg"}`}>
             {formatMoney(market, data.stats.realizedPnl)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-panel p-4.5">
+          <div className="text-xs text-muted">Avg R-multiple</div>
+          <div
+            className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.avgRMultiple !== null && data.stats.avgRMultiple >= 0 ? "text-pos" : data.stats.avgRMultiple !== null ? "text-neg" : "text-text"}`}
+          >
+            {data.stats.avgRMultiple !== null ? `${data.stats.avgRMultiple >= 0 ? "+" : ""}${data.stats.avgRMultiple.toFixed(2)}R` : "—"}
           </div>
         </div>
       </div>

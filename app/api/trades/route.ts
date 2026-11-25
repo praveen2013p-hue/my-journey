@@ -34,6 +34,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   const sellPrice = sellPriceRaw === null || sellPriceRaw === undefined || sellPriceRaw === "" ? null : Number(sellPriceRaw);
   const strategyTagId = typeof body?.strategy_tag_id === "string" && body.strategy_tag_id ? body.strategy_tag_id : null;
   const alertId = typeof body?.alert_id === "string" && body.alert_id ? body.alert_id : null;
+  const stopLossRaw = body?.stop_loss;
+  const stopLoss = stopLossRaw === null || stopLossRaw === undefined || stopLossRaw === "" ? null : Number(stopLossRaw);
 
   if (
     !market ||
@@ -43,7 +45,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     quantity <= 0 ||
     !Number.isFinite(buyPrice) ||
     buyPrice <= 0 ||
-    (sellPrice !== null && !Number.isFinite(sellPrice))
+    (sellPrice !== null && !Number.isFinite(sellPrice)) ||
+    (stopLoss !== null && !Number.isFinite(stopLoss))
   ) {
     return NextResponse.json({ error: "invalid_params" }, { status: 400 });
   }
@@ -61,6 +64,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     sell_price: sellPrice,
     strategy_tag_id: strategyTagId,
     alert_id: alertId,
+    stop_loss: stopLoss,
   });
   return NextResponse.json({ trade }, { status: 201 });
 }

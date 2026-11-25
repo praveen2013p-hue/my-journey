@@ -1,4 +1,5 @@
 import { HoldVsSoldTable } from "@/components/performance/HoldVsSoldTable";
+import { QualityCalibrationTable } from "@/components/performance/QualityCalibrationTable";
 import { ShortlistTable } from "@/components/performance/ShortlistTable";
 import { StatsCards } from "@/components/performance/StatsCards";
 import { TimeFrameBar } from "@/components/performance/TimeFrameBar";
@@ -12,6 +13,7 @@ import type { Market } from "@/lib/db/schema-types";
 import { getFreshnessData } from "@/lib/freshness-data";
 import {
   getHoldVsSoldData,
+  getQualityCalibrationData,
   getShortlistPerformanceData,
   resolveTimeFrame,
 } from "@/lib/performance-data";
@@ -27,12 +29,13 @@ export default async function PerformancePage({
   const market: Market = sp.market === "US" ? "US" : "IN";
   const timeFrame = resolveTimeFrame(sp.preset, sp.from, sp.to);
 
-  const [freshness, trades, tags, holdVsSold, shortlist] = await Promise.all([
+  const [freshness, trades, tags, holdVsSold, shortlist, qualityCalibration] = await Promise.all([
     getFreshnessData(),
     listTrades(session.userId, market),
     listStrategyTags(session.userId),
     getHoldVsSoldData(session.userId, market, timeFrame),
     getShortlistPerformanceData(session.userId, market, timeFrame),
+    getQualityCalibrationData(session.userId, market, timeFrame),
   ]);
 
   const closedInRange = trades
@@ -61,6 +64,8 @@ export default async function PerformancePage({
       <StatsCards market={market} stats={stats} />
 
       <StrategyResultsTable market={market} results={strategyResults} />
+
+      <QualityCalibrationTable data={qualityCalibration} />
 
       <HoldVsSoldTable market={market} data={holdVsSold} />
 

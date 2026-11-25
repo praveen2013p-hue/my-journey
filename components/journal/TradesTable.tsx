@@ -213,6 +213,7 @@ export function ClosedTradesTable({ rows }: { rows: ClosedTradeRowView[] }) {
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Sell</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">P&amp;L</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">P&amp;L %</th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">R</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Days</th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Actions</th>
           </tr>
@@ -244,6 +245,16 @@ export function ClosedTradesTable({ rows }: { rows: ClosedTradeRowView[] }) {
               </td>
               <td className={`whitespace-nowrap px-3 py-2.5 text-right ${row.pnlPct >= 0 ? "text-pos" : "text-neg"}`}>
                 {formatPct(row.pnlPct)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                {row.rMultiple === null ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <span className={row.rMultiple >= 0 ? "text-pos" : "text-neg"}>
+                    {row.rMultiple >= 0 ? "+" : ""}
+                    {row.rMultiple.toFixed(2)}R
+                  </span>
+                )}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">{row.holdingDays}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">

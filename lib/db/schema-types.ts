@@ -198,6 +198,8 @@ export interface TradeRow {
   sell_price: number | null;
   strategy_tag_id: string | null;
   alert_id: string | null;
+  /** Optional - the R-multiple risk management feature. Null means "no stop set," never a guess. */
+  stop_loss: number | null;
   created_at: string;
 }
 

@@ -7,6 +7,7 @@ import {
   daysBetween,
   isTradeClosed,
   openTradePnl,
+  rMultiple,
 } from "./trade-stats";
 
 function trade(overrides: Partial<TradeRow>): TradeRow {
@@ -22,6 +23,7 @@ function trade(overrides: Partial<TradeRow>): TradeRow {
     sell_price: null,
     strategy_tag_id: null,
     alert_id: null,
+    stop_loss: null,
     created_at: "2026-11-01T00:00:00.000Z",
     ...overrides,
   };
@@ -57,6 +59,28 @@ describe("isTradeClosed / closedTradePnl", () => {
     const result = closedTradePnl(t)!;
     expect(result.pnlAbs).toBeCloseTo(-100, 5); // (180-200)*5
     expect(result.pnlPct).toBeCloseTo(-10, 5);
+  });
+
+  it("includes the R-multiple when a stop-loss was set", () => {
+    const t = trade({ buy_price: 100, stop_loss: 95, sell_date: "2026-11-05", sell_price: 110 });
+    expect(closedTradePnl(t)!.rMultiple).toBeCloseTo(2, 5); // (110-100)/(100-95)
+  });
+});
+
+describe("rMultiple", () => {
+  it("is null when no stop-loss was set", () => {
+    const t = trade({ buy_price: 100, stop_loss: null });
+    expect(rMultiple(t, 110)).toBeNull();
+  });
+
+  it("is null when the stop isn't below the buy price (no defined risk)", () => {
+    const t = trade({ buy_price: 100, stop_loss: 100 });
+    expect(rMultiple(t, 110)).toBeNull();
+  });
+
+  it("is negative for a loss smaller than the risk taken", () => {
+    const t = trade({ buy_price: 100, stop_loss: 90 });
+    expect(rMultiple(t, 95)).toBeCloseTo(-0.5, 5); // (95-100)/(100-90)
   });
 });
 
@@ -118,13 +142,28 @@ describe("computeTradeStats", () => {
   it("builds an equity curve ordered by sell date and finds the max drawdown", () => {
     // +100, then -150 (new trough), then +50 -> peak 100, trough -50, drawdown 150.
     const closed = [
-      { trade: trade({ sell_date: "2026-11-01" }), pnlAbs: 100, pnlPct: 10, holdingDays: 1 },
-      { trade: trade({ sell_date: "2026-11-02" }), pnlAbs: -150, pnlPct: -15, holdingDays: 1 },
-      { trade: trade({ sell_date: "2026-11-03" }), pnlAbs: 50, pnlPct: 5, holdingDays: 1 },
+      { trade: trade({ sell_date: "2026-11-01" }), pnlAbs: 100, pnlPct: 10, holdingDays: 1, rMultiple: null },
+      { trade: trade({ sell_date: "2026-11-02" }), pnlAbs: -150, pnlPct: -15, holdingDays: 1, rMultiple: null },
+      { trade: trade({ sell_date: "2026-11-03" }), pnlAbs: 50, pnlPct: 5, holdingDays: 1, rMultiple: null },
     ];
     const stats = computeTradeStats(closed);
     expect(stats.equityCurve.map((p) => p.cumulativePnl)).toEqual([100, -50, 0]);
     expect(stats.maxDrawdown).toBeCloseTo(150, 5); // peak 100 -> trough -50
+  });
+
+  it("averages R-multiple only across trades that have one", () => {
+    const trades = [
+      trade({ buy_price: 100, stop_loss: 90, sell_date: "2026-11-02", sell_price: 120 }), // R = 2
+      trade({ buy_price: 100, stop_loss: 90, sell_date: "2026-11-03", sell_price: 80 }), // R = -2
+      trade({ buy_price: 100, stop_loss: null, sell_date: "2026-11-04", sell_price: 110 }), // no stop - excluded
+    ].map((t) => closedTradePnl(t)!);
+
+    expect(computeTradeStats(trades).avgRMultiple).toBeCloseTo(0, 5); // (2 + -2) / 2
+  });
+
+  it("avgRMultiple is null when no closed trade has a stop-loss", () => {
+    const trades = [trade({ sell_date: "2026-11-02", sell_price: 110 })].map((t) => closedTradePnl(t)!);
+    expect(computeTradeStats(trades).avgRMultiple).toBeNull();
   });
 });
 

@@ -28,8 +28,30 @@ function IndexRow({ item }: { item: MarketSnapshotItem }) {
   );
 }
 
+/** Classic IBD severity ramp: 0-2 is normal market noise, 3-4 worth watching, 5+ a real distribution-day warning. */
+function DistributionDaysLine({ count }: { count: number | null }) {
+  if (count === null) return null;
+  const colorClass = count >= 5 ? "text-neg" : count >= 3 ? "text-warn" : "text-muted";
+  return (
+    <p className={`mt-2 text-xs ${colorClass}`}>
+      Distribution days (25 sessions): <b className="tabular-nums">{count}</b>
+      {count >= 5 && " — elevated institutional selling"}
+    </p>
+  );
+}
+
 /** Dashboard's "Market snapshot" widget - broad index levels, not individual stocks. Replaces the old Open trades/P&L widget (that data already lives on the Journal page). */
-export function MarketSnapshotCard({ india, us }: { india: MarketSnapshotItem[]; us: MarketSnapshotItem[] }) {
+export function MarketSnapshotCard({
+  india,
+  us,
+  indiaDistributionDays,
+  usDistributionDays,
+}: {
+  india: MarketSnapshotItem[];
+  us: MarketSnapshotItem[];
+  indiaDistributionDays: number | null;
+  usDistributionDays: number | null;
+}) {
   const anyIndiaUnavailable = india.some((i) => i.unavailable);
   return (
     <section className="rounded-xl border border-border bg-panel p-4.5" aria-label="Market snapshot">
@@ -45,6 +67,7 @@ export function MarketSnapshotCard({ india, us }: { india: MarketSnapshotItem[];
           {anyIndiaUnavailable && (
             <p className="mt-2 text-xs text-muted">Connect Zerodha in Settings to see India index levels.</p>
           )}
+          <DistributionDaysLine count={indiaDistributionDays} />
         </div>
         <div className="flex-1">
           <h3 className="mb-1 text-sm font-semibold">US</h3>
@@ -53,6 +76,7 @@ export function MarketSnapshotCard({ india, us }: { india: MarketSnapshotItem[];
               <IndexRow key={item.label} item={item} />
             ))}
           </div>
+          <DistributionDaysLine count={usDistributionDays} />
         </div>
       </div>
     </section>

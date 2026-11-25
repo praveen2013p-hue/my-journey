@@ -55,9 +55,15 @@ export function AddToButton({
     const buyDate = String(data.get("buy_date") ?? "");
     const quantity = Number(data.get("quantity"));
     const buyPrice = Number(data.get("buy_price"));
+    const stopLossRaw = String(data.get("stop_loss") ?? "").trim();
+    const stopLoss = stopLossRaw === "" ? null : Number(stopLossRaw);
 
     if (!buyDate || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(buyPrice) || buyPrice <= 0) {
       setError("Fill in buy date, quantity and buy price.");
+      return;
+    }
+    if (stopLoss !== null && !Number.isFinite(stopLoss)) {
+      setError("Stop loss must be a number.");
       return;
     }
 
@@ -76,6 +82,7 @@ export function AddToButton({
           sell_price: null,
           strategy_tag_id: null,
           alert_id: alertId,
+          stop_loss: stopLoss,
         }),
       });
       if (!res.ok) throw new Error("Couldn't add to Journal.");
@@ -190,6 +197,19 @@ export function AddToButton({
                   min="0"
                   required
                   defaultValue={defaultPrice ?? undefined}
+                  className="min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-3 text-text"
+                />
+              </div>
+              <div>
+                <label htmlFor={`stop_${formIdSuffix}`} className="mb-1 block text-xs text-muted">
+                  Stop loss <span className="text-muted">(optional - for R-multiple)</span>
+                </label>
+                <input
+                  id={`stop_${formIdSuffix}`}
+                  name="stop_loss"
+                  type="number"
+                  step="any"
+                  min="0"
                   className="min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-3 text-text"
                 />
               </div>

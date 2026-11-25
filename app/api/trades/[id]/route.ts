@@ -41,6 +41,13 @@ export async function PATCH(
   if (body?.strategy_tag_id !== undefined) {
     update.strategy_tag_id = body.strategy_tag_id === null ? null : String(body.strategy_tag_id);
   }
+  if (body?.stop_loss !== undefined) {
+    const stopLoss = body.stop_loss === null || body.stop_loss === "" ? null : Number(body.stop_loss);
+    if (stopLoss !== null && !Number.isFinite(stopLoss)) {
+      return NextResponse.json({ error: "invalid_stop_loss" }, { status: 400 });
+    }
+    update.stop_loss = stopLoss;
+  }
 
   // sell_date and sell_price close the trade - set together, or both cleared to reopen it.
   if (body?.sell_date !== undefined || body?.sell_price !== undefined) {

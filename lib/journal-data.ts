@@ -29,6 +29,7 @@ export interface ClosedTradeRowView extends TradeRowView {
   pnlAbs: number;
   pnlPct: number;
   holdingDays: number;
+  rMultiple: number | null;
 }
 
 export interface TickerOption {
@@ -96,6 +97,7 @@ export async function getJournalPageData(userId: string, market: Market): Promis
         pnlAbs: closed.pnlAbs,
         pnlPct: closed.pnlPct,
         holdingDays: closed.holdingDays,
+        rMultiple: closed.rMultiple,
       });
     } else {
       openTrades.push({ trade, exchange, providerSymbol: await providerSymbolFor(trade.ticker), strategyTagName });

@@ -36,6 +36,26 @@ beforeEach(async () => {
   await __resetStoreForTests();
 });
 
+describe("getBreakoutsPageData RS Rating", () => {
+  it("ranks each ticker's RS as a percentile among every ticker alerted in its market", async () => {
+    await upsertAlert(alertInput({ ticker: "WEAK", mrs: -10, week_ending: "2026-11-20" }));
+    await upsertAlert(alertInput({ ticker: "MID", mrs: 0, week_ending: "2026-11-20" }));
+    await upsertAlert(alertInput({ ticker: "STRONG", mrs: 20, week_ending: "2026-11-20" }));
+
+    const data = await getBreakoutsPageData(USER, "breakout", {});
+    const byTicker = new Map(data.rows.map((r) => [r.ticker, r.rsRating]));
+    expect(byTicker.get("STRONG")).toBe(99);
+    expect(byTicker.get("WEAK")).toBe(33);
+    expect(byTicker.get("MID")).toBe(67);
+  });
+
+  it("is null for a ticker whose mrs is null, never a guessed rating", async () => {
+    await upsertAlert(alertInput({ ticker: "NODATA", mrs: null, week_ending: "2026-11-20" }));
+    const data = await getBreakoutsPageData(USER, "breakout", {});
+    expect(data.rows.find((r) => r.ticker === "NODATA")!.rsRating).toBeNull();
+  });
+});
+
 describe("getBreakoutsPageData", () => {
   it("defaults to the latest week that has alerts", async () => {
     await upsertAlert(alertInput({ week_ending: "2026-11-13" }));

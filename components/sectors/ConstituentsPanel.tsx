@@ -7,10 +7,23 @@ import { TradingViewLink } from "@/components/TradingViewLink";
 import type { Market } from "@/lib/db/schema-types";
 import { quoteKey, useQuotes } from "@/lib/use-quotes";
 
+type SectorRsComparison = "leader" | "laggard" | "inline";
+
 interface ConstituentRow {
   ticker: string;
   exchange: string | null;
   providerSymbol: string | null;
+  mrs: number | null;
+  rsRating: number | null;
+  vsSectorRs: SectorRsComparison | null;
+}
+
+function vsSectorRsLabel(v: SectorRsComparison): string {
+  return v === "leader" ? "Leader" : v === "laggard" ? "Laggard" : "In line";
+}
+
+function vsSectorRsClass(v: SectorRsComparison): string {
+  return v === "leader" ? "text-pos" : v === "laggard" ? "text-neg" : "text-muted";
 }
 
 function fmt(value: number | null, digits = 2): string {
@@ -89,6 +102,8 @@ export function ConstituentsPanel({
                 <th className="whitespace-nowrap px-3 py-2 text-left font-semibold">Stock</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-semibold">Live</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-semibold">Day %</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-semibold">RS</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-semibold">vs Sector</th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-semibold">Actions</th>
               </tr>
             </thead>
@@ -124,6 +139,18 @@ export function ConstituentsPanel({
                           {dayPct >= 0 ? "▲ +" : "▼ "}
                           {dayPct.toFixed(1)}%
                         </span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                      <span className={row.mrs !== null && row.mrs > 0 ? "text-pos" : row.mrs !== null ? "text-neg" : "text-muted"}>
+                        {row.mrs !== null ? (row.mrs > 0 ? "+" : "") + row.mrs.toFixed(1) : "—"}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right text-xs">
+                      {row.vsSectorRs === null ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <span className={vsSectorRsClass(row.vsSectorRs)}>{vsSectorRsLabel(row.vsSectorRs)}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right">

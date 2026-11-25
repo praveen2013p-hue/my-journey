@@ -3,6 +3,7 @@ import { getOptionalSession } from "@/lib/auth/dal";
 import { getConstituentQuoteRows, replaceConstituents } from "@/lib/db/sector-constituents";
 import type { Market } from "@/lib/db/schema-types";
 import { parseTickerCsv } from "@/lib/csv";
+import { withSectorRs } from "@/lib/constituent-rs";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_params" }, { status: 400 });
   }
 
-  const rows = await getConstituentQuoteRows(market as Market, sector);
+  const rows = await withSectorRs(market as Market, await getConstituentQuoteRows(market as Market, sector));
   return NextResponse.json({ rows });
 }
 

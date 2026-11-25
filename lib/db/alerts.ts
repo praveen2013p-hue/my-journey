@@ -395,6 +395,63 @@ export async function getLatestMrsForTickers(
   return result;
 }
 
+/**
+ * Every ticker's most recent `mrs`, for whichever tickers in this market
+ * have ever triggered an alert - the universe the RS Rating percentile
+ * (lib/rs-rating.ts) ranks against. Unlike `getLatestMrsForTickers`, this
+ * isn't scoped to a given ticker list; a ticker whose latest mrs is null
+ * is left out entirely (nothing to rank).
+ */
+export async function getLatestMrsForAllTickers(market: Market): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+
+  let candidates: Array<{ ticker: string; mrs: number | null; triggered_at: string }>;
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase.from("alerts").select("ticker, mrs, triggered_at").eq("market", market);
+    if (error) throw error;
+    candidates = data as typeof candidates;
+  } else {
+    const store = await readStore();
+    candidates = store.alerts.filter((a) => a.market === market);
+  }
+
+  const latestAt = new Map<string, string>();
+  const latestMrs = new Map<string, number | null>();
+  for (const row of candidates) {
+    const seenAt = latestAt.get(row.ticker);
+    if (!seenAt || row.triggered_at > seenAt) {
+      latestAt.set(row.ticker, row.triggered_at);
+      latestMrs.set(row.ticker, row.mrs);
+    }
+  }
+  for (const [ticker, mrs] of latestMrs) {
+    if (mrs !== null) result.set(ticker, mrs);
+  }
+  return result;
+}
+
+/** Every requested alert, keyed by id - one batched fetch for the Quality Score calibration page instead of one getAlertById per closed trade. */
+export async function getAlertsByIds(ids: string[]): Promise<Map<string, AlertRow>> {
+  const result = new Map<string, AlertRow>();
+  if (ids.length === 0) return result;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase.from("alerts").select("*").in("id", ids);
+    if (error) throw error;
+    for (const row of data as AlertRow[]) result.set(row.id, row);
+    return result;
+  }
+
+  const store = await readStore();
+  const wanted = new Set(ids);
+  for (const row of store.alerts) {
+    if (wanted.has(row.id)) result.set(row.id, row);
+  }
+  return result;
+}
+
 export async function getAlertById(id: string): Promise<AlertRow | null> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();

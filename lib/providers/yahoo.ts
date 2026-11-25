@@ -64,7 +64,11 @@ export class YahooMarketDataProvider implements MarketDataProvider {
       const chart = await yahooFinance.chart(symbol, { period1, period2, interval: "1d" });
       return chart.quotes
         .filter((q): q is typeof q & { close: number } => typeof q.close === "number")
-        .map((q) => ({ date: new Date(q.date).toISOString().slice(0, 10), close: q.close }));
+        .map((q) => ({
+          date: new Date(q.date).toISOString().slice(0, 10),
+          close: q.close,
+          volume: typeof q.volume === "number" ? q.volume : null,
+        }));
     } catch (err) {
       console.error("[yahoo provider] getDailyHistory failed", err);
       return [];

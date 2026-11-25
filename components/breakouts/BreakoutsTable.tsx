@@ -32,6 +32,7 @@ type SortKey =
   | "since"
   | "volRatio"
   | "mrs"
+  | "rsRating"
   | "quality";
 
 function fmtNum(value: number | null, digits = 2): string {
@@ -98,6 +99,7 @@ export function BreakoutsTable({
       since: (r) => r.pctSince ?? -Infinity,
       volRatio: (r) => r.row.volRatio ?? -Infinity,
       mrs: (r) => r.row.mrs ?? -Infinity,
+      rsRating: (r) => r.row.rsRating ?? -Infinity,
       quality: (r) => r.row.qualityScore ?? -Infinity,
     };
     const getKey = keyFns[sortKey];
@@ -177,6 +179,14 @@ export function BreakoutsTable({
                 sortDir={sortDir}
                 onToggle={toggleSort}
               />
+              <SortHeader
+                label="RS Rating"
+                k="rsRating"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
                 Sector · Industry
               </th>
@@ -199,7 +209,7 @@ export function BreakoutsTable({
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-3 py-8 text-center text-sm text-muted">
+                <td colSpan={14} className="px-3 py-8 text-center text-sm text-muted">
                   No alerts match these filters.
                 </td>
               </tr>
@@ -277,6 +287,17 @@ export function BreakoutsTable({
                     <span className={row.mrs !== null && row.mrs > 0 ? "text-pos" : "text-neg"}>
                       {row.mrs !== null ? (row.mrs > 0 ? "+" : "") + row.mrs.toFixed(1) : "—"}
                     </span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                    {row.rsRating === null ? (
+                      <span className="text-muted">—</span>
+                    ) : (
+                      <span
+                        className={row.rsRating >= 70 ? "text-pos" : row.rsRating < 30 ? "text-neg" : "text-warn"}
+                      >
+                        {row.rsRating}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-xs text-muted">
                     {row.sector ?? "—"}

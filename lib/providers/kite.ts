@@ -199,7 +199,7 @@ export class KiteMarketDataProvider implements MarketDataProvider {
       if (!token) return [];
 
       const candles = await fetchDailyCandles(session.accessToken, token, fromDate, toDate);
-      return candles.map((c) => ({ date: c.date, close: c.close }));
+      return candles.map((c) => ({ date: c.date, close: c.close, volume: c.volume }));
     } catch (err) {
       console.error("[kite provider] getDailyHistory failed", err);
       return [];

@@ -15,6 +15,7 @@ function sampleTrade(overrides: Partial<Parameters<typeof createTrade>[1]> = {})
     sell_price: null,
     strategy_tag_id: null,
     alert_id: null,
+    stop_loss: null,
     ...overrides,
   };
 }

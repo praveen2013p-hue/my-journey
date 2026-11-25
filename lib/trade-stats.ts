@@ -23,6 +23,8 @@ export interface ClosedTradeResult {
   pnlAbs: number;
   pnlPct: number;
   holdingDays: number;
+  /** (sellPrice - buyPrice) / (buyPrice - stopLoss) - null when no stop was set, or the stop wasn't below the buy price (so there's no defined risk to divide by). Never a guessed value. */
+  rMultiple: number | null;
 }
 
 export interface OpenTradeResult {
@@ -33,13 +35,27 @@ export interface OpenTradeResult {
   holdingDays: number;
 }
 
+/** This app only ever tracks a buy then a sell (no short-side field) - risk per share is buy price minus stop, so a stop at or above the buy price has no defined risk to divide by. */
+export function rMultiple(trade: TradeRow, sellPrice: number): number | null {
+  if (trade.stop_loss === null) return null;
+  const riskPerShare = trade.buy_price - trade.stop_loss;
+  if (riskPerShare <= 0) return null;
+  return (sellPrice - trade.buy_price) / riskPerShare;
+}
+
 export function closedTradePnl(trade: TradeRow): ClosedTradeResult | null {
   if (!isTradeClosed(trade)) return null;
   const sellPrice = trade.sell_price as number;
   const sellDate = trade.sell_date as string;
   const pnlAbs = (sellPrice - trade.buy_price) * trade.quantity;
   const pnlPct = ((sellPrice - trade.buy_price) / trade.buy_price) * 100;
-  return { trade, pnlAbs, pnlPct, holdingDays: daysBetween(trade.buy_date, sellDate) };
+  return {
+    trade,
+    pnlAbs,
+    pnlPct,
+    holdingDays: daysBetween(trade.buy_date, sellDate),
+    rMultiple: rMultiple(trade, sellPrice),
+  };
 }
 
 export function openTradePnl(
@@ -72,6 +88,8 @@ export interface TradeStatsSummary {
    */
   maxDrawdown: number;
   equityCurve: Array<{ date: string; cumulativePnl: number }>;
+  /** Average R-multiple across closed trades that have one (a stop was set) - null if none do. */
+  avgRMultiple: number | null;
 }
 
 const EMPTY_STATS: TradeStatsSummary = {
@@ -87,6 +105,7 @@ const EMPTY_STATS: TradeStatsSummary = {
   avgHoldingDays: null,
   maxDrawdown: 0,
   equityCurve: [],
+  avgRMultiple: null,
 };
 
 export function computeTradeStats(closedTrades: ClosedTradeResult[]): TradeStatsSummary {
@@ -126,6 +145,9 @@ export function computeTradeStats(closedTrades: ClosedTradeResult[]): TradeStats
     if (drawdown > maxDrawdown) maxDrawdown = drawdown;
   }
 
+  const withR = closedTrades.filter((t) => t.rMultiple !== null);
+  const avgRMultiple = withR.length > 0 ? withR.reduce((s, t) => s + t.rMultiple!, 0) / withR.length : null;
+
   return {
     tradeCount: n,
     winRate,
@@ -139,6 +161,7 @@ export function computeTradeStats(closedTrades: ClosedTradeResult[]): TradeStats
     avgHoldingDays,
     maxDrawdown,
     equityCurve,
+    avgRMultiple,
   };
 }
 

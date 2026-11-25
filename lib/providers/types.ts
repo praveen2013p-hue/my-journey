@@ -24,6 +24,8 @@ export interface WeeklyBar {
 export interface DailyBar {
   date: string; // yyyy-mm-dd
   close: number;
+  /** Null when the provider doesn't return volume for this symbol/day - never a guess. */
+  volume: number | null;
 }
 
 export interface MarketDataProvider {

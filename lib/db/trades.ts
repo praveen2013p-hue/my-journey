@@ -18,12 +18,13 @@ export interface NewTradeInput {
   sell_price: number | null;
   strategy_tag_id: string | null;
   alert_id: string | null;
+  stop_loss: number | null;
 }
 
 export type TradeUpdateInput = Partial<
   Pick<
     TradeRow,
-    "quantity" | "buy_date" | "buy_price" | "sell_date" | "sell_price" | "strategy_tag_id"
+    "quantity" | "buy_date" | "buy_price" | "sell_date" | "sell_price" | "strategy_tag_id" | "stop_loss"
   >
 >;
 
@@ -82,6 +83,7 @@ export async function createTrade(userId: string, input: NewTradeInput): Promise
       sell_price: input.sell_price,
       strategy_tag_id: input.strategy_tag_id,
       alert_id: input.alert_id,
+      stop_loss: input.stop_loss,
       created_at: new Date().toISOString(),
     };
     store.trades.push(row);

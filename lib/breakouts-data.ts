@@ -6,7 +6,7 @@
  */
 
 import { addDays, format } from "date-fns";
-import { countAlertsCreatedAfter, getLatestWeekEnding, listAlerts } from "./db/alerts";
+import { countAlertsCreatedAfter, getLatestMrsForAllTickers, getLatestWeekEnding, listAlerts } from "./db/alerts";
 import { bumpLastSeenAlerts } from "./db/settings";
 import type {
   AlertRow,
@@ -16,6 +16,7 @@ import type {
   SymbolMapRow,
 } from "./db/schema-types";
 import { listSymbolMappingsForTickers } from "./db/symbol-map";
+import { computeRsRatingPercentiles } from "./rs-rating";
 
 export interface BreakoutsFilters {
   week?: string;
@@ -50,6 +51,8 @@ export interface BreakoutRow {
   qualityScore: number | null;
   qualityBreakdown: Record<string, unknown> | null;
   fundamentals: Record<string, unknown> | null;
+  /** 1-99 percentile of this ticker's RS among every ticker this app has an RS value for in its market - null if mrs itself is null. */
+  rsRating: number | null;
   isNew: boolean;
   originalBreakoutDate: string | null;
   originalGrade: Grade | null;
@@ -113,6 +116,7 @@ function buildRow(
   symbolMappings: Map<string, SymbolMapRow>,
   breakoutsByMarket: Map<Market, AlertRow[]>,
   signalType: SignalType,
+  rsRatingsByMarket: Map<Market, Map<string, number>>,
 ): BreakoutRow {
   const mapping = symbolMappings.get(`${alert.market}:${alert.ticker}`);
   const avgVolume4w =
@@ -156,6 +160,7 @@ function buildRow(
     qualityScore: alert.quality_score,
     qualityBreakdown: alert.quality_breakdown,
     fundamentals: alert.fundamentals,
+    rsRating: rsRatingsByMarket.get(alert.market)?.get(alert.ticker) ?? null,
     isNew: previousCutoff !== null && alert.created_at > previousCutoff,
     originalBreakoutDate,
     originalGrade,
@@ -221,7 +226,16 @@ export async function getBreakoutsPageData(
     );
   }
 
-  const rows = filteredAlerts.map((a) => buildRow(a, previousCutoff, symbolMappings, breakoutsByMarket, signalType));
+  const rsRatingsByMarket = new Map<Market, Map<string, number>>();
+  await Promise.all(
+    marketsOnPage.map(async (m) => {
+      rsRatingsByMarket.set(m, computeRsRatingPercentiles(await getLatestMrsForAllTickers(m)));
+    }),
+  );
+
+  const rows = filteredAlerts.map((a) =>
+    buildRow(a, previousCutoff, symbolMappings, breakoutsByMarket, signalType, rsRatingsByMarket),
+  );
 
   // Sector/industry dropdown options come from the unfiltered set for this
   // date window, so picking one doesn't hide the others from the list.
