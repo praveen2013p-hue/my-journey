@@ -20,7 +20,7 @@ export default async function MutualFundsPage() {
     <>
       <PageHeader
         title="Mutual Funds"
-        subtitle="Your own manual monthly tracker - replaces the spreadsheet"
+        subtitle="Aiming for 50 Crore Mutual Fund Portfolio"
         actions={<AddEntryModal />}
       />
 

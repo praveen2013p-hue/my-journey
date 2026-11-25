@@ -1011,3 +1011,10 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   immediately, saved "NAV correction from the AMC," and confirmed it
   shows up in the saved table row in red with the gold "has a note"
   badge, text persisted correctly.
+
+## Mutual Funds: page subtitle, 2026-11-25
+
+- Requested directly: replaced the subtitle "Your own manual monthly
+  tracker - replaces the spreadsheet" with "Aiming for 50 Crore Mutual
+  Fund Portfolio" - a personal goal headline instead of a description
+  of the feature.
