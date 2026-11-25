@@ -44,15 +44,15 @@ export function MutualFundDashboard({ dashboard }: { dashboard: Dashboard }) {
       </div>
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
         <div className="min-w-0">
-          <div className="text-xs text-muted">Total invested</div>
-          <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested!)}>
-            {formatMoney("IN", dashboard.totalInvested!)}
-          </div>
-        </div>
-        <div className="min-w-0">
           <div className="text-xs text-muted">Current value</div>
           <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.currentValue!)}>
             {formatMoney("IN", dashboard.currentValue!)}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs text-muted">Total invested</div>
+          <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested!)}>
+            {formatMoney("IN", dashboard.totalInvested!)}
           </div>
         </div>
         <div className="min-w-0">

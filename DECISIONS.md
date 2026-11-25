@@ -1182,3 +1182,9 @@ causes found, in order of actual measured impact:
   Feb 2026 (added another ₹10,000, current_value ₹25,000) now show
   Invested ₹10,000/₹20,000 next to Valuation ₹10,500/₹25,000 - visibly
   different, as expected.
+
+## Mutual Funds: reordered Overview stats, 2026-11-25
+
+- Requested directly: show "Current value" before "Total invested" in
+  the Overview row (previously the other way around). Display-order
+  only, no change to either figure's math.
