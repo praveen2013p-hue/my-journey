@@ -633,3 +633,19 @@ Weinstein-stage + Mansfield-RS foundation. Parked here, not built:
   grid, instead of one sector's sparkline at a time.
 - Stage-duration backtest from the existing `price_history` store -
   average weeks in Stage 2 before a breakout succeeds vs fails back.
+
+Second round, asked again for "world class" ideas - still just parked:
+
+- RS/price divergence warning - price makes a new high but RS doesn't
+  confirm, an early Stage-3 top signal.
+- Volatility Contraction Pattern (VCP) detection - tightening range/ATR
+  before breakout, feeding into the existing A/B/C grade as a filter.
+- R-multiple risk management in the Journal - ATR-based stop suggestion
+  and position sizing by risk %, trades tracked in R-multiples not just
+  ₹/$ P&L.
+- Quality Score back-test/calibration - check whether Grade A/B/C and
+  Quality Score actually predict realized journal P&L, not just assumed.
+- Composite Risk-On/Risk-Off score - one number from market breadth +
+  sector rotation + benchmark stage, instead of three separate signals.
+- FII/DII flow overlay (India) - institutional buy/sell flow as a macro
+  confirmation layer at index Stage transitions.
