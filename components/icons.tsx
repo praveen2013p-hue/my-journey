@@ -82,6 +82,15 @@ export function MutualFundIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function NpsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 21V10l8-6 8 6v11" />
+      <path d="M9 21v-7h6v7" />
+    </Icon>
+  );
+}
+
 export function JournalIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

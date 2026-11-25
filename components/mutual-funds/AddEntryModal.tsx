@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { formatMoney } from "@/lib/format-money";
-import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
+import { NegativeAmountNoteButton } from "@/components/NegativeAmountNoteButton";
 
 function defaultMonthValue(): string {
   const now = new Date();

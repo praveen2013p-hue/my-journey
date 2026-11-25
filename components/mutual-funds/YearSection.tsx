@@ -5,7 +5,7 @@ import { useState } from "react";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/mutual-fund-stats";
 import type { MutualFundEntryView, MutualFundYearGroup } from "@/lib/mutual-fund-stats";
-import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
+import { NegativeAmountNoteButton } from "@/components/NegativeAmountNoteButton";
 
 /**
  * An entry from before the SIP/Lumpsum/STP/Other breakdown existed has all

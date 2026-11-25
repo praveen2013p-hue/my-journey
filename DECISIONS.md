@@ -1251,3 +1251,51 @@ causes found, in order of actual measured impact:
   something this private, single-household app needs to worry about,
   but worth knowing if `lightweight-charts` is ever used somewhere
   more public.
+
+## NPS: full structural clone of the Mutual Funds tracker, 2026-11-25
+
+- Requested directly: "the exact same thing which I made for mutual
+  fund but this time for NPS." Built a complete, 1:1 structural clone,
+  not a simplified version - every design decision Mutual Funds
+  accumulated over this project (the SIP/Lumpsum/STP/Other breakdown,
+  negative-amount-note prompt, rolling since-inception XIRR, Valuation
+  vs Invested distinction, the classic-4%-rule Safe SWP, the two-column
+  Overview with a wealth growth chart, List/Grid toggle starting
+  collapsed) carries over unchanged, just renamed.
+- New table `nps_entries` (migration 0008) - since this is a brand new
+  table with no existing production data, it ships with the complete
+  final column set in one migration, instead of replaying the 7
+  incremental migrations mutual_fund_entries needed to get there.
+- Two refactors made along the way, both because the code being cloned
+  turned out to have nothing fund-specific about it:
+  - `NegativeAmountNoteButton` moved from `components/mutual-funds/` to
+    a shared `components/NegativeAmountNoteButton.tsx` - it was already
+    fully generic (just "negative amount, add a comment"), so NPS
+    imports the same component instead of a duplicate.
+  - `monthLabel`/`shiftMonth` extracted from `lib/mutual-fund-stats.ts`
+    into a shared `lib/month-utils.ts` (tests moved to
+    `lib/month-utils.test.ts`) - plain "yyyy-mm-01" string helpers with
+    nothing mutual-fund-specific either. `lib/mutual-fund-stats.ts`
+    re-exports both names so none of its existing importers needed to
+    change.
+  - The wealth-growth chart (`WealthGrowthChart`/`WealthGrowthChartLazy`)
+    was deliberately NOT shared - out of scope for this clone, kept as
+    a parallel copy under `components/nps/`.
+- New files: `lib/nps-stats.ts` (+ tests), `lib/db/nps.ts` (+ tests),
+  `app/api/nps/route.ts` + `[id]/route.ts`, `components/nps/*`,
+  `app/(app)/nps/page.tsx`, an NPS sidebar entry (with `prefetch={false}`,
+  matching every other nav link) and a new landmark-style `NpsIcon`.
+- The page's subtitle ("Your NPS portfolio, tracked month by month") is
+  a neutral placeholder - Mutual Funds' "Aiming for 50 Crore..." was a
+  personal goal told to me specifically for that feature; nothing
+  equivalent was said for NPS, so nothing was invented.
+- Verified live: added 3 months with a SIP+Lumpsum breakdown, confirmed
+  it sums correctly into Added; confirmed Invested (gross) vs Valuation
+  (actual entered value) differ correctly; confirmed XIRR is rolling by
+  checking an earlier month's XIRR is unaffected by a later month being
+  added (point-in-time); confirmed Safe SWP matches 4% of current value
+  exactly; confirmed the negative-amount "i" button appears and its
+  comment persists to the saved row; confirmed Grid view starts fully
+  collapsed and toggles open/closed on tile click; confirmed the wealth
+  chart renders with no TradingView attribution logo. 317/317 tests
+  pass (30 new), build clean.
