@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
-import { OpenTradesCard } from "@/components/dashboard/OpenTradesCard";
+import { MarketSnapshotCard } from "@/components/dashboard/MarketSnapshotCard";
 import { RegimeCard } from "@/components/dashboard/RegimeCard";
 import { TopSectorsCard } from "@/components/dashboard/TopSectorsCard";
 import { TriggersCard } from "@/components/dashboard/TriggersCard";
@@ -8,20 +8,21 @@ import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader } from "@/components/PageHeader";
 import { verifySession } from "@/lib/auth/dal";
 import { getDashboardData } from "@/lib/dashboard-data";
-import { getOpenTradesWidgetData } from "@/lib/dashboard-open-trades";
 import { getFreshnessData } from "@/lib/freshness-data";
+import { getMarketSnapshot } from "@/lib/market-snapshot";
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
-  const session = await verifySession();
+  await verifySession();
   const { week } = await searchParams;
-  const [freshness, data, openTrades] = await Promise.all([
+  const [freshness, data, indiaSnapshot, usSnapshot] = await Promise.all([
     getFreshnessData(),
     getDashboardData(week),
-    getOpenTradesWidgetData(session.userId),
+    getMarketSnapshot("IN"),
+    getMarketSnapshot("US"),
   ]);
 
   return (
@@ -55,7 +56,7 @@ export default async function DashboardPage({
 
       <TopSectorsCard sectors={data.topSectors} />
 
-      <OpenTradesCard india={openTrades.india} us={openTrades.us} />
+      <MarketSnapshotCard india={indiaSnapshot} us={usSnapshot} />
     </>
   );
 }

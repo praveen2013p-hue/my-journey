@@ -458,3 +458,37 @@ stop and ask for these.
   `getUTC*` components. New `lib/time.ts`'s `todayInMarketTimezone`
   (same fix) picks the calendar's default month correctly in IST
   regardless of the server process's own timezone.
+
+## Dashboard: "Open trades & P&L" replaced with "Market snapshot"
+
+- Requested directly: remove the Open trades/P&L widget from Dashboard,
+  show broad index levels instead (Nifty 50/Sensex/Midcap 100/Smallcap
+  100 for India; a sensible US equivalent, since none was specified -
+  chose S&P 500/Nasdaq/Dow Jones, the standard US market trio). Open
+  trades/P&L wasn't deleted as a feature - it already lives on the
+  Journal page; `components/dashboard/OpenTradesCard.tsx` and
+  `lib/dashboard-open-trades.ts` were deleted since Dashboard was their
+  only caller.
+- **India never falls back to Yahoo.** Yahoo has no reliable Midcap-100/
+  Smallcap-100 ticker, and this app's own stated principle for India
+  (`lib/providers/index.ts`'s own comment) is "show unavailable, don't
+  substitute a different provider's numbers" - so `lib/market-snapshot.ts`
+  only ever uses Kite for India (`kite.getIndexQuotes`, a new method
+  alongside the existing `getQuotes`, needed because indices aren't
+  per-market stock tickers - Sensex is BSE, not NSE, so each needs its
+  own explicit exchange rather than `getQuotes`'s "always NSE" shortcut).
+  When Zerodha isn't connected, all four India indices show "unavailable"
+  together, not three real numbers and two silently-wrong ones.
+- **Symbols used** (same honesty-first lesson as the sector-symbol mixup
+  earlier in this file): `NSE:NIFTY 50`, `BSE:SENSEX`, `NSE:NIFTY MIDCAP
+  100`, `NSE:NIFTY SMLCAP 100`, hardcoded in `lib/market-snapshot.ts`.
+  These are Kite's standard, widely-documented index tradingsymbols, not
+  a guess the way `BANKNIFTY` turned out to be - but I have no live Kite
+  session to verify them from this sandbox. Unlike the sector symbols,
+  there's no Settings UI to fix these without a code change if one is
+  wrong (they're constants, not a `sector_map` row) - if any shows blank
+  once deployed with Zerodha connected, tell me which one and I'll adjust
+  the symbol directly.
+- US routes through `getProviderForMarket("US")`, not the Yahoo singleton
+  directly, so `FORCE_MOCK_US` still works for tests/offline demos - the
+  same pattern every other Yahoo-backed feature in this app already uses.

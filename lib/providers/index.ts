@@ -25,3 +25,6 @@ export function getProviderForMarket(market: Market): MarketDataProvider {
   if (process.env.FORCE_MOCK_US === "true") return mock;
   return yahoo;
 }
+
+/** The concrete Kite/Yahoo singletons, for callers that need provider-specific methods (e.g. Dashboard's market-snapshot indices) beyond the shared MarketDataProvider interface. */
+export { kite, yahoo };

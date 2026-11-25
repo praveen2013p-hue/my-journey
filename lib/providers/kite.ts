@@ -118,6 +118,48 @@ export class KiteMarketDataProvider implements MarketDataProvider {
     return result;
   }
 
+  /**
+   * Index quotes (Nifty 50, Sensex, etc.) for the Dashboard's market
+   * snapshot - kept separate from `getQuotes` since indices aren't
+   * per-market stock tickers: each needs its own explicit exchange
+   * (Sensex is BSE, not NSE), unlike `getQuotes`'s "always NSE" shortcut.
+   */
+  async getIndexQuotes(
+    indices: Array<{ exchange: "NSE" | "BSE"; symbol: string }>,
+  ): Promise<Map<string, { price: number; previousClose: number | null }>> {
+    const result = new Map<string, { price: number; previousClose: number | null }>();
+    if (indices.length === 0) return result;
+
+    const session = await getZerodhaSession();
+    if (!session) return result;
+
+    try {
+      const params = new URLSearchParams();
+      const keys = indices.map((i) => `${i.exchange}:${i.symbol}`);
+      for (const key of keys) params.append("i", key);
+      const response = await fetch(`${KITE_BASE}/quote?${params.toString()}`, {
+        headers: authHeaders(session.accessToken),
+      });
+      if (!response.ok) return result;
+
+      const body = (await response.json().catch(() => null)) as {
+        data?: Record<string, { last_price?: number; ohlc?: { close?: number } }>;
+      } | null;
+
+      for (const key of keys) {
+        const row = body?.data?.[key];
+        if (!row || typeof row.last_price !== "number") continue;
+        result.set(key, {
+          price: row.last_price,
+          previousClose: typeof row.ohlc?.close === "number" ? row.ohlc.close : null,
+        });
+      }
+    } catch (err) {
+      console.error("[kite provider] getIndexQuotes failed", err);
+    }
+    return result;
+  }
+
   async getWeeklyHistory(symbol: string, weeks: number): Promise<WeeklyBar[]> {
     try {
       const session = await getZerodhaSession();
