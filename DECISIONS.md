@@ -579,3 +579,57 @@ stop and ask for these.
   panel can offer "Add to Journal" for a constituent with no alert behind
   it at all - the id-suffix used for form element ids falls back to the
   ticker when there's no alert id to use instead.
+
+## Settings page: stream the Kite auto-suggest section instead of blocking
+
+- Reported as "the site is very slow loading everything." The real culprit
+  was narrower: Settings was awaiting up to ~24 Kite index searches (one
+  per unresolved sector, for the auto-suggest feature above) before
+  rendering anything at all, and each search can trigger a re-fetch of
+  Kite's multi-MB NSE instrument dump on a cold serverless instance.
+- Fix: moved the "Unresolved sector indices" and "Find a sector's real
+  Kite symbol" blocks into their own async Server Component
+  (`UnresolvedSectorSymbols`) wrapped in `<Suspense>`. The rest of
+  Settings (site name, alert health, quotes, tags, CSV upload) now
+  renders immediately; this one section streams in separately.
+
+## Sectors page: total stocks + RS>0 breadth per sector
+
+- Requested directly: show, per sector, the total number of uploaded
+  constituent stocks, and of those, how many have RS (Mansfield RS,
+  `mrs`) above 0 as of their latest alert. Added as two new sortable
+  columns ("Stocks", "RS > 0") on the main `SectorsTable` - one row per
+  sector already, so a column fit more naturally than reusing the
+  per-sector `ConstituentsPanel` drill-down built above.
+- `rsAbove0`/`totalStocks` are both `null` (shown as "—") for a sector
+  with no constituent CSV uploaded yet - never a guessed 0.
+- New `getLatestMrsForTickers(market, tickers[])` in `lib/db/alerts.ts`:
+  one batched query for every ticker on the page, not one per ticker -
+  same N+1 lesson as the rest of this codebase. "Latest" means the
+  ticker's most recent alert by `triggered_at`, across both signal types,
+  so an old breakout's RS doesn't outrank a newer pullback's.
+- New `listConstituentsBySector(market)` in `lib/db/sector-constituents.ts`:
+  one query for every sector's tickers, instead of one `listConstituents`
+  call per sector.
+- While already touching `SectorsTable.tsx`: hoisted its `SortHeader` out
+  of render to module scope (same "component created during render" fix
+  already applied to `BreakoutsTable.tsx` earlier) rather than add two
+  more instances of a pre-existing lint error.
+
+## Feature backlog (not building yet, 2026-11-25)
+
+Asked what else a technical analyst would want, given the existing
+Weinstein-stage + Mansfield-RS foundation. Parked here, not built:
+
+- Market breadth indicator (% of stocks above 30W MA, or new-highs vs
+  new-lows count) - confirms the Market Regime light with real breadth.
+- Stock RS Rating as a 1-99 percentile vs the whole universe (raw `mrs`
+  isn't comparable across stocks on its own).
+- Double RS confirmation - a stock's RS within its own sector, not just
+  vs the market benchmark, to separate true leaders from sector riders.
+- Distribution-day counter - high-volume down weeks on the benchmark or
+  leading stocks, as an early Stage-3 warning.
+- Sector rotation matrix - historical RS rank per sector by week as a
+  grid, instead of one sector's sparkline at a time.
+- Stage-duration backtest from the existing `price_history` store -
+  average weeks in Stage 2 before a breakout succeeds vs fails back.
