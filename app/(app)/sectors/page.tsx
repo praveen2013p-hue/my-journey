@@ -50,7 +50,7 @@ export default async function SectorsPage({
       ) : (
         <>
           <div className="text-xs text-muted">Week ending {data.weekEnding}</div>
-          <SectorsTable rows={data.rows} showKindToggle={market === "US"} />
+          <SectorsTable rows={data.rows} showKindToggle={market === "US"} market={market} />
         </>
       )}
 

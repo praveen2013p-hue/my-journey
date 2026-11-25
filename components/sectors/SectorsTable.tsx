@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Chip, stageVariant } from "@/components/Chip";
+import type { Market } from "@/lib/db/schema-types";
 import type { SectorRow } from "@/lib/sectors-page-data";
+import { ConstituentsPanel } from "./ConstituentsPanel";
 import { Sparkline } from "./Sparkline";
 
 type Period = "4W" | "13W" | "26W" | "52W" | "All";
@@ -30,11 +32,20 @@ function colorForRatio(ratio: number | null): string {
   return "text-neg";
 }
 
-export function SectorsTable({ rows, showKindToggle }: { rows: SectorRow[]; showKindToggle: boolean }) {
+export function SectorsTable({
+  rows,
+  showKindToggle,
+  market,
+}: {
+  rows: SectorRow[];
+  showKindToggle: boolean;
+  market: Market;
+}) {
   const [period, setPeriod] = useState<Period>("All");
   const [kind, setKind] = useState<"sector" | "industry">("sector");
   const [sortKey, setSortKey] = useState<SortKey>("mrs");
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
   const filtered = showKindToggle ? rows.filter((r) => r.kind === kind) : rows;
 
@@ -119,7 +130,8 @@ export function SectorsTable({ rows, showKindToggle }: { rows: SectorRow[]; show
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-panel">
+      <div className="flex min-w-0 flex-1 flex-wrap gap-5 lg:flex-nowrap">
+      <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-panel">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-border">
@@ -178,7 +190,13 @@ export function SectorsTable({ rows, showKindToggle }: { rows: SectorRow[]; show
               </tr>
             )}
             {sorted.map((row) => (
-              <tr key={row.sector} className="border-b border-row-border hover:bg-panel-alt">
+              <tr
+                key={row.sector}
+                onClick={() => setSelectedSector(row.sector)}
+                className={`cursor-pointer border-b border-row-border hover:bg-panel-alt ${
+                  selectedSector === row.sector ? "bg-gold-wash" : ""
+                }`}
+              >
                 <td className="px-3 py-2.5 tabular-nums text-muted">{row.rank ?? "—"}</td>
                 <td className="whitespace-nowrap px-3 py-2.5 font-medium">
                   {row.isFocus && <span className="mr-1.5 text-gold-light">★</span>}
@@ -246,6 +264,11 @@ export function SectorsTable({ rows, showKindToggle }: { rows: SectorRow[]; show
             ))}
           </tbody>
         </table>
+      </div>
+
+      {selectedSector && (
+        <ConstituentsPanel market={market} sector={selectedSector} onClose={() => setSelectedSector(null)} />
+      )}
       </div>
 
       <div className="flex flex-wrap items-center gap-7 rounded-xl border border-border bg-panel p-4 text-sm">

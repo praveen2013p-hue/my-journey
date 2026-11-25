@@ -22,7 +22,8 @@ export function AddToButton({
 }: {
   market: Market;
   ticker: string;
-  alertId: string;
+  /** Null for a row with no specific alert behind it (e.g. a sector constituent that never triggered one). */
+  alertId: string | null;
   defaultPrice: number | null;
   /** Override the trigger button's styling (default: a small table-row pill). */
   triggerClassName?: string;
@@ -30,6 +31,7 @@ export function AddToButton({
   triggerLabel?: string;
 }) {
   const router = useRouter();
+  const formIdSuffix = alertId ?? ticker;
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -148,11 +150,11 @@ export function AddToButton({
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor={`buy_date_${alertId}`} className="mb-1 block text-xs text-muted">
+                  <label htmlFor={`buy_date_${formIdSuffix}`} className="mb-1 block text-xs text-muted">
                     Buy date
                   </label>
                   <input
-                    id={`buy_date_${alertId}`}
+                    id={`buy_date_${formIdSuffix}`}
                     name="buy_date"
                     type="date"
                     required
@@ -161,11 +163,11 @@ export function AddToButton({
                   />
                 </div>
                 <div>
-                  <label htmlFor={`qty_${alertId}`} className="mb-1 block text-xs text-muted">
+                  <label htmlFor={`qty_${formIdSuffix}`} className="mb-1 block text-xs text-muted">
                     Quantity
                   </label>
                   <input
-                    id={`qty_${alertId}`}
+                    id={`qty_${formIdSuffix}`}
                     name="quantity"
                     type="number"
                     step="any"
@@ -177,11 +179,11 @@ export function AddToButton({
                 </div>
               </div>
               <div>
-                <label htmlFor={`price_${alertId}`} className="mb-1 block text-xs text-muted">
+                <label htmlFor={`price_${formIdSuffix}`} className="mb-1 block text-xs text-muted">
                   Buy price
                 </label>
                 <input
-                  id={`price_${alertId}`}
+                  id={`price_${formIdSuffix}`}
                   name="buy_price"
                   type="number"
                   step="any"

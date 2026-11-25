@@ -553,3 +553,29 @@ stop and ask for these.
   the real Kite tradingsymbol found (e.g. via the manual search box,
   searching "total market" or "nifty 500") and then a one-line code
   change here, the same way the market-snapshot index symbols work.
+
+## Sectors page: click a sector, see its stocks
+
+- Requested directly: clicking a sector should show all its stocks, not
+  just the ranking numbers. "All its stocks" is the uploaded constituent
+  list (`sector_constituents` - Settings' CSV upload), not just whichever
+  ones happen to have triggered an alert this week - the latter is
+  already visible via Breakouts/Pullbacks' sector filter.
+- Same shape as Breakouts' row-click side panel, for consistency:
+  clicking a `SectorsTable` row opens `ConstituentsPanel`, which fetches
+  `GET /api/sectors/constituents?market=&sector=` (same route the CSV
+  upload already POSTs to - a natural place to colocate the read) and
+  shows each ticker with a live quote via the existing `useQuotes` hook.
+  Day's % change comes from the quote's own `previousClose`, same as
+  everywhere else - there's no "trigger price" to compare against for a
+  ticker that was never an alert.
+- A constituent that's never appeared in an alert has no `symbol_map` row
+  yet (that row is only created when an alert first mentions a ticker),
+  so it shows "unavailable" rather than a guessed provider symbol - new
+  `getConstituentQuoteRows` batches the `symbol_map` lookup once per
+  sector (not once per ticker - the same N+1 lesson as
+  `lib/breakouts-data.ts`).
+- `AddToButton`'s `alertId` is now `string | null` (was required) so the
+  panel can offer "Add to Journal" for a constituent with no alert behind
+  it at all - the id-suffix used for form element ids falls back to the
+  ticker when there's no alert id to use instead.

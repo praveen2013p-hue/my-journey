@@ -8,6 +8,7 @@
 import { getSupabaseServiceClient, isSupabaseConfigured } from "./config";
 import { mutateStore, readStore } from "./local-store";
 import type { Market, SectorConstituentRow } from "./schema-types";
+import { listSymbolMappingsForTickers } from "./symbol-map";
 
 export async function replaceConstituents(
   market: Market,
@@ -110,4 +111,38 @@ export async function getConstituentCounts(market: Market): Promise<Record<strin
     counts[row.sector] = (counts[row.sector] ?? 0) + 1;
   }
   return counts;
+}
+
+export interface ConstituentQuoteRow {
+  ticker: string;
+  /** Null when this ticker has never appeared in an alert yet - no symbol_map row to read an exchange from. */
+  exchange: string | null;
+  /** Null when unmapped - same "never guess" rule as everywhere else (BRIEF.md §17.7). */
+  providerSymbol: string | null;
+}
+
+/**
+ * A sector's constituent tickers, resolved against `symbol_map` (one
+ * batched query, not one per ticker - same N+1 lesson as
+ * lib/breakouts-data.ts) so the caller can fetch live quotes for them.
+ * A constituent that's never appeared in an alert has no symbol_map row
+ * yet, so it shows up with `providerSymbol: null` - "price unavailable,"
+ * never a guess.
+ */
+export async function getConstituentQuoteRows(market: Market, sector: string): Promise<ConstituentQuoteRow[]> {
+  const tickers = await listConstituents(market, sector);
+  if (tickers.length === 0) return [];
+
+  const mappings = await listSymbolMappingsForTickers(market, tickers);
+  return tickers
+    .map((ticker) => {
+      const mapping = mappings.get(ticker);
+      return {
+        ticker,
+        exchange: mapping?.exchange ?? null,
+        providerSymbol:
+          mapping?.status === "mapped" ? (market === "IN" ? mapping.kite_symbol : mapping.yahoo_symbol) : null,
+      };
+    })
+    .sort((a, b) => a.ticker.localeCompare(b.ticker));
 }
