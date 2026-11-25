@@ -125,7 +125,7 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
   );
 }
 
-function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
+export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
 

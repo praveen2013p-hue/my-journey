@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AddEntryModal } from "@/components/mutual-funds/AddEntryModal";
 import { MutualFundDashboard } from "@/components/mutual-funds/MutualFundDashboard";
-import { YearSection } from "@/components/mutual-funds/YearSection";
+import { YearGroupsView } from "@/components/mutual-funds/YearGroupsView";
 import { PageHeader } from "@/components/PageHeader";
 import { verifySession } from "@/lib/auth/dal";
 import { listMutualFundEntries } from "@/lib/db/mutual-funds";
@@ -41,11 +41,7 @@ export default async function MutualFundsPage() {
           No entries yet. Click &ldquo;+ Add entry&rdquo; to log your first month.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {byYear.map((group, i) => (
-            <YearSection key={group.year} group={group} defaultOpen={i === 0} />
-          ))}
-        </div>
+        <YearGroupsView groups={byYear} />
       )}
     </>
   );

@@ -900,3 +900,21 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   correctly solves that to ~5.983%, not 6%, since the period isn't
   exactly 365 days. Not a solver bug; fixed by using a non-leap span
   (2021→2022) in the test instead.
+
+## Mutual Funds: List/Grid view toggle for years, 2026-11-25
+
+- Requested directly: the collapsed year list ("row wise") felt plain;
+  asked for a grid/square alternative. Added a List/Grid toggle above
+  the years (persisted in localStorage, same pattern as the sidebar's
+  collapse preference - a look preference, not data, so it's fine to
+  live client-side only).
+- List is the existing stacked `<details>` per year, unchanged. Grid
+  (`YearGrid.tsx`) shows square year tiles (year, entry count, Added,
+  year-end value) in a responsive grid; clicking one selects it
+  (gold highlight) and its month-by-month table renders in one shared
+  panel below the grid, reusing `YearRows` (now exported from
+  `YearSection.tsx`) so the two views share identical table logic
+  rather than duplicating it.
+- Verified live, desktop and mobile: switching views, clicking
+  different year tiles, and that the List/Grid choice survives a page
+  reload.
