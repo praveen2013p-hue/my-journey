@@ -11,7 +11,7 @@ import { getConstituentCounts } from "@/lib/db/sector-constituents";
 import { listAllQuotes } from "@/lib/db/quotes";
 import { getZerodhaSession } from "@/lib/db/provider-session";
 import { listSectorMap, seedSectorMapIfEmpty } from "@/lib/db/sector-map";
-import { getAppSettings } from "@/lib/db/settings";
+import { getAppSettings, getUserSettings } from "@/lib/db/settings";
 import { listStrategyTags } from "@/lib/db/strategy-tags";
 import { listUnmappedSymbols } from "@/lib/db/symbol-map";
 import { getFreshnessData } from "@/lib/freshness-data";
@@ -51,7 +51,7 @@ export default async function SettingsPage({
   const session = await verifySession();
   const sp = await searchParams;
   await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
-  const [freshness, appSettings, health, unmapped, indiaSectors, constituentCounts, quotes, strategyTags, zerodhaSession] =
+  const [freshness, appSettings, health, unmapped, indiaSectors, constituentCounts, quotes, strategyTags, zerodhaSession, userSettings] =
     await Promise.all([
       getFreshnessData(),
       getAppSettings(),
@@ -62,6 +62,7 @@ export default async function SettingsPage({
       listAllQuotes(),
       listStrategyTags(session.userId),
       getZerodhaSession(),
+      getUserSettings(session.userId),
     ]);
 
   const kiteConfigured = Boolean(process.env.KITE_API_KEY && process.env.KITE_API_SECRET);
@@ -91,6 +92,35 @@ export default async function SettingsPage({
           </button>
         </form>
         <p className="mt-2 text-xs text-muted">Shown in the sidebar, the browser tab title, and on the login page.</p>
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Personal</h2>
+        <form action="/api/settings/birth-year" method="POST" className="flex flex-wrap items-center gap-2.5">
+          <label htmlFor="birth_year" className="text-sm text-muted">
+            Birth year
+          </label>
+          <input
+            id="birth_year"
+            type="number"
+            name="birth_year"
+            min={1900}
+            max={new Date().getUTCFullYear()}
+            defaultValue={userSettings.birth_year ?? undefined}
+            placeholder="e.g. 1992"
+            className="min-h-[44px] w-32 rounded-lg border border-border-strong bg-field px-3 py-2 text-text"
+          />
+          <button
+            type="submit"
+            className="min-h-[44px] rounded-lg border border-gold bg-gold px-3.5 py-2 font-semibold text-bg hover:bg-gold-hover"
+          >
+            Save
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-muted">
+          Used only for Mutual Funds&apos; &ldquo;Safe SWP&rdquo; column (assumes your money should last to age 90).
+          Each person signed in sets their own.
+        </p>
       </section>
 
       <section className="rounded-xl border border-border bg-panel p-5">

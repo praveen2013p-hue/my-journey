@@ -845,3 +845,35 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   current age (or birth year) to compute years remaining from.
 - Verified live: a ₹3,00,000 portfolio shows exactly ₹1,000/mo
   (300000 × 4% ÷ 12).
+
+## Mutual Funds: Safe SWP becomes a real depletion calculation, 2026-11-25
+
+- Asked for the missing input (current age) flagged in the previous
+  entry; user gave their birth year (1992). Replaced the flat-4% figure
+  with the real calculation offered: the level monthly withdrawal that
+  runs that month's portfolio down to **exactly zero by age 90**,
+  assuming it keeps earning that month's own XIRR - a standard
+  loan/annuity amortization formula run in reverse (the fund pays the
+  investor), not a flat percentage.
+- Birth year is **per-user** (new `user_settings.birth_year`,
+  migration `0005_user_settings_birth_year.sql`), not a hardcoded
+  constant - Praveen and his wife have different birth years and each
+  signs in separately. New "Personal" section on the Settings page;
+  only the year is asked for (not month/day), so age at a given month
+  is approximated as `(that month's year − birth year)`.
+  `lib/mutual-fund-stats.ts` takes `birthYear` as a parameter rather
+  than reading it itself, keeping the module pure/no-I/O.
+- `safeSwpMonthly` is null whenever it can't be honestly computed: no
+  birth year set yet, that month's XIRR is itself undefined (e.g. the
+  very first entry), or that point in time is already at or past 90 -
+  never a guessed number. The Mutual Funds page shows a banner linking
+  to Settings when birth year isn't set yet.
+- `amortizedPayment` and `monthsUntilTargetAge` are exported and
+  tested directly (not only through the full pipeline) - one test
+  cross-checks against a well-known amortization-table constant
+  (₹100,000 principal, 1%/month, 12 payments → ₹8,884.88), independent
+  of this app's own XIRR solver.
+- Verified live end-to-end: a ₹11,00,000 portfolio with exactly 10%
+  XIRR (hand-verified in an earlier entry) and birth year 1992, as of
+  Jan 2026 (age 34, 56 years to 90), shows ₹8,814/mo - matches the
+  hand-calculated annuity payment.

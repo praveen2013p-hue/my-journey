@@ -176,6 +176,8 @@ export interface UserSettingsRow {
   theme: Theme;
   timezone: string;
   last_seen_alerts_at: string | null;
+  /** For the Mutual Funds "Safe SWP" column - null until the user sets it, never guessed. */
+  birth_year: number | null;
   updated_at: string;
 }
 

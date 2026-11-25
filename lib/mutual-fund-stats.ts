@@ -34,8 +34,14 @@ export interface MutualFundEntryView {
   xirrPct: number | null;
   /** This month's Gain minus the exact previous calendar month's Gain - "how much the profit/loss moved this month." Null when there's no entry for that exact prior month (a skipped month, or this is the first one) - never approximated. */
   pnlChangeAbs: number | null;
-  /** 4% of that month's current_value, converted to a monthly figure - see the "Safe SWP" column's footnote for the stated assumptions (age 90, no legacy, return = that month's own XIRR). */
-  safeSwpMonthly: number;
+  /**
+   * The level monthly withdrawal that would run this month's current_value
+   * down to exactly zero by age 90, assuming it keeps earning this
+   * month's own XIRR the whole way - "Safe SWP," DECISIONS.md. Null
+   * when it can't be computed: no birth year set, this month's XIRR
+   * itself is undefined, or this point in time is already at or past 90.
+   */
+  safeSwpMonthly: number | null;
 }
 
 export interface PeriodChange {
@@ -94,8 +100,8 @@ export function shiftMonth(month: string, deltaMonths: number): string {
   return `${newYear}-${String(newMonth + 1).padStart(2, "0")}-01`;
 }
 
-/** "Safe SWP" column, DECISIONS.md: 4% of the portfolio a year, as a monthly figure. */
-const SAFE_SWP_ANNUAL_RATE = 0.04;
+/** "Safe SWP" column, DECISIONS.md: draws the portfolio down to zero by this age, never earlier - no legacy left on purpose. */
+const SWP_TARGET_AGE = 90;
 
 function periodChange(current: number, previous: number): PeriodChange {
   return {
@@ -104,7 +110,45 @@ function periodChange(current: number, previous: number): PeriodChange {
   };
 }
 
-export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundView {
+/**
+ * Level monthly payment that exhausts `principal` after `months` payments
+ * at a monthly rate `monthlyRate` - the standard loan/annuity amortization
+ * formula, run "in reverse" (the fund pays the investor instead of the
+ * other way around). A monthly rate of ~0 is treated as straight-line
+ * division to avoid dividing by a near-zero number.
+ */
+export function amortizedPayment(principal: number, monthlyRate: number, months: number): number {
+  if (Math.abs(monthlyRate) < 1e-9) return principal / months;
+  return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+}
+
+/**
+ * Months remaining from `month` until the given birth year turns
+ * `SWP_TARGET_AGE` - only the birth *year* is known (not month/day), so
+ * age is approximated as (that month's year - birth year). Null once
+ * that age is already reached.
+ */
+export function monthsUntilTargetAge(month: string, birthYear: number): number | null {
+  const ageAtMonth = Number(month.slice(0, 4)) - birthYear;
+  const yearsRemaining = SWP_TARGET_AGE - ageAtMonth;
+  return yearsRemaining > 0 ? yearsRemaining * 12 : null;
+}
+
+function computeSafeSwpMonthly(
+  currentValue: number,
+  annualRatePct: number | null,
+  month: string,
+  birthYear: number | null,
+): number | null {
+  if (birthYear === null || annualRatePct === null) return null;
+  const monthlyRate = Math.pow(1 + annualRatePct / 100, 1 / 12) - 1;
+  if (!Number.isFinite(monthlyRate)) return null; // a rate <= -100% has no valid (1+r)^(1/12)
+  const months = monthsUntilTargetAge(month, birthYear);
+  if (months === null) return null;
+  return amortizedPayment(currentValue, monthlyRate, months);
+}
+
+export function buildMutualFundView(entries: MutualFundEntryRow[], birthYear: number | null = null): MutualFundView {
   const sorted = [...entries].sort((a, b) => (a.month < b.month ? -1 : 1));
   const byMonth = new Map<string, MutualFundEntryRow>();
   for (const e of sorted) byMonth.set(e.month, e);
@@ -123,13 +167,15 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
     contributionFlows.push({ days, amount: entry.withdrawal - entry.amount_added });
     const xirrPct = computeXirr([...contributionFlows, { days, amount: entry.current_value }]);
 
+    const xirrPctFinal = xirrPct !== null ? xirrPct * 100 : null;
+
     return {
       entry,
       cumulativeInvested: running,
       gainAbs,
       gainPct,
-      xirrPct: xirrPct !== null ? xirrPct * 100 : null,
-      safeSwpMonthly: (entry.current_value * SAFE_SWP_ANNUAL_RATE) / 12,
+      xirrPct: xirrPctFinal,
+      safeSwpMonthly: computeSafeSwpMonthly(entry.current_value, xirrPctFinal, entry.month, birthYear),
     };
   }).map((row, i, all) => {
     const prior = byMonth.has(shiftMonth(row.entry.month, -1)) ? all[i - 1] : undefined;

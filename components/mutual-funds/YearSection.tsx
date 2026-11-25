@@ -214,7 +214,11 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               </td>
               <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-muted">{row.entry.notes ?? "—"}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {formatMoney("IN", row.safeSwpMonthly)}/mo
+                {row.safeSwpMonthly === null ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <>{formatMoney("IN", row.safeSwpMonthly)}/mo</>
+                )}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right">
                 <div className="flex justify-end gap-2">
@@ -250,8 +254,9 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         <span className="text-neg">red</span> when it fell short.
       </p>
       <p className="mt-1 text-xs text-muted">
-        * Safe SWP = 4% of that month&apos;s portfolio value a year, as a monthly amount - assumes a life expectancy
-        of 90 years, nothing left as legacy, and future returns continuing at that month&apos;s own XIRR.
+        * Safe SWP: the level monthly withdrawal that runs that month&apos;s portfolio down to exactly zero by age
+        90 (nothing left as legacy), assuming it keeps earning that month&apos;s own XIRR the whole way. Needs your
+        birth year set in Settings - shows &ldquo;—&rdquo; until then.
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMutualFundView, monthLabel, shiftMonth } from "./mutual-fund-stats";
+import { amortizedPayment, buildMutualFundView, monthLabel, monthsUntilTargetAge, shiftMonth } from "./mutual-fund-stats";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow {
@@ -60,10 +60,40 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
-  it("safeSwpMonthly is 4% of current_value, converted to a monthly figure", () => {
-    const entries = [entry({ month: "2026-01-01", current_value: 300000 })];
-    const { rows } = buildMutualFundView(entries);
-    expect(rows[0].safeSwpMonthly).toBeCloseTo((300000 * 0.04) / 12, 5); // 1000
+  it("safeSwpMonthly is null without a birth year set - never guessed", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
+    ];
+    const { rows } = buildMutualFundView(entries); // no birthYear passed
+    expect(rows[1].safeSwpMonthly).toBeNull();
+  });
+
+  it("safeSwpMonthly is null for the first entry - no XIRR yet to assume a return from", () => {
+    const entries = [entry({ month: "2026-01-01", amount_added: 100000, current_value: 100000 })];
+    const { rows } = buildMutualFundView(entries, 1990);
+    expect(rows[0].xirrPct).toBeNull();
+    expect(rows[0].safeSwpMonthly).toBeNull();
+  });
+
+  it("safeSwpMonthly is null once the target age is already reached", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
+    ];
+    const { rows } = buildMutualFundView(entries, 1930); // already 96 in 2026
+    expect(rows[1].safeSwpMonthly).toBeNull();
+  });
+
+  it("safeSwpMonthly matches the straight-line amount when that month's XIRR is exactly 0%", () => {
+    const entries = [
+      entry({ month: "2016-01-01", amount_added: 120000, current_value: 120000 }),
+      entry({ month: "2017-01-01", amount_added: 0, current_value: 120000 }), // unchanged -> XIRR 0%
+    ];
+    const birthYear = 2017 - 80; // 10 years left to 90, as of 2017-01-01
+    const { rows } = buildMutualFundView(entries, birthYear);
+    expect(rows[1].xirrPct).toBeCloseTo(0, 3);
+    expect(rows[1].safeSwpMonthly).toBeCloseTo(120000 / 120, 5); // 1000/mo, straight-line over 120 months
   });
 
   it("pnlChangeAbs is the exact-month-over-month change in Gain, null for the first entry", () => {
@@ -183,5 +213,30 @@ describe("buildMutualFundView", () => {
     ];
     const { byYear } = buildMutualFundView(entries);
     expect(byYear[0].yearInvested).toBe(9000); // (10000 + 2000) - 3000
+  });
+});
+
+describe("amortizedPayment", () => {
+  it("matches a well-known amortization table value: 100000 principal, 1%/month, 12 payments", () => {
+    // Standard loan-table PMT factor for n=12, i=1% is 0.0888488.
+    expect(amortizedPayment(100000, 0.01, 12)).toBeCloseTo(8884.88, 1);
+  });
+
+  it("is straight-line division when the rate is ~0", () => {
+    expect(amortizedPayment(120000, 0, 120)).toBeCloseTo(1000, 5);
+  });
+});
+
+describe("monthsUntilTargetAge", () => {
+  it("computes years remaining to 90 from the month's year minus birth year", () => {
+    expect(monthsUntilTargetAge("2026-01-01", 1992)).toBe((90 - 34) * 12);
+  });
+
+  it("is null once the target age is already reached", () => {
+    expect(monthsUntilTargetAge("2026-01-01", 1930)).toBeNull(); // age 96
+  });
+
+  it("is null exactly at the target age (nothing left to amortize over)", () => {
+    expect(monthsUntilTargetAge("2026-01-01", 2026 - 90)).toBeNull();
   });
 });

@@ -33,6 +33,7 @@ const DEFAULT_USER_SETTINGS: Omit<UserSettingsRow, "user_id"> = {
   theme: "dark",
   timezone: "Asia/Kolkata",
   last_seen_alerts_at: null,
+  birth_year: null,
   updated_at: new Date(0).toISOString(),
 };
 
@@ -85,6 +86,10 @@ async function patchUserSettings(
 
 export async function setUserTheme(userId: string, theme: Theme): Promise<void> {
   await patchUserSettings(userId, { theme });
+}
+
+export async function setUserBirthYear(userId: string, birthYear: number | null): Promise<void> {
+  await patchUserSettings(userId, { birth_year: birthYear });
 }
 
 /**
