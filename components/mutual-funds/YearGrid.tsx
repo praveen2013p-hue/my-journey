@@ -12,7 +12,7 @@ export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
         {groups.map((group) => {
           const isSelected = group.year === selectedYear;
           return (
@@ -20,20 +20,20 @@ export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
               key={group.year}
               type="button"
               onClick={() => setSelectedYear(group.year)}
-              className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-colors ${
+              className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border p-2 text-center transition-colors ${
                 isSelected
                   ? "border-gold-border bg-gold-wash-strong"
                   : "border-border bg-panel hover:border-border-strong hover:bg-panel-alt"
               }`}
             >
-              <span className={`text-2xl font-semibold ${isSelected ? "text-gold-light" : ""}`}>{group.year}</span>
-              <span className="text-xs text-muted">
+              <span className={`text-base font-semibold ${isSelected ? "text-gold-light" : ""}`}>{group.year}</span>
+              <span className="text-[11px] text-muted">
                 {group.rows.length} entr{group.rows.length === 1 ? "y" : "ies"}
               </span>
-              <span className="text-xs text-muted">
+              <span className="text-[11px] text-muted">
                 Added <span className="font-medium text-text">{formatMoney("IN", group.yearInvested)}</span>
               </span>
-              <span className="text-xs text-muted">
+              <span className="text-[11px] text-muted">
                 Value <span className="font-medium text-text">{formatMoney("IN", group.yearEndValue)}</span>
               </span>
             </button>
