@@ -17,10 +17,34 @@ import { formatIst } from "@/lib/format-ist";
 import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
 import { buildKiteLoginUrl } from "@/lib/zerodha/auth";
 
+interface BackfillResult {
+  ok: boolean;
+  market?: string;
+  sectorsStored?: number;
+  weeksStored?: number;
+  sectorsUnresolved?: number;
+  sectorsNoData?: number;
+}
+
+/** Parses the `?backfill=` summary the admin route redirects back with - "error" or "MARKET:sectorsStored:weeksStored:sectorsUnresolved:sectorsNoData". */
+function parseBackfillResult(raw: string | undefined): BackfillResult | null {
+  if (!raw) return null;
+  if (raw === "error") return { ok: false };
+  const [market, sectorsStored, weeksStored, sectorsUnresolved, sectorsNoData] = raw.split(":");
+  return {
+    ok: true,
+    market,
+    sectorsStored: Number(sectorsStored),
+    weeksStored: Number(weeksStored),
+    sectorsUnresolved: Number(sectorsUnresolved),
+    sectorsNoData: Number(sectorsNoData),
+  };
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ zerodha?: string }>;
+  searchParams: Promise<{ zerodha?: string; backfill?: string }>;
 }) {
   const session = await verifySession();
   const sp = await searchParams;
@@ -41,6 +65,7 @@ export default async function SettingsPage({
 
   const kiteConfigured = Boolean(process.env.KITE_API_KEY && process.env.KITE_API_SECRET);
   const isOwner = isOwnerEmail(session.email);
+  const backfillResult = parseBackfillResult(sp.backfill);
 
   return (
     <>
@@ -247,6 +272,61 @@ export default async function SettingsPage({
           not a problem. Reminder: the Kite Connect plan is a paid ₹500/month subscription (BRIEF.md §2) - this app
           never places orders through it, data access only.
         </p>
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-5">
+        <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
+          2-year sector history backfill
+        </h2>
+        {backfillResult && !backfillResult.ok && (
+          <div className="mb-3 rounded-[10px] border border-neg-border bg-neg-wash px-4 py-2.5 text-sm font-medium text-neg">
+            Backfill failed - check the server logs. Safe to try again.
+          </div>
+        )}
+        {backfillResult?.ok && (
+          <div className="mb-3 rounded-[10px] border border-pos-border bg-pos-wash px-4 py-2.5 text-sm text-pos">
+            <span className="font-medium">
+              {backfillResult.market}: backfilled {backfillResult.sectorsStored} sector
+              {backfillResult.sectorsStored === 1 ? "" : "s"}, {backfillResult.weeksStored} weeks total.
+            </span>
+            {Boolean(backfillResult.sectorsUnresolved) && (
+              <> {backfillResult.sectorsUnresolved} sector(s) have no resolved symbol yet (see below).</>
+            )}
+            {Boolean(backfillResult.sectorsNoData) && (
+              <> {backfillResult.sectorsNoData} sector(s) returned no price data - try again later.</>
+            )}
+          </div>
+        )}
+        <p className="mb-3 text-xs text-muted">
+          Fetches 2 years of weekly index history (plus a 52-week warm-up for Mansfield RS) from Kite/Yahoo for
+          every sector with a resolved index symbol, and stores it as source=&quot;backfill&quot; so Δ4/Δ13/Δ26/Δ52
+          trend numbers have real history before your TradingView alerts have been running that long
+          (BRIEF.md §7.2). Never overwrites a week that already came from a real alert. Safe to re-run any time.
+        </p>
+        {!isOwner ? (
+          <span className="text-xs text-muted">Only the account owner can run the backfill.</span>
+        ) : (
+          <div className="flex flex-wrap gap-2.5">
+            <form action="/api/admin/sector-backfill" method="POST">
+              <input type="hidden" name="market" value="IN" />
+              <button
+                type="submit"
+                className="min-h-[40px] rounded-lg border border-gold bg-gold px-3.5 text-sm font-semibold text-bg hover:bg-gold-hover"
+              >
+                Backfill India sectors
+              </button>
+            </form>
+            <form action="/api/admin/sector-backfill" method="POST">
+              <input type="hidden" name="market" value="US" />
+              <button
+                type="submit"
+                className="min-h-[40px] rounded-lg border border-gold bg-gold px-3.5 text-sm font-semibold text-bg hover:bg-gold-hover"
+              >
+                Backfill US sectors
+              </button>
+            </form>
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-border bg-panel p-5">

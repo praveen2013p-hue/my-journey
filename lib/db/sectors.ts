@@ -48,6 +48,42 @@ export async function upsertSectorSnapshot(
   });
 }
 
+/**
+ * Same upsert as `upsertSectorSnapshot`, but for many rows in one round
+ * trip - the 2-year backfill (BRIEF.md §7.2) writes up to ~100 weeks per
+ * sector and one request per week would be far too slow/chatty for a
+ * single admin action to do synchronously.
+ */
+export async function upsertSectorSnapshotsBulk(
+  inputs: UpsertSectorSnapshotInput[],
+): Promise<void> {
+  if (inputs.length === 0) return;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase
+      .from("sector_snapshots")
+      .upsert(inputs, { onConflict: "market,week_ending,sector" });
+    if (error) throw error;
+    return;
+  }
+
+  await mutateStore((store) => {
+    for (const input of inputs) {
+      const idx = store.sector_snapshots.findIndex(
+        (s) => s.market === input.market && s.week_ending === input.week_ending && s.sector === input.sector,
+      );
+      const row: SectorSnapshotRow = {
+        id: idx >= 0 ? store.sector_snapshots[idx].id : store.sector_snapshots.length + 1,
+        ...input,
+        created_at: new Date().toISOString(),
+      };
+      if (idx >= 0) store.sector_snapshots[idx] = row;
+      else store.sector_snapshots.push(row);
+    }
+  });
+}
+
 export async function countSectorSnapshotsForWeek(
   market: Market,
   weekEnding: string,

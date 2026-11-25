@@ -39,6 +39,17 @@ function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * sector_map's provider_symbol is stored TradingView-style with an exchange
+ * prefix (e.g. "NSE:BANKNIFTY" - DECISIONS.md), but Kite's instruments
+ * dump keys tradingsymbol without one. Stock tickers never carry a prefix,
+ * so this is a no-op for them.
+ */
+export function stripExchangePrefix(symbol: string): string {
+  const colonIdx = symbol.indexOf(":");
+  return colonIdx >= 0 ? symbol.slice(colonIdx + 1) : symbol;
+}
+
 interface DailyCandle {
   date: string;
   close: number;
@@ -111,7 +122,7 @@ export class KiteMarketDataProvider implements MarketDataProvider {
     try {
       const session = await getZerodhaSession();
       if (!session) return [];
-      const token = await getInstrumentToken(session.accessToken, symbol);
+      const token = await getInstrumentToken(session.accessToken, stripExchangePrefix(symbol));
       if (!token) return [];
 
       const to = new Date();
@@ -142,7 +153,7 @@ export class KiteMarketDataProvider implements MarketDataProvider {
     try {
       const session = await getZerodhaSession();
       if (!session) return [];
-      const token = await getInstrumentToken(session.accessToken, symbol);
+      const token = await getInstrumentToken(session.accessToken, stripExchangePrefix(symbol));
       if (!token) return [];
 
       const candles = await fetchDailyCandles(session.accessToken, token, fromDate, toDate);

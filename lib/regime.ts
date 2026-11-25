@@ -14,7 +14,7 @@ import { weinsteinStage, type Stage } from "./weinstein";
  * sector_map seed) - mock until then. US resolves to Yahoo's real S&P 500
  * ticker, so this already uses live data once network access allows it.
  */
-const BENCHMARK_SYMBOL: Record<Market, string> = {
+export const BENCHMARK_SYMBOL: Record<Market, string> = {
   IN: "NIFTY_TOTAL_MKT",
   US: "^GSPC",
 };

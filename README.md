@@ -243,10 +243,18 @@ Live and working once you've done this once:
    block on it, they just show the last good price marked stale until
    you reconnect.
 
-Not built yet even with Kite connected: the 2-year historical backfill
-for sector indices (BRIEF.md §7.2) and the Saturday refresh/nightly
-backup crons (§11) - all three are separate, bigger pieces of
-infrastructure on their own (see `DECISIONS.md`).
+5. On Settings, under **2-year sector history backfill**, click
+   **Backfill India sectors** / **Backfill US sectors** (owner-only) to
+   load 2 years of weekly stage/RS history for every sector with a
+   resolved index symbol (BRIEF.md §7.2) - safe to re-run any time, and it
+   never overwrites a week your real TradingView alerts already sent.
+   Only 4 of India's 28 sectors have a confirmed symbol today; the rest
+   show up in the result and in "unresolved sector indices" below until
+   you confirm a real one (see `DECISIONS.md`).
+
+Not built yet even with Kite connected: the Saturday refresh/nightly
+backup crons (§11) - separate, bigger pieces of infrastructure on their
+own (see `DECISIONS.md`).
 
 ### Deploying to Vercel
 

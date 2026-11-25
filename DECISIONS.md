@@ -236,13 +236,11 @@ stop and ask for these.
   and symbol columns positionally rather than with a general CSV parser,
   since both come before the one column (`name`) that can itself contain
   a comma - tested against exactly that case.
-- **The 2-year sector/stock history backfill (BRIEF.md §7.2) is not
-  built yet**, even though the Kite provider itself is live. That's a
-  separate, rate-limited (Kite: ~3 req/s), chunked/resumable batch job
-  across every tracked sector and ticker - real infra of its own, not
-  something to rush alongside wiring up the connection itself. Sectors
-  still work from webhook data alone in the meantime; only "2 years of
-  backfilled history" is missing.
+- **The 2-year sector index history backfill (BRIEF.md §7.2) is now
+  built** - see the dedicated section below. (Stock-level history for
+  Performance's "if I had held"/shortlist stats already backfills itself
+  on demand per ticker, `lib/price-history-backfill.ts` - that part
+  needed no new infra, just the rate limiter above.)
 - **No nightly Saturday refresh cron for Kite data either** - same
   reasoning as the backup/health crons already noted above: real infra
   that doesn't exist yet, not quietly assumed to work.
@@ -274,3 +272,65 @@ stop and ask for these.
   and the price-history backfill can all be in flight at once and still
   never exceed Kite's real limit. Quotes are exempt - one batched call
   covers any number of symbols, so there's nothing to throttle there.
+
+## 2-year sector index history backfill (BRIEF.md §7.2)
+
+- **Scope: sector INDEX history, not every ticker.** The brief's "2 years
+  of weekly index history (plus 52 weeks warm-up for RS)" is about
+  `sector_snapshots` (stage + Mansfield RS per sector per week), so
+  `Δ4/Δ13/Δ26/Δ52` trend numbers mean something immediately instead of
+  being null until 52+ real weekly alerts have fired. Per-ticker daily
+  history (Performance's "if I had held"/shortlist stats) already
+  backfills itself on demand - that's `lib/price-history-backfill.ts`,
+  untouched here. Traded value is also untouched: it's "this week vs its
+  own trailing 10-week average," computed fresh every time from recent
+  constituent history, not something 2 years of itself is useful for.
+- **Split into a pure engine + a thin orchestrator**, same shape as
+  `lib/sector-metrics.ts`/`lib/db/sector-metrics-orchestrator.ts`:
+  `lib/sector-backfill.ts` turns a plain array of weekly closes (sector +
+  benchmark) into stage/mrs/vsMa/chg4/focus rows, fully unit-testable
+  with no DB or provider involved; `lib/db/sector-backfill-orchestrator.ts`
+  fetches daily candles per sector (via the existing provider interface,
+  so it's Kite for India and Yahoo for US automatically), aggregates to
+  Friday-ending weeks, and writes the result.
+- **Fetches ~1 year more than it stores** (104 stored weeks + 52-week RS
+  warm-up + ~34 weeks for the 30-week MA's own warm-up) so the *first*
+  stored week already has a real stage and mrs, not nulls that only
+  resolve a year into looking at the chart.
+- **Never overwrites an `'alert'`-sourced week (BRIEF.md §17.4).** The
+  orchestrator reads existing snapshot history first, skips any week a
+  sector already has from a real webhook, and only writes the rest -
+  backfilled rows are tagged `source: 'backfill'` same as before. Re-running
+  is safe: it just re-fetches and overwrites its own prior backfill rows.
+  Bulk-upserts one call per sector (`upsertSectorSnapshotsBulk`) rather
+  than one request per week - at 104+ weeks x ~28 sectors, one-row-at-a-time
+  would be both far too slow for a single request and far too chatty
+  against Supabase's free tier.
+- **Found and fixed a pre-existing bug while wiring this up**: sector
+  index symbols are stored TradingView-style with an exchange prefix
+  (`sector_map.provider_symbol`, e.g. `"NSE:BANKNIFTY"`), but
+  `lib/zerodha/instruments.ts`'s instrument-token lookup is an exact match
+  against Kite's own `tradingsymbol` column, which has no such prefix -
+  so every sector index lookup (not just the backfill; the existing "1W
+  index price change" on the Sectors page too) was silently returning no
+  data. Fixed with `stripExchangePrefix()` in `lib/providers/kite.ts`,
+  applied before every instrument-token lookup; stock tickers never carry
+  a prefix so it's a no-op for them.
+- **Still honest about what it can't resolve yet**: only 4 of India's 28
+  sectors have a brief-confirmed symbol (`sector-map-seed.ts`) - the rest
+  show up as "no resolved symbol yet" in the backfill's own result banner
+  (same sectors Settings already lists as "unresolved sector indices").
+  India's benchmark for Mansfield RS (`NIFTY_TOTAL_MKT`, `lib/regime.ts`)
+  is itself unresolved against a real Kite instrument - so even the 4
+  resolved India sectors will likely backfill `stage` correctly but `mrs:
+  null` until a real Kite tradingsymbol for that benchmark is confirmed.
+  US is fully resolved (11 sectors + 18 industries, real ETF tickers via
+  Yahoo) and should backfill both stage and mrs cleanly.
+- **Triggered manually from Settings** (owner-only, same `isOwnerEmail`
+  gate as Connect Zerodha) rather than running automatically on first
+  Kite connect - BRIEF.md calls it "on first run" but an unattended,
+  rate-limited batch job across ~28 sectors is exactly the kind of thing
+  that should be a deliberate click, not something that silently fires
+  (and silently fails) the moment a token is saved. `maxDuration = 60` on
+  the route since even rate-limited this is doing real work, not an
+  instant API call.
