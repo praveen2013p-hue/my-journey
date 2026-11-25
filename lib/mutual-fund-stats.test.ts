@@ -181,6 +181,11 @@ describe("buildMutualFundView", () => {
     expect(rows[0].xirrPct).toBeNull();
     expect(rows[1].xirrPct).toBeCloseTo(10, 3);
     expect(dashboard.xirrPct).toBeCloseTo(10, 3); // "final" XIRR = the latest row's
+    expect(dashboard.safeSwpMonthly).toBeCloseTo((11000 * 0.04) / 12, 5); // same 4% rule, against the latest current_value
+  });
+
+  it("dashboard.safeSwpMonthly is null only when there are no entries yet", () => {
+    expect(buildMutualFundView([]).dashboard.safeSwpMonthly).toBeNull();
   });
 
   it("XIRR is point-in-time: an early month's rate isn't affected by what happens later", () => {

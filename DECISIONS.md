@@ -1211,3 +1211,29 @@ causes found, in order of actual measured impact:
 - Verified live: a single Jan 2026 entry of ₹12,00,000 added and valued
   shows Safe SWP = ₹4,000/mo (exactly 4% ÷ 12), with no birth-year
   dependency and no warning banner.
+
+## Mutual Funds: two-column Overview with a wealth growth chart, 2026-11-25
+
+- Requested directly: split the Overview into two columns - stats on
+  one side, a "wealth growing over time" chart on the other. Also
+  asked to surface Safe SWP as a headline Overview stat too (confirmed,
+  after checking: same 4%-rule figure as the table, not a different
+  model - the earlier age-90 question was about the table's column,
+  this is just showing that same number in one more place).
+- New `WealthGrowthChart.tsx` (client, `lightweight-charts` - same
+  library and dark-theme color convention as
+  `components/breakouts/WeeklyChart.tsx`): two lines across every month
+  on record - portfolio value (gold) and cumulative invested (gray).
+  Lazy-loaded via a small `WealthGrowthChartLazy.tsx` wrapper
+  (`next/dynamic`, `ssr: false`) so `lightweight-charts`' weight is
+  only downloaded by someone who actually opens Mutual Funds, same
+  reasoning as the existing Breakouts side panel.
+- `MutualFundDashboard` now also takes `rows` (not just `dashboard`) to
+  build the chart's per-month series; `buildMutualFundView`'s
+  `dashboard` gained `safeSwpMonthly` (the latest row's figure, null
+  only when there are no entries yet).
+- Verified live, desktop and mobile: 6 months of data show the gold
+  value line pulling away from the gray invested line as the portfolio
+  grows; Safe SWP in the Overview matches the table's own figure
+  exactly (₹233/mo for a ₹70,000 portfolio = 70,000 × 4% ÷ 12); layout
+  stacks to one column on mobile.

@@ -9,7 +9,7 @@ import { buildMutualFundView } from "@/lib/mutual-fund-stats";
 export default async function MutualFundsPage() {
   const session = await verifySession();
   const entries = await listMutualFundEntries(session.userId);
-  const { dashboard, byYear } = buildMutualFundView(entries);
+  const { dashboard, byYear, rows } = buildMutualFundView(entries);
 
   return (
     <>
@@ -19,7 +19,7 @@ export default async function MutualFundsPage() {
         actions={<AddEntryModal />}
       />
 
-      <MutualFundDashboard dashboard={dashboard} />
+      <MutualFundDashboard dashboard={dashboard} rows={rows} />
 
       {byYear.length === 0 ? (
         <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">

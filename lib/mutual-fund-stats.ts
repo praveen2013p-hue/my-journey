@@ -64,6 +64,8 @@ export interface MutualFundDashboard {
   vsLastYear: PeriodChange | null;
   /** Same figure as the latest row's xirrPct - the "final" overall XIRR, as of the latest month. */
   xirrPct: number | null;
+  /** Same figure as the latest row's safeSwpMonthly - the classic 4% rule against the latest current_value. Null only when there are no entries yet. */
+  safeSwpMonthly: number | null;
 }
 
 export interface MutualFundYearGroup {
@@ -172,6 +174,7 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
       vsLastMonth: null,
       vsLastYear: null,
       xirrPct: null,
+      safeSwpMonthly: null,
     };
   } else {
     const latest = rows[rows.length - 1];
@@ -186,6 +189,7 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
       vsLastMonth: lastMonthEntry ? periodChange(latest.entry.current_value, lastMonthEntry.current_value) : null,
       vsLastYear: lastYearEntry ? periodChange(latest.entry.current_value, lastYearEntry.current_value) : null,
       xirrPct: latest.xirrPct,
+      safeSwpMonthly: latest.safeSwpMonthly,
     };
   }
 
