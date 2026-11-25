@@ -103,6 +103,22 @@ export function shiftMonth(month: string, deltaMonths: number): string {
 /** "Safe SWP" column, DECISIONS.md: draws the portfolio down to zero by this age, never earlier - no legacy left on purpose. */
 const SWP_TARGET_AGE = 90;
 
+/**
+ * Assumed long-run inflation, India CPI ballpark - used to convert the
+ * raw (nominal) XIRR into a real rate before amortizing. Without this,
+ * a high nominal XIRR projected flat for 50+ years produces a
+ * withdrawal that's technically "drains to zero" but not realistic -
+ * it ignores that a flat rupee amount buys less every year, and that
+ * markets don't sustain high nominal returns without inflation being
+ * part of why. DECISIONS.md: found via a real number looking too high.
+ */
+const ASSUMED_INFLATION_PCT = 6;
+
+/** Fisher equation: the real (inflation-adjusted) rate behind a nominal one. */
+export function realRatePct(nominalPct: number): number {
+  return ((1 + nominalPct / 100) / (1 + ASSUMED_INFLATION_PCT / 100) - 1) * 100;
+}
+
 function periodChange(current: number, previous: number): PeriodChange {
   return {
     valueChangeAbs: current - previous,
@@ -141,7 +157,7 @@ function computeSafeSwpMonthly(
   birthYear: number | null,
 ): number | null {
   if (birthYear === null || annualRatePct === null) return null;
-  const monthlyRate = Math.pow(1 + annualRatePct / 100, 1 / 12) - 1;
+  const monthlyRate = Math.pow(1 + realRatePct(annualRatePct) / 100, 1 / 12) - 1;
   if (!Number.isFinite(monthlyRate)) return null; // a rate <= -100% has no valid (1+r)^(1/12)
   const months = monthsUntilTargetAge(month, birthYear);
   if (months === null) return null;

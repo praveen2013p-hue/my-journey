@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { amortizedPayment, buildMutualFundView, monthLabel, monthsUntilTargetAge, shiftMonth } from "./mutual-fund-stats";
+import {
+  amortizedPayment,
+  buildMutualFundView,
+  monthLabel,
+  monthsUntilTargetAge,
+  realRatePct,
+  shiftMonth,
+} from "./mutual-fund-stats";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow {
@@ -85,15 +92,32 @@ describe("buildMutualFundView", () => {
     expect(rows[1].safeSwpMonthly).toBeNull();
   });
 
-  it("safeSwpMonthly matches the straight-line amount when that month's XIRR is exactly 0%", () => {
+  it("safeSwpMonthly matches the straight-line amount when that month's REAL rate is 0% - nominal XIRR equal to assumed inflation (6%)", () => {
     const entries = [
-      entry({ month: "2016-01-01", amount_added: 120000, current_value: 120000 }),
-      entry({ month: "2017-01-01", amount_added: 0, current_value: 120000 }), // unchanged -> XIRR 0%
+      // 2021-01-01 to 2022-01-01 is exactly 365 days (2021 isn't a leap year) so the
+      // Actual/365 XIRR solves to a flat 6%, not a day-count-skewed value.
+      entry({ month: "2021-01-01", amount_added: 120000, current_value: 120000 }),
+      entry({ month: "2022-01-01", amount_added: 0, current_value: 120000 * 1.06 }), // +6% nominal -> 0% real
     ];
-    const birthYear = 2017 - 80; // 10 years left to 90, as of 2017-01-01
+    const birthYear = 2022 - 80; // 10 years left to 90, as of 2022-01-01
     const { rows } = buildMutualFundView(entries, birthYear);
-    expect(rows[1].xirrPct).toBeCloseTo(0, 3);
-    expect(rows[1].safeSwpMonthly).toBeCloseTo(120000 / 120, 5); // 1000/mo, straight-line over 120 months
+    expect(rows[1].xirrPct).toBeCloseTo(6, 3);
+    expect(rows[1].safeSwpMonthly).toBeCloseTo((120000 * 1.06) / 120, 2); // straight-line over 120 months
+  });
+
+  it("safeSwpMonthly is noticeably smaller than a naive nominal-rate calculation once inflation is assumed away", () => {
+    // Same scenario as the live 10%-nominal-XIRR case, but computed here to confirm the
+    // inflation haircut actually reduces the withdrawal, not just that it's non-null.
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 1100000, current_value: 1100000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 1210000 }), // +10% nominal
+    ];
+    const { rows } = buildMutualFundView(entries, 1992); // age 34 as of 2026-01-01
+    expect(rows[1].xirrPct).toBeCloseTo(10, 3);
+    // A naive (non-inflation-adjusted) calc at 10%/56yrs would be noticeably higher than this.
+    const naiveMonthlyRate = Math.pow(1.1, 1 / 12) - 1;
+    const naive = (1210000 * naiveMonthlyRate) / (1 - Math.pow(1 + naiveMonthlyRate, -672));
+    expect(rows[1].safeSwpMonthly!).toBeLessThan(naive);
   });
 
   it("pnlChangeAbs is the exact-month-over-month change in Gain, null for the first entry", () => {
@@ -224,6 +248,21 @@ describe("amortizedPayment", () => {
 
   it("is straight-line division when the rate is ~0", () => {
     expect(amortizedPayment(120000, 0, 120)).toBeCloseTo(1000, 5);
+  });
+});
+
+describe("realRatePct", () => {
+  it("is 0% when the nominal rate equals assumed inflation (6%)", () => {
+    expect(realRatePct(6)).toBeCloseTo(0, 6);
+  });
+
+  it("matches the Fisher equation for a well-known pair (10% nominal, 6% inflation)", () => {
+    // (1.10 / 1.06) - 1 = 0.0377358... computed independently of the code under test.
+    expect(realRatePct(10)).toBeCloseTo(3.77358, 4);
+  });
+
+  it("is negative when the nominal rate is below assumed inflation", () => {
+    expect(realRatePct(2)).toBeLessThan(0);
   });
 });
 

@@ -877,3 +877,26 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   XIRR (hand-verified in an earlier entry) and birth year 1992, as of
   Jan 2026 (age 34, 56 years to 90), shows ₹8,814/mo - matches the
   hand-calculated annuity payment.
+
+## Mutual Funds: Safe SWP adjusted for inflation, 2026-11-25
+
+- User flagged the ₹8,814/mo figure above as "too high" - correctly:
+  that number (≈9.6%/year of the portfolio) came from projecting a
+  10% *nominal* XIRR flat for 56 years with no inflation at all, which
+  overstates how much can really be withdrawn. Fixed by converting the
+  nominal XIRR to a **real** (inflation-adjusted) rate via the Fisher
+  equation before amortizing: `realRatePct = (1+nominal)/(1+inflation) - 1`,
+  assuming 6% long-run inflation (an India CPI ballpark, not user-set -
+  a reasonable follow-up if they want it configurable).
+  New `realRatePct`, exported and unit-tested directly against a
+  hand-solved Fisher-equation value.
+- Re-ran the same ₹11,00,000-at-10%-XIRR scenario: now **₹4,278/mo**
+  (≈4.24%/year) - sensibly close to the classic "4% rule" ballpark,
+  instead of the previous ~9.6%/year. Verified against hand arithmetic
+  (real rate ≈3.77%, monthly ≈0.309%, 672 months) to the rupee.
+- Caught and fixed a bug in my own test while making this change: one
+  new test used 2016→2017 (2016 is a leap year, 366 days) expecting a
+  flat 6% XIRR from a clean 1.06x return - the Actual/365 day-count
+  correctly solves that to ~5.983%, not 6%, since the period isn't
+  exactly 365 days. Not a solver bug; fixed by using a non-leap span
+  (2021→2022) in the test instead.

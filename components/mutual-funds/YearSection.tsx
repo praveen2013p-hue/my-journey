@@ -255,8 +255,8 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
       </p>
       <p className="mt-1 text-xs text-muted">
         * Safe SWP: the level monthly withdrawal that runs that month&apos;s portfolio down to exactly zero by age
-        90 (nothing left as legacy), assuming it keeps earning that month&apos;s own XIRR the whole way. Needs your
-        birth year set in Settings - shows &ldquo;—&rdquo; until then.
+        90 (nothing left as legacy), assuming it keeps earning that month&apos;s own XIRR the whole way, adjusted for
+        6% assumed long-run inflation. Needs your birth year set in Settings - shows &ldquo;—&rdquo; until then.
       </p>
     </div>
   );
