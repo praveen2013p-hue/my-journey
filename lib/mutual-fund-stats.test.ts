@@ -60,6 +60,26 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
+  it("pnlChangeAbs is the exact-month-over-month change in Gain, null for the first entry", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10200 }), // gain = 200
+      entry({ month: "2026-02-01", amount_added: 5000, current_value: 15800 }), // gain = 800
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].pnlChangeAbs).toBeNull();
+    expect(rows[1].pnlChangeAbs).toBe(600); // 800 - 200
+  });
+
+  it("pnlChangeAbs is null when the prior calendar month has no entry - never approximated from an older one", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000, current_value: 10200 }),
+      // February skipped.
+      entry({ month: "2026-03-01", amount_added: 0, current_value: 10500 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[1].pnlChangeAbs).toBeNull();
+  });
+
   it("a withdrawal reduces cumulative invested, since it's money no longer in the fund", () => {
     const entries = [
       entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),

@@ -32,6 +32,8 @@ export interface MutualFundEntryView {
    * valued on the same day).
    */
   xirrPct: number | null;
+  /** This month's Gain minus the exact previous calendar month's Gain - "how much the profit/loss moved this month." Null when there's no entry for that exact prior month (a skipped month, or this is the first one) - never approximated. */
+  pnlChangeAbs: number | null;
 }
 
 export interface PeriodChange {
@@ -117,6 +119,9 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
     const xirrPct = computeXirr([...contributionFlows, { days, amount: entry.current_value }]);
 
     return { entry, cumulativeInvested: running, gainAbs, gainPct, xirrPct: xirrPct !== null ? xirrPct * 100 : null };
+  }).map((row, i, all) => {
+    const prior = byMonth.has(shiftMonth(row.entry.month, -1)) ? all[i - 1] : undefined;
+    return { ...row, pnlChangeAbs: prior ? row.gainAbs - prior.gainAbs : null };
   });
 
   let dashboard: MutualFundDashboard;

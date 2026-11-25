@@ -146,8 +146,13 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
               Planned
             </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Withdrawn</th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Invested to date</th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Current value</th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valuation</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="How much the Gain moved compared to the previous calendar month"
+            >
+              Change
+            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Gain</th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
@@ -182,7 +187,14 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 {formatMoney("IN", row.cumulativeInvested)}
               </td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                {formatMoney("IN", row.entry.current_value)}
+                {row.pnlChangeAbs === null ? (
+                  <span className="text-muted">—</span>
+                ) : (
+                  <span className={row.pnlChangeAbs >= 0 ? "text-pos" : "text-neg"}>
+                    {row.pnlChangeAbs >= 0 ? "▲ " : "▼ "}
+                    {formatMoney("IN", row.pnlChangeAbs)}
+                  </span>
+                )}
               </td>
               <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${row.gainAbs >= 0 ? "text-pos" : "text-neg"}`}>
                 {formatMoney("IN", row.gainAbs)} <span className="text-xs">({formatPct(row.gainPct)})</span>
@@ -216,7 +228,7 @@ function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             </tr>,
             editingId === row.entry.id ? (
               <tr key={`${row.entry.id}-edit`} className="border-b border-border/60">
-                <td colSpan={10} className="px-3 py-2.5">
+                <td colSpan={11} className="px-3 py-2.5">
                   <EditEntryForm row={row} onDone={() => setEditingId(null)} />
                 </td>
               </tr>

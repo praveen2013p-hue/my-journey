@@ -808,3 +808,20 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   New "XIRR" column (per month) and dashboard stat (overall), both
   green/red by sign. Verified live with the same 10%-in-one-year case
   used in the unit tests.
+
+## Mutual Funds: Valuation/Change columns, 2026-11-25
+
+- Requested directly: rename the per-month table's "Invested to date"
+  column to "Valuation", and turn "Current value" into a calculated
+  "how much has profit/loss moved" column instead of a static number.
+- The absolute current value isn't actually lost - it's recoverable as
+  Valuation + Gain, both still shown - so replacing it with a computed
+  delta loses no information while directly answering what was asked.
+  New `pnlChangeAbs` on `MutualFundEntryView` (`lib/mutual-fund-stats.ts`):
+  this month's Gain minus the exact previous calendar month's Gain,
+  null (not approximated from an older month) when that exact prior
+  month has no entry - same "never guess from array adjacency" rule as
+  `vsLastMonth`/`vsLastYear`. New "Change" column, ▲/▼ and green/red.
+- Verified live: Jan (first entry) shows "—" for Change; Feb's Gain
+  rose 200→800 shows "▲ ₹600"; Mar's Gain fell back to 200 shows
+  "▼ −₹600" - both exactly the hand-computed deltas.
