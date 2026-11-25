@@ -176,8 +176,10 @@ export interface UserSettingsRow {
   theme: Theme;
   timezone: string;
   last_seen_alerts_at: string | null;
-  /** For the Mutual Funds "Safe SWP" column - null until the user sets it, never guessed. */
+  /** No longer used by anything (Safe SWP switched to the classic 4% rule) - kept so an already-entered value isn't silently dropped. */
   birth_year: number | null;
+  /** Sidebar label for the category grouping NPS and Mutual Funds - renameable, defaults to "My Long Term Holding". */
+  nav_long_term_label: string;
   updated_at: string;
 }
 

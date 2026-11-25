@@ -11,9 +11,11 @@ import {
   ChevronRightIcon,
   DashboardIcon,
   JournalIcon,
+  LongTermHoldingIcon,
   MenuIcon,
   MutualFundIcon,
   NpsIcon,
+  PencilIcon,
   PerformanceIcon,
   PullbacksIcon,
   SectorsIcon,
@@ -31,7 +33,6 @@ const NAV_ITEMS_BEFORE_MUTUAL_FUNDS = [
 ];
 
 const NAV_ITEMS_AFTER_MUTUAL_FUNDS = [
-  { href: "/nps", label: "NPS", Icon: NpsIcon },
   { href: "/review", label: "Weekly Review", Icon: WeeklyReviewIcon },
   { href: "/performance", label: "Performance", Icon: PerformanceIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
@@ -45,6 +46,7 @@ interface SidebarProps {
   siteName: string;
   email: string;
   mutualFundProfiles: MutualFundProfileRow[];
+  longTermHoldingLabel: string;
 }
 
 /** BRIEF.md §8: green = Stage 2, yellow = Stage 1, red = Stage 3 or 4. */
@@ -198,7 +200,152 @@ function MutualFundsTreeNav({
   );
 }
 
-export function Sidebar({ siteName, email, mutualFundProfiles }: SidebarProps) {
+/**
+ * "My Long Term Holding" category (DECISIONS.md): groups NPS and Mutual
+ * Funds under one renameable, collapsible parent - like
+ * `MutualFundsTreeNav`, the parent row toggles expand/collapse rather
+ * than navigating anywhere itself.
+ */
+function LongTermHoldingCategory({
+  label: initialLabel,
+  profiles,
+  collapsed,
+}: {
+  label: string;
+  profiles: MutualFundProfileRow[];
+  collapsed: boolean;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isOnCategoryPage =
+    pathname === "/nps" || pathname.startsWith("/nps/") || pathname === "/mutual-funds" || pathname.startsWith("/mutual-funds/");
+
+  const [userToggledExpanded, setUserToggledExpanded] = useState<boolean | null>(null);
+  const expanded = userToggledExpanded ?? isOnCategoryPage;
+
+  const [label, setLabel] = useState(initialLabel);
+  const [renaming, setRenaming] = useState(false);
+  const [draftLabel, setDraftLabel] = useState(initialLabel);
+  const [savingLabel, setSavingLabel] = useState(false);
+
+  async function submitRename() {
+    const trimmed = draftLabel.trim();
+    if (!trimmed || trimmed === label) {
+      setRenaming(false);
+      return;
+    }
+    setSavingLabel(true);
+    try {
+      const res = await fetch("/api/settings/nav-long-term-label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: trimmed }),
+      });
+      if (res.ok) {
+        setLabel(trimmed);
+        setRenaming(false);
+        router.refresh();
+      }
+    } finally {
+      setSavingLabel(false);
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <>
+        <Link
+          href="/nps"
+          prefetch={false}
+          className={`flex min-h-[44px] items-center justify-center rounded-lg px-2.5 font-medium transition-colors ${
+            pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
+          }`}
+        >
+          <NpsIcon />
+        </Link>
+        <MutualFundsTreeNav profiles={profiles} collapsed={collapsed} />
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        className={`flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+          isOnCategoryPage ? "text-gold-light" : "text-muted"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setUserToggledExpanded(!expanded)}
+          className="flex min-w-0 flex-1 items-center gap-3 hover:text-text"
+        >
+          <LongTermHoldingIcon />
+          {renaming ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                submitRename();
+              }}
+              className="min-w-0 flex-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="text"
+                autoFocus
+                value={draftLabel}
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onBlur={() => submitRename()}
+                aria-label="Category name"
+                className="min-h-[32px] w-full min-w-0 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+              />
+            </form>
+          ) : (
+            <span className="min-w-0 flex-1 truncate text-left" title={label}>
+              {label}
+            </span>
+          )}
+        </button>
+        {!renaming && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDraftLabel(label);
+              setRenaming(true);
+            }}
+            aria-label="Rename category"
+            className="flex-shrink-0 rounded p-1 text-muted hover:bg-panel-alt hover:text-text"
+            disabled={savingLabel}
+          >
+            <PencilIcon width={13} height={13} />
+          </button>
+        )}
+        <button type="button" onClick={() => setUserToggledExpanded(!expanded)} className="flex-shrink-0">
+          <ChevronRightIcon className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-3">
+          <Link
+            href="/nps"
+            prefetch={false}
+            className={`flex min-h-[36px] items-center gap-2 rounded-lg px-3 text-sm transition-colors ${
+              pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
+            }`}
+          >
+            <NpsIcon width={16} height={16} />
+            NPS
+          </Link>
+          <MutualFundsTreeNav profiles={profiles} collapsed={false} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Sidebar({ siteName, email, mutualFundProfiles, longTermHoldingLabel }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -302,7 +449,7 @@ export function Sidebar({ siteName, email, mutualFundProfiles }: SidebarProps) {
           );
         })}
 
-        <MutualFundsTreeNav profiles={mutualFundProfiles} collapsed={collapsed} />
+        <LongTermHoldingCategory label={longTermHoldingLabel} profiles={mutualFundProfiles} collapsed={collapsed} />
 
         {NAV_ITEMS_AFTER_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
           const isActive = pathname === href || pathname.startsWith(`${href}/`);

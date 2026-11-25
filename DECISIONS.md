@@ -1344,3 +1344,33 @@ causes found, in order of actual measured impact:
   store's very first `/mutual-funds` load now shows "Self" in the
   sidebar immediately, no reload needed. 327/327 tests pass (10 new),
   build clean, screenshots taken desktop and mobile.
+
+## New "My Long Term Holding" sidebar category wrapping NPS + Mutual Funds, 2026-11-25
+
+- Requested directly: a renameable, collapsible category in the
+  sidebar grouping NPS and Mutual Funds together.
+- New per-user setting `nav_long_term_label` (migration 0010, default
+  "My Long Term Holding") - a pure cosmetic nav label, not tied to
+  either feature's own data. Renamed via a small pencil icon next to
+  the category header: click it, type a new name, Enter or click away
+  to save (POSTs to `/api/settings/nav-long-term-label`).
+  Optimistically updates, then confirms via the server.
+- Sidebar structure: "My Long Term Holding" is now a non-navigating
+  expandable parent (same toggle pattern as "Mutual Funds" itself),
+  auto-expanding when the current page is `/nps` or `/mutual-funds`.
+  Its children are the NPS link and the existing Mutual Funds tree
+  (Self/Wife/etc.) nested one level deeper - so there are now two
+  levels of nesting when you're actually on a Mutual Funds page.
+  Visiting NPS expands the category but leaves the Mutual Funds
+  sub-tree collapsed (it only auto-expands on its own pages) - you see
+  both category members without needing to see Self/Wife/etc. while
+  looking at NPS.
+- New `LongTermHoldingIcon` and `PencilIcon` in `components/icons.tsx`,
+  matching the existing inline-SVG style exactly.
+- Verified live: category defaults to "My Long Term Holding" with NPS
+  and Mutual Funds nested under it; renamed it to "Retirement Corpus"
+  via the pencil icon and confirmed the new name survives a page
+  reload (persisted server-side, not just client state); confirmed the
+  tree auto-expands correctly on both `/nps` and `/mutual-funds`.
+  331/331 tests pass (4 new), build clean, screenshots taken desktop
+  and mobile.

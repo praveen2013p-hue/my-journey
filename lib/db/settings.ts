@@ -34,6 +34,7 @@ const DEFAULT_USER_SETTINGS: Omit<UserSettingsRow, "user_id"> = {
   timezone: "Asia/Kolkata",
   last_seen_alerts_at: null,
   birth_year: null,
+  nav_long_term_label: "My Long Term Holding",
   updated_at: new Date(0).toISOString(),
 };
 
@@ -90,6 +91,12 @@ export async function setUserTheme(userId: string, theme: Theme): Promise<void> 
 
 export async function setUserBirthYear(userId: string, birthYear: number | null): Promise<void> {
   await patchUserSettings(userId, { birth_year: birthYear });
+}
+
+export async function setUserNavLongTermLabel(userId: string, label: string): Promise<void> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Category name can't be empty.");
+  await patchUserSettings(userId, { nav_long_term_label: trimmed });
 }
 
 /**

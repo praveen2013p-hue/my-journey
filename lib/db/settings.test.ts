@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetStoreForTests } from "./local-store";
-import { getUserSettings } from "./settings";
+import { getUserSettings, setUserNavLongTermLabel } from "./settings";
 
 const STORE_PATH = path.join(os.tmpdir(), "my-journey-dev-store.json");
 
@@ -26,5 +26,28 @@ describe("getUserSettings", () => {
     // every page load calls getUserSettings, and if that always rewrites
     // the file, the write itself re-triggers Next's dev file watcher.
     expect(afterRepeatedReads.mtimeMs).toBe(afterCreate.mtimeMs);
+  });
+
+  it("defaults nav_long_term_label to 'My Long Term Holding'", async () => {
+    const settings = await getUserSettings("praveen@example.com");
+    expect(settings.nav_long_term_label).toBe("My Long Term Holding");
+  });
+});
+
+describe("setUserNavLongTermLabel", () => {
+  it("renames the category label", async () => {
+    await setUserNavLongTermLabel("praveen@example.com", "Retirement Corpus");
+    const settings = await getUserSettings("praveen@example.com");
+    expect(settings.nav_long_term_label).toBe("Retirement Corpus");
+  });
+
+  it("trims whitespace", async () => {
+    await setUserNavLongTermLabel("praveen@example.com", "  Nest Egg  ");
+    const settings = await getUserSettings("praveen@example.com");
+    expect(settings.nav_long_term_label).toBe("Nest Egg");
+  });
+
+  it("rejects an empty name", async () => {
+    await expect(setUserNavLongTermLabel("praveen@example.com", "   ")).rejects.toThrow();
   });
 });

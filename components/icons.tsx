@@ -91,6 +91,24 @@ export function NpsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function LongTermHoldingIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="8" width="18" height="12" rx="1.5" />
+      <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M3 13h18" />
+    </Icon>
+  );
+}
+
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </Icon>
+  );
+}
+
 export function JournalIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
