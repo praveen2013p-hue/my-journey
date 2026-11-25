@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen w-full flex-col md:flex-row">
       <SyncThemeFromSettings theme={userSettings.theme} />
       <Sidebar siteName={appSettings.site_name} email={session.email} />
-      <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-hidden p-4 md:p-7">
+      <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-clip overflow-y-clip p-4 md:p-7">
         {children}
       </div>
     </div>

@@ -28,7 +28,12 @@ export function MutualFundDashboard({ dashboard }: { dashboard: Dashboard }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-panel p-5" aria-label="Mutual fund summary">
+    <section
+      className="sticky top-0 z-10 rounded-xl border border-border bg-panel p-5 shadow-md"
+      aria-label="Mutual fund summary"
+    >
+      {/* bg-bg strip fills the gap above the sticky card so it doesn't show page content bleeding through while pinned */}
+      <div className="absolute inset-x-0 bottom-full h-4 bg-bg" aria-hidden="true" />
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
         <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>

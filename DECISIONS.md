@@ -933,3 +933,31 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
   months, ₹3,000 withdrawn in month 2 → Total Added = ₹15,000 (gross),
   Valuation = ₹12,000 (net). Unit-tested directly; confirmed live via
   the rendered table.
+
+## Mutual Funds: sticky Overview row while scrolling, 2026-11-25
+
+- Requested directly: while scrolling down through the months, the
+  summary stats (Total invested, Current value, Gain, XIRR, etc.)
+  disappeared off the top - wanted them pinned in view at all times.
+  Made the Overview card `position: sticky; top: 0`.
+- Hit a real layout bug along the way: the page's content wrapper
+  (`app/(app)/layout.tsx`) had `overflow-x-hidden` with no explicit
+  `overflow-y`. Per the CSS overflow spec, when one axis is non-visible
+  and the other isn't set, the browser silently forces the other axis
+  to `auto` - which makes that wrapper (not the real scrolling
+  viewport) the sticky positioning context. Since the wrapper's own
+  height always matches its content (never actually scrolls), the
+  sticky element inside it never got a scroll delta to react to, so it
+  just scrolled away with the rest of the page instead of sticking.
+  Fixed by switching both axes to `overflow-x-clip overflow-y-clip`:
+  `clip` is a non-scrolling value, so neither axis gets silently
+  promoted to `auto`, and the real document scroll stays in charge.
+- This was a page-wide layout fix, not just a Mutual Funds one - any
+  future `position: sticky` anywhere in the app now behaves correctly
+  against the real viewport. Re-checked the Sectors page (which has a
+  wide, horizontally-scrollable table) to confirm `overflow-x` still
+  behaves the same as before (no stray horizontal scrollbar).
+- Verified live (Playwright): expanded every year, scrolled to the very
+  bottom on both desktop (1280px) and mobile (390px) - the Overview
+  card stays pinned at the top of the viewport the whole time, with a
+  shadow separating it from the month rows scrolling underneath.
