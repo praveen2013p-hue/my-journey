@@ -10,8 +10,8 @@ function defaultMonthValue(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Adds (or, for a month that already has one, replaces) one month's mutual fund entry. */
-export function AddEntryModal() {
+/** Adds (or, for a month that already has one, replaces) one month's mutual fund entry, for one profile. */
+export function AddEntryModal({ profileId }: { profileId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +68,7 @@ export function AddEntryModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           month,
+          profile_id: profileId,
           sip_amount: toNum(sipText),
           lumpsum_amount: toNum(lumpsumText),
           stp_amount: toNum(stpText),

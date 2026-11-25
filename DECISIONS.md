@@ -1299,3 +1299,48 @@ causes found, in order of actual measured impact:
   collapsed and toggles open/closed on tile click; confirmed the wealth
   chart renders with no TradingView attribution logo. 317/317 tests
   pass (30 new), build clean.
+
+## Mutual Funds: Self/Wife/Son/Daughter family-member tree, 2026-11-25
+
+- Requested directly: a tree hierarchy in the sidebar under Mutual
+  Funds, putting the existing data under "Self" and allowing entries
+  for other family members. Clarified two things first: this is
+  Mutual Funds only (not NPS, a separate exact clone built earlier
+  today - untouched by this), and adding members is fully open - no
+  preset Wife/Son/Daughter names, the user types whatever they want.
+- New `mutual_fund_profiles` table (migration 0009): id, user_id, name.
+  `mutual_fund_entries` gets a `profile_id` FK, and the old
+  `unique (user_id, month)` constraint becomes
+  `unique (user_id, profile_id, month)` - the same calendar month can
+  now have one entry per profile, not just one per user. Every existing
+  user's real entries are backfilled to a "Self" profile created for
+  them - nothing dropped or orphaned.
+- Sidebar: "Mutual Funds" is now a non-navigating expandable parent row
+  (click toggles open/closed, auto-expands when already on a Mutual
+  Funds page); its children are real links to
+  `/mutual-funds?profile=<id>`, one per profile, plus a "+ Add" row
+  that reveals an inline name field - submitting creates the profile
+  and navigates straight to it. The active profile gets the same
+  gold-wash highlight as any other active nav item. Every link kept
+  `prefetch={false}` (DECISIONS.md's earlier Sidebar performance fix).
+- `app/(app)/mutual-funds/page.tsx` resolves the active profile from
+  `?profile=`, falling back to (and auto-creating, on a brand first
+  visit) the user's "Self" profile. The page header shows which
+  profile you're viewing once there's more than one.
+- Caught and fixed a real bug while verifying live: the shared layout
+  fetches the profile list for the sidebar independently of (in
+  parallel with) the page's own "ensure Self exists" call - on a truly
+  first-ever visit (no profiles yet at all), the sidebar tree could
+  render with no "Self" link until the next navigation. Fixed with a
+  `listMutualFundProfilesEnsuringSelf` that ensures-then-lists, so the
+  very first page load is never missing "Self".
+- Verified live (not just by re-reading code): seeded Self with a Jan
+  2026 entry, added a new "Wife" profile via the sidebar's "+ Add",
+  confirmed Wife starts as a clean "No entries yet" with NO visibility
+  into Self's Jan 2026 data; added a Feb 2026 entry under Wife and
+  confirmed Self's own view shows Jan 2026 only, never Wife's Feb 2026
+  - checked via each profile's actually-rendered visible text, in both
+  directions. Confirmed the first-visit fix directly: a brand-new
+  store's very first `/mutual-funds` load now shows "Self" in the
+  sidebar immediately, no reload needed. 327/327 tests pass (10 new),
+  build clean, screenshots taken desktop and mobile.

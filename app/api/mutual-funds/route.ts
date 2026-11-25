@@ -1,23 +1,34 @@
 import { NextResponse } from "next/server";
 import { getOptionalSession } from "@/lib/auth/dal";
+import { getMutualFundProfileById } from "@/lib/db/mutual-fund-profiles";
 import { listMutualFundEntries, upsertMutualFundEntry } from "@/lib/db/mutual-funds";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   const session = await getOptionalSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const entries = await listMutualFundEntries(session.userId);
+  const profileId = new URL(request.url).searchParams.get("profile_id");
+  if (!profileId) return NextResponse.json({ error: "missing_profile_id" }, { status: 400 });
+  const profile = await getMutualFundProfileById(session.userId, profileId);
+  if (!profile) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const entries = await listMutualFundEntries(session.userId, profileId);
   return NextResponse.json({ entries });
 }
 
-/** Creates or replaces this month's entry - at most one entry per user per month. */
+/** Creates or replaces this profile's entry for this month - at most one entry per profile per month. */
 export async function POST(request: Request): Promise<NextResponse> {
   const session = await getOptionalSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
+  const profileId = typeof body?.profile_id === "string" ? body.profile_id : "";
+  if (!profileId) return NextResponse.json({ error: "missing_profile_id" }, { status: 400 });
+  const profile = await getMutualFundProfileById(session.userId, profileId);
+  if (!profile) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
   const monthRaw = typeof body?.month === "string" ? body.month : "";
   const month = /^\d{4}-\d{2}$/.test(monthRaw) ? `${monthRaw}-01` : monthRaw;
 
@@ -63,7 +74,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_params" }, { status: 400 });
   }
 
-  const entry = await upsertMutualFundEntry(session.userId, {
+  const entry = await upsertMutualFundEntry(session.userId, profileId, {
     month,
     amount_added: amountAdded,
     sip_amount: sipAmount,

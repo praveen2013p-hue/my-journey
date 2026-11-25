@@ -25,6 +25,7 @@ import type {
   BackupLogRow,
   HolidayRow,
   MutualFundEntryRow,
+  MutualFundProfileRow,
   NpsEntryRow,
   PriceHistoryRow,
   ProviderSessionRow,
@@ -61,6 +62,7 @@ export interface DevStoreShape {
   user_settings: UserSettingsRow[];
   strategy_tags: StrategyTagRow[];
   trades: TradeRow[];
+  mutual_fund_profiles: MutualFundProfileRow[];
   mutual_fund_entries: MutualFundEntryRow[];
   nps_entries: NpsEntryRow[];
   stock_notes: StockNoteRow[];
@@ -95,6 +97,7 @@ function emptyStore(): DevStoreShape {
     user_settings: [],
     strategy_tags: [],
     trades: [],
+    mutual_fund_profiles: [],
     mutual_fund_entries: [],
     nps_entries: [],
     stock_notes: [],

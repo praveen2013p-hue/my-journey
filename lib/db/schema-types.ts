@@ -215,10 +215,24 @@ export interface TradeRow {
  * summing every month's `amount_added` up to and including that month -
  * one fewer number to type and get wrong each month.
  */
+/**
+ * A family member's named portfolio within Mutual Funds (DECISIONS.md) -
+ * "Self", or anything else the user types ("Wife", "Son", ...). Fully
+ * open, no preset set. Every mutual_fund_entries row belongs to exactly
+ * one profile.
+ */
+export interface MutualFundProfileRow {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface MutualFundEntryRow {
   id: string;
   user_id: string;
-  /** yyyy-mm-01 - always the first of the month; there's at most one entry per user per month. */
+  profile_id: string;
+  /** yyyy-mm-01 - always the first of the month; there's at most one entry per profile per month. */
   month: string;
   /** Always sip_amount + lumpsum_amount + stp_amount + other_amount (each defaulting to 0) - computed by the app, never typed directly. */
   amount_added: number;

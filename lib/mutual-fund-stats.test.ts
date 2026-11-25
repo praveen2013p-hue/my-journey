@@ -6,6 +6,7 @@ function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow 
   return {
     id: crypto.randomUUID(),
     user_id: "u",
+    profile_id: "p",
     month: "2026-01-01",
     amount_added: 0,
     sip_amount: null,

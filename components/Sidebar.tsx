@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useMarketRegimes } from "@/lib/use-regime";
+import type { MutualFundProfileRow } from "@/lib/db/schema-types";
 import {
   BreakoutsIcon,
   ChevronLeftIcon,
@@ -21,13 +22,15 @@ import {
   WeeklyReviewIcon,
 } from "./icons";
 
-const NAV_ITEMS = [
+const NAV_ITEMS_BEFORE_MUTUAL_FUNDS = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/breakouts", label: "Breakouts", Icon: BreakoutsIcon },
   { href: "/pullbacks", label: "Pullbacks", Icon: PullbacksIcon },
   { href: "/sectors", label: "Sectors", Icon: SectorsIcon },
   { href: "/journal", label: "Journal", Icon: JournalIcon },
-  { href: "/mutual-funds", label: "Mutual Funds", Icon: MutualFundIcon },
+];
+
+const NAV_ITEMS_AFTER_MUTUAL_FUNDS = [
   { href: "/nps", label: "NPS", Icon: NpsIcon },
   { href: "/review", label: "Weekly Review", Icon: WeeklyReviewIcon },
   { href: "/performance", label: "Performance", Icon: PerformanceIcon },
@@ -41,6 +44,7 @@ type Stage = 1 | 2 | 3 | 4 | null;
 interface SidebarProps {
   siteName: string;
   email: string;
+  mutualFundProfiles: MutualFundProfileRow[];
 }
 
 /** BRIEF.md §8: green = Stage 2, yellow = Stage 1, red = Stage 3 or 4. */
@@ -55,7 +59,146 @@ function regimeLabel(stage: Stage): string {
   return stage === null ? "—" : `Stage ${stage}`;
 }
 
-export function Sidebar({ siteName, email }: SidebarProps) {
+/**
+ * "Mutual Funds" as an expandable tree (DECISIONS.md): one login can
+ * track more than one family member's portfolio ("Self", plus whatever
+ * else the user names - fully open, no preset set). Clicking the parent
+ * row toggles expand/collapse rather than navigating; each profile
+ * underneath is a real link to `/mutual-funds?profile=<id>`.
+ */
+function MutualFundsTreeNav({
+  profiles: initialProfiles,
+  collapsed,
+}: {
+  profiles: MutualFundProfileRow[];
+  collapsed: boolean;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isOnMutualFunds = pathname === "/mutual-funds" || pathname.startsWith("/mutual-funds/");
+  const activeProfileId = searchParams.get("profile");
+
+  // Own copy, updated optimistically the moment a profile is created -
+  // doesn't wait on (or race with) the server layout re-fetching its own
+  // `profiles` prop, which App Router navigation isn't guaranteed to do
+  // for a shared layout on a same-route, search-param-only navigation.
+  const [profiles, setProfiles] = useState(initialProfiles);
+
+  const [userToggledExpanded, setUserToggledExpanded] = useState<boolean | null>(null);
+  const expanded = userToggledExpanded ?? isOnMutualFunds;
+
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleAddProfile(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/mutual-fund-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        const { profile } = await res.json();
+        setNewName("");
+        setAdding(false);
+        setProfiles((prev) => [...prev, profile]);
+        router.push(`/mutual-funds?profile=${profile.id}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <Link
+        href="/mutual-funds"
+        prefetch={false}
+        className={`flex min-h-[44px] items-center justify-center rounded-lg px-2.5 font-medium transition-colors ${
+          isOnMutualFunds ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
+        }`}
+      >
+        <MutualFundIcon />
+      </Link>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setUserToggledExpanded(!expanded)}
+        className={`flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+          isOnMutualFunds && !activeProfileId ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
+        }`}
+      >
+        <MutualFundIcon />
+        <span className="flex-1 text-left">Mutual Funds</span>
+        <ChevronRightIcon className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
+      </button>
+
+      {expanded && (
+        <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-3">
+          {profiles.map((profile) => {
+            const isActive = isOnMutualFunds && activeProfileId === profile.id;
+            return (
+              <Link
+                key={profile.id}
+                href={`/mutual-funds?profile=${profile.id}`}
+                prefetch={false}
+                className={`flex min-h-[36px] items-center rounded-lg px-3 text-sm transition-colors ${
+                  isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
+                }`}
+              >
+                {profile.name}
+              </Link>
+            );
+          })}
+
+          {adding ? (
+            <form onSubmit={handleAddProfile} className="flex items-center gap-1.5 px-1 py-1">
+              <input
+                type="text"
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Name"
+                aria-label="New profile name"
+                className="min-h-[32px] w-full min-w-0 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+                onBlur={() => {
+                  if (!newName.trim()) setAdding(false);
+                }}
+              />
+              <button
+                type="submit"
+                disabled={submitting}
+                className="min-h-[32px] flex-shrink-0 rounded-md border border-gold bg-gold px-2 text-xs font-semibold text-bg hover:bg-gold-hover disabled:opacity-60"
+              >
+                Add
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex min-h-[32px] items-center rounded-lg px-3 text-left text-sm text-muted hover:bg-panel-alt hover:text-text"
+            >
+              + Add
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Sidebar({ siteName, email, mutualFundProfiles }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -134,7 +277,7 @@ export function Sidebar({ siteName, email }: SidebarProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="Main">
-        {NAV_ITEMS.map(({ href, label, Icon }) => {
+        {NAV_ITEMS_BEFORE_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
@@ -147,6 +290,26 @@ export function Sidebar({ siteName, email }: SidebarProps) {
               // Yahoo/Kite calls - well before the user ever clicked it
               // (DECISIONS.md). Off by default; a real click still navigates
               // immediately, it just isn't pre-warmed.
+              prefetch={false}
+              className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+                collapsed ? "justify-center px-2.5" : ""
+              } ${isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
+              onClick={() => setMobileOpen(false)}
+            >
+              <Icon />
+              {!collapsed && <span>{label}</span>}
+            </Link>
+          );
+        })}
+
+        <MutualFundsTreeNav profiles={mutualFundProfiles} collapsed={collapsed} />
+
+        {NAV_ITEMS_AFTER_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
+          const isActive = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
               prefetch={false}
               className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
                 collapsed ? "justify-center px-2.5" : ""

@@ -1,7 +1,9 @@
 /**
  * Repository for `mutual_fund_entries` - the manual, month-by-month
  * mutual fund tracker that replaces the user's Google Sheet
- * (DECISIONS.md). Per-user, like trades.
+ * (DECISIONS.md). Scoped by (userId, profileId): each user can track
+ * more than one family member's portfolio ("Self", "Wife", ...), each
+ * with its own independent month-by-month history.
  */
 
 import { getSupabaseServiceClient, isSupabaseConfigured } from "./config";
@@ -23,20 +25,21 @@ export interface UpsertMutualFundEntryInput {
   negative_amount_note: string | null;
 }
 
-export async function listMutualFundEntries(userId: string): Promise<MutualFundEntryRow[]> {
+export async function listMutualFundEntries(userId: string, profileId: string): Promise<MutualFundEntryRow[]> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();
     const { data, error } = await supabase
       .from("mutual_fund_entries")
       .select("*")
       .eq("user_id", userId)
+      .eq("profile_id", profileId)
       .order("month", { ascending: true });
     if (error) throw error;
     return data as MutualFundEntryRow[];
   }
   const store = await readStore();
   return store.mutual_fund_entries
-    .filter((e) => e.user_id === userId)
+    .filter((e) => e.user_id === userId && e.profile_id === profileId)
     .sort((a, b) => (a.month < b.month ? -1 : 1));
 }
 
@@ -57,12 +60,14 @@ export async function getMutualFundEntryById(userId: string, id: string): Promis
 }
 
 /**
- * Creates this month's entry, or updates it if one already exists - at
- * most one entry per user per month (BRIEF-style invariant, enforced by
- * the `unique (user_id, month)` constraint in Supabase too).
+ * Creates this profile's entry for this month, or updates it if one
+ * already exists - at most one entry per profile per month (BRIEF-style
+ * invariant, enforced by the `unique (user_id, profile_id, month)`
+ * constraint in Supabase too).
  */
 export async function upsertMutualFundEntry(
   userId: string,
+  profileId: string,
   input: UpsertMutualFundEntryInput,
 ): Promise<MutualFundEntryRow> {
   const updated_at = new Date().toISOString();
@@ -72,8 +77,8 @@ export async function upsertMutualFundEntry(
     const { data, error } = await supabase
       .from("mutual_fund_entries")
       .upsert(
-        { user_id: userId, ...input, updated_at },
-        { onConflict: "user_id,month" },
+        { user_id: userId, profile_id: profileId, ...input, updated_at },
+        { onConflict: "user_id,profile_id,month" },
       )
       .select()
       .single();
@@ -82,7 +87,9 @@ export async function upsertMutualFundEntry(
   }
 
   return mutateStore((store) => {
-    const idx = store.mutual_fund_entries.findIndex((e) => e.user_id === userId && e.month === input.month);
+    const idx = store.mutual_fund_entries.findIndex(
+      (e) => e.user_id === userId && e.profile_id === profileId && e.month === input.month,
+    );
     if (idx >= 0) {
       const row = { ...store.mutual_fund_entries[idx], ...input, updated_at };
       store.mutual_fund_entries[idx] = row;
@@ -91,6 +98,7 @@ export async function upsertMutualFundEntry(
     const row: MutualFundEntryRow = {
       id: crypto.randomUUID(),
       user_id: userId,
+      profile_id: profileId,
       ...input,
       created_at: updated_at,
       updated_at,
