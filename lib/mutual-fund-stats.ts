@@ -74,6 +74,8 @@ export interface MutualFundYearGroup {
   yearInvested: number;
   /** current_value of the year's last entry. */
   yearEndValue: number;
+  /** Since-inception XIRR as of the year's last entry - "that year's return." Null under the same conditions as MutualFundEntryView.xirrPct. */
+  yearEndXirrPct: number | null;
 }
 
 export interface MutualFundView {
@@ -244,6 +246,7 @@ export function buildMutualFundView(entries: MutualFundEntryRow[], birthYear: nu
       rows: yearRows,
       yearInvested: yearRows.reduce((sum, r) => sum + r.entry.amount_added - r.entry.withdrawal, 0),
       yearEndValue: yearRows[yearRows.length - 1].entry.current_value,
+      yearEndXirrPct: yearRows[yearRows.length - 1].xirrPct,
     }))
     .sort((a, b) => (a.year < b.year ? 1 : -1));
 

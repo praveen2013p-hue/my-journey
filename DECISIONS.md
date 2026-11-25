@@ -967,3 +967,19 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
 - Requested directly: "Added" -> "SIP Amount", "Total Added" -> "Invested"
   in the month-by-month table. Display text only - no change to the
   underlying fields (`amount_added`, `cumulativeAdded`) or any math.
+
+## Mutual Funds: XIRR shown in Grid view, 2026-11-25
+
+- Requested directly: the Grid view's year tiles and detail panel didn't
+  show XIRR - wanted "that year return" visible there too.
+- Added `yearEndXirrPct` to `MutualFundYearGroup`: the since-inception
+  XIRR as of that year's last entry (same number already shown in the
+  table's XIRR column for that month - not a separate "calendar year
+  only" rate, kept consistent with the "since-inception is enough"
+  call made earlier in this project). Unit-tested directly.
+- Shown in two places in `YearGrid.tsx`: a fourth stat line inside each
+  year tile ("XIRR -98.5%" etc., colored green/red), and a summary line
+  below the month-by-month table in the detail panel ("2026 XIRR
+  (since inception, as of year-end): -98.5%").
+- Verified live: both figures for the same year match each other and
+  match that year's last-row XIRR in the table.

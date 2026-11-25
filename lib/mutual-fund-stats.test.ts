@@ -240,6 +240,17 @@ describe("buildMutualFundView", () => {
     expect(y2019.rows).toHaveLength(2);
   });
 
+  it("yearEndXirrPct is the since-inception XIRR as of that year's last entry", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }), // +10% as of here
+    ];
+    const { byYear } = buildMutualFundView(entries);
+    const y2026 = byYear.find((y) => y.year === "2026")!;
+    expect(y2026.yearEndXirrPct).toBeCloseTo(10, 3);
+    expect(y2026.yearEndXirrPct).toBe(y2026.rows[y2026.rows.length - 1].xirrPct);
+  });
+
   it("nets withdrawals out of a year's invested total", () => {
     const entries = [
       entry({ month: "2026-01-01", amount_added: 10000, current_value: 10000 }),

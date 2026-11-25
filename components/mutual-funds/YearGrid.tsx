@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoney, formatPct } from "@/lib/format-money";
 import type { MutualFundYearGroup } from "@/lib/mutual-fund-stats";
 import { YearRows } from "./YearSection";
 
@@ -36,6 +36,16 @@ export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
               <span className="text-[11px] text-muted">
                 Value <span className="font-medium text-text">{formatMoney("IN", group.yearEndValue)}</span>
               </span>
+              <span className="text-[11px] text-muted">
+                XIRR{" "}
+                {group.yearEndXirrPct === null ? (
+                  <span className="font-medium">—</span>
+                ) : (
+                  <span className={`font-medium ${group.yearEndXirrPct >= 0 ? "text-pos" : "text-neg"}`}>
+                    {formatPct(group.yearEndXirrPct)}
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}
@@ -45,6 +55,16 @@ export function YearGrid({ groups }: { groups: MutualFundYearGroup[] }) {
         <div className="rounded-xl border border-border bg-panel p-3">
           <h3 className="mb-2 px-2 text-sm font-semibold">{selected.year}</h3>
           <YearRows rows={selected.rows} />
+          <div className="mt-2 px-2 text-sm">
+            <span className="text-muted">{selected.year} XIRR (since inception, as of year-end): </span>
+            {selected.yearEndXirrPct === null ? (
+              <span className="font-semibold text-muted">—</span>
+            ) : (
+              <span className={`font-semibold ${selected.yearEndXirrPct >= 0 ? "text-pos" : "text-neg"}`}>
+                {formatPct(selected.yearEndXirrPct)}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
