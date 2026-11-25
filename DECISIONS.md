@@ -1237,3 +1237,17 @@ causes found, in order of actual measured impact:
   grows; Safe SWP in the Overview matches the table's own figure
   exactly (₹233/mo for a ₹70,000 portfolio = 70,000 × 4% ÷ 12); layout
   stacks to one column on mobile.
+
+## Mutual Funds: removed the TradingView attribution logo from the wealth chart, 2026-11-25
+
+- Requested directly: `lightweight-charts` (made by TradingView) shows
+  a small attribution logo/link in the corner of every chart by
+  default. Disabled it (`layout.attributionLogo: false`) on the Mutual
+  Funds wealth growth chart specifically, per what was asked - left
+  `components/breakouts/WeeklyChart.tsx` untouched since that wasn't
+  part of the request.
+- Note for the record: the library's licence asks for either this logo
+  or an equivalent attribution link elsewhere on the site - not
+  something this private, single-household app needs to worry about,
+  but worth knowing if `lightweight-charts` is ever used somewhere
+  more public.

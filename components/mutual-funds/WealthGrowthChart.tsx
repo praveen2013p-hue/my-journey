@@ -24,6 +24,7 @@ export function WealthGrowthChart({ points }: { points: WealthGrowthPoint[] }) {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#A3A39E",
         fontSize: 11,
+        attributionLogo: false,
       },
       grid: {
         vertLines: { visible: false },
