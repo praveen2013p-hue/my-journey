@@ -7,23 +7,58 @@ import { monthLabel } from "@/lib/mutual-fund-stats";
 import type { MutualFundEntryView, MutualFundYearGroup } from "@/lib/mutual-fund-stats";
 import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
 
+/**
+ * An entry from before the SIP/Lumpsum/STP/Other breakdown existed has all
+ * four columns null - never guess how its one historical amount_added
+ * split up; park the whole thing under "Other" so the total is preserved
+ * exactly, and let SIP/Lumpsum/STP start at 0 for editing going forward.
+ */
+function breakdownDefaults(entry: MutualFundEntryView["entry"]): {
+  sip: string;
+  lumpsum: string;
+  stp: string;
+  other: string;
+} {
+  const neverClassified =
+    entry.sip_amount === null && entry.lumpsum_amount === null && entry.stp_amount === null && entry.other_amount === null;
+  if (neverClassified) {
+    return { sip: "0", lumpsum: "0", stp: "0", other: String(entry.amount_added) };
+  }
+  return {
+    sip: String(entry.sip_amount ?? 0),
+    lumpsum: String(entry.lumpsum_amount ?? 0),
+    stp: String(entry.stp_amount ?? 0),
+    other: String(entry.other_amount ?? 0),
+  };
+}
+
 function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () => void }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [amountAddedText, setAmountAddedText] = useState(String(row.entry.amount_added));
+  const defaults = breakdownDefaults(row.entry);
+  const [sipText, setSipText] = useState(defaults.sip);
+  const [lumpsumText, setLumpsumText] = useState(defaults.lumpsum);
+  const [stpText, setStpText] = useState(defaults.stp);
+  const [otherText, setOtherText] = useState(defaults.other);
   const [negativeAmountNote, setNegativeAmountNote] = useState(row.entry.negative_amount_note ?? "");
+
+  const toNum = (text: string) => (text.trim() === "" ? 0 : Number(text));
+  const total = toNum(sipText) + toNum(lumpsumText) + toNum(stpText) + toNum(otherText);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    const amountAdded = Number(data.get("amount_added"));
     const withdrawalRaw = String(data.get("withdrawal") ?? "").trim();
     const plannedAmountRaw = String(data.get("planned_amount") ?? "").trim();
     const currentValue = Number(data.get("current_value"));
     const notes = String(data.get("notes") ?? "").trim();
 
-    if (!Number.isFinite(amountAdded) || !Number.isFinite(currentValue) || currentValue < 0) {
+    if (
+      ![sipText, lumpsumText, stpText, otherText].every((t) => t.trim() === "" || Number.isFinite(Number(t))) ||
+      !Number.isFinite(currentValue) ||
+      currentValue < 0
+    ) {
       setError("Enter valid numbers.");
       return;
     }
@@ -41,12 +76,15 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount_added: amountAdded,
+          sip_amount: toNum(sipText),
+          lumpsum_amount: toNum(lumpsumText),
+          stp_amount: toNum(stpText),
+          other_amount: toNum(otherText),
           withdrawal,
           planned_amount: plannedAmount,
           current_value: currentValue,
           notes: notes || null,
-          negative_amount_note: amountAdded < 0 ? negativeAmountNote.trim() || null : null,
+          negative_amount_note: total < 0 ? negativeAmountNote.trim() || null : null,
         }),
       });
       if (!res.ok) throw new Error("Couldn't save changes.");
@@ -64,21 +102,45 @@ function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () =
       onSubmit={handleSubmit}
       className="flex flex-wrap items-center gap-2 rounded-lg border border-border-strong bg-panel-alt p-2.5"
     >
-      <span className="inline-flex items-center">
+      <span className="flex flex-wrap items-center gap-1.5">
         <input
           type="number"
           step="any"
-          name="amount_added"
-          required
-          value={amountAddedText}
-          onChange={(e) => setAmountAddedText(e.target.value)}
-          aria-label="Amount added"
-          placeholder="Amount added"
-          className={`min-h-[36px] w-32 rounded-md border bg-field px-2 text-sm ${
-            Number(amountAddedText) < 0 ? "border-neg-border text-neg" : "border-border-strong text-text"
-          }`}
+          aria-label="SIP"
+          placeholder="SIP"
+          value={sipText}
+          onChange={(e) => setSipText(e.target.value)}
+          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
         />
-        {Number(amountAddedText) < 0 && (
+        <input
+          type="number"
+          step="any"
+          aria-label="Lumpsum"
+          placeholder="Lumpsum"
+          value={lumpsumText}
+          onChange={(e) => setLumpsumText(e.target.value)}
+          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+        />
+        <input
+          type="number"
+          step="any"
+          aria-label="STP"
+          placeholder="STP"
+          value={stpText}
+          onChange={(e) => setStpText(e.target.value)}
+          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+        />
+        <input
+          type="number"
+          step="any"
+          aria-label="Other"
+          placeholder="Other"
+          value={otherText}
+          onChange={(e) => setOtherText(e.target.value)}
+          className="min-h-[36px] w-20 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+        />
+        <span className={`text-sm ${total < 0 ? "text-neg" : "text-muted"}`}>= {formatMoney("IN", total)}</span>
+        {total < 0 && (
           <NegativeAmountNoteButton
             initialValue={negativeAmountNote}
             hasNote={!!negativeAmountNote}
@@ -156,7 +218,12 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         <thead>
           <tr className="border-b border-border text-xs text-muted">
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Month</th>
-            <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">SIP Amount</th>
+            <th
+              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
+              title="SIP + Lumpsum + STP + Other for this month - hover a classified month's figure to see the split"
+            >
+              Added
+            </th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
               title="Total of your own money invested so far - never reduced by a withdrawal"
@@ -196,9 +263,27 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             <tr key={row.entry.id} className="border-b border-border/60">
               <td className="whitespace-nowrap px-3 py-2.5 font-medium">{monthLabel(row.entry.month)}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
-                <span className={row.entry.amount_added < 0 ? "text-neg" : undefined}>
-                  {formatMoney("IN", row.entry.amount_added)}
-                </span>
+                {(() => {
+                  const isClassified =
+                    row.entry.sip_amount !== null ||
+                    row.entry.lumpsum_amount !== null ||
+                    row.entry.stp_amount !== null ||
+                    row.entry.other_amount !== null;
+                  return (
+                    <span
+                      className={`${row.entry.amount_added < 0 ? "text-neg" : ""} ${
+                        isClassified ? "cursor-help underline decoration-dotted decoration-muted underline-offset-4" : ""
+                      }`}
+                      title={
+                        isClassified
+                          ? `SIP ${formatMoney("IN", row.entry.sip_amount ?? 0)} · Lumpsum ${formatMoney("IN", row.entry.lumpsum_amount ?? 0)} · STP ${formatMoney("IN", row.entry.stp_amount ?? 0)} · Other ${formatMoney("IN", row.entry.other_amount ?? 0)}`
+                          : undefined
+                      }
+                    >
+                      {formatMoney("IN", row.entry.amount_added)}
+                    </span>
+                  );
+                })()}
                 {row.entry.amount_added < 0 && (
                   <NegativeAmountNoteButton
                     initialValue={row.entry.negative_amount_note ?? ""}
@@ -290,7 +375,7 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
         </tbody>
       </table>
       <p className="mt-2 text-xs text-muted">
-        Planned: <span className="text-pos">green</span> when that month&apos;s SIP Amount met or exceeded the plan,{" "}
+        Planned: <span className="text-pos">green</span> when that month&apos;s Added met or exceeded the plan,{" "}
         <span className="text-neg">red</span> when it fell short.
       </p>
       <p className="mt-1 text-xs text-muted">

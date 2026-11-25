@@ -220,7 +220,16 @@ export interface MutualFundEntryRow {
   user_id: string;
   /** yyyy-mm-01 - always the first of the month; there's at most one entry per user per month. */
   month: string;
+  /** Always sip_amount + lumpsum_amount + stp_amount + other_amount (each defaulting to 0) - computed by the app, never typed directly. */
   amount_added: number;
+  /** This month's SIP contribution - null means never classified (an entry from before the breakdown existed), not "zero". */
+  sip_amount: number | null;
+  /** This month's one-off lumpsum contribution - same null convention as sip_amount. */
+  lumpsum_amount: number | null;
+  /** This month's STP (systematic transfer plan) contribution - same null convention as sip_amount. */
+  stp_amount: number | null;
+  /** Anything that doesn't fit SIP/lumpsum/STP (or, for an entry predating the breakdown, its entire original amount_added) - same null convention as sip_amount. */
+  other_amount: number | null;
   /** Any amount pulled out of the portfolio this month - reduces net invested, since it's money that's no longer in the fund. 0 if none. */
   withdrawal: number;
   /** What the user's own plan called for investing this month - optional, null if no plan was set for that month. Purely informational; never affects the invested/gain math. */

@@ -1032,3 +1032,40 @@ ones now, leaving those 4 as backlog (unchanged above). What shipped:
 - Verified live: switching to Grid view shows zero tables; clicking a
   year tile opens its table; clicking that same tile again closes it;
   clicking a different tile switches to that year.
+
+## Mutual Funds: split a month's addition into SIP / Lumpsum / STP / Other, 2026-11-25
+
+- Requested directly: real contributions are a mix of SIP, lumpsum and
+  STP in the same month, and forcing them into one number made
+  accurate entry hard. Asked for all the input options to be opened up,
+  with the app doing the sum correctly. (Asked the user, and they chose
+  keeping one combined "Added" column in the table with the breakdown
+  on hover, over always-visible SIP/Lumpsum/STP columns.)
+- New columns on `mutual_fund_entries` (migration 0007): `sip_amount`,
+  `lumpsum_amount`, `stp_amount`, `other_amount` - all nullable.
+  `amount_added` itself is unchanged in meaning (still what every stat
+  reads), but is now always *computed* as the sum of these four,
+  recomputed server-side from whichever ones the request sends -
+  never trusted as a client-sent total, so it can't drift from the
+  parts. "Other" is a deliberate catch-all for anything that isn't
+  SIP/lumpsum/STP (dividend reinvestment, a bonus-unit credit, etc.).
+- Add entry and Edit now show four separate number inputs (SIP,
+  Lumpsum, STP, Other) instead of one, each independently able to go
+  negative (a correction in just one category), with a live computed
+  total and the existing negative-amount-note prompt wired to that
+  total rather than to a single field.
+- An entry from before this migration has all four columns null -
+  never guessed how its one historical amount_added split up; editing
+  one parks its whole existing total under "Other" (SIP/Lumpsum/STP
+  start at 0), so the total is preserved exactly and nothing is
+  invented.
+- Table: renamed the "SIP Amount" column back to "Added" (it's no
+  longer purely SIP), and a classified month's figure gets a dotted
+  underline - hover it to see "SIP ₹X · Lumpsum ₹Y · STP ₹Z · Other ₹W".
+  An unclassified (legacy) entry shows no underline/tooltip, since
+  there's nothing to show.
+- Verified live: entered SIP 5000 + Lumpsum 20000 + STP 3000 + Other
+  -1000, live preview showed ₹27,000, saved and confirmed the table
+  cell reads ₹27,000 with that exact breakdown on hover; edited a
+  pre-existing (legacy) ₹7,000 entry and confirmed its edit form showed
+  SIP/Lumpsum/STP = 0 and Other = 7000.

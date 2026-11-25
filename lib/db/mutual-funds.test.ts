@@ -14,6 +14,10 @@ function sampleEntry(overrides: Partial<Parameters<typeof upsertMutualFundEntry>
   return {
     month: "2026-01-01",
     amount_added: 10000,
+    sip_amount: null,
+    lumpsum_amount: null,
+    stp_amount: null,
+    other_amount: null,
     withdrawal: 0,
     planned_amount: null,
     current_value: 10500,

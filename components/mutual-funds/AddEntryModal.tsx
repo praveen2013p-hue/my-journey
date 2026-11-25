@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { formatMoney } from "@/lib/format-money";
 import { NegativeAmountNoteButton } from "./NegativeAmountNoteButton";
 
 function defaultMonthValue(): string {
@@ -15,16 +16,29 @@ export function AddEntryModal() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [amountAddedText, setAmountAddedText] = useState("");
+  const [sipText, setSipText] = useState("");
+  const [lumpsumText, setLumpsumText] = useState("");
+  const [stpText, setStpText] = useState("");
+  const [otherText, setOtherText] = useState("");
   const [negativeAmountNote, setNegativeAmountNote] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+
+  const toNum = (text: string) => (text.trim() === "" ? 0 : Number(text));
+  const total = toNum(sipText) + toNum(lumpsumText) + toNum(stpText) + toNum(otherText);
+
+  function resetBreakdown() {
+    setSipText("");
+    setLumpsumText("");
+    setStpText("");
+    setOtherText("");
+    setNegativeAmountNote("");
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const data = new FormData(e.currentTarget);
     const month = String(data.get("month") ?? "");
-    const amountAdded = String(data.get("amount_added") ?? "").trim();
     const withdrawal = String(data.get("withdrawal") ?? "").trim();
     const plannedAmount = String(data.get("planned_amount") ?? "").trim();
     const currentValue = Number(data.get("current_value"));
@@ -34,8 +48,8 @@ export function AddEntryModal() {
       setError("Pick a month and enter the current portfolio value.");
       return;
     }
-    if (amountAdded !== "" && !Number.isFinite(Number(amountAdded))) {
-      setError("Amount added must be a number.");
+    if (![sipText, lumpsumText, stpText, otherText].every((t) => t.trim() === "" || Number.isFinite(Number(t)))) {
+      setError("SIP, Lumpsum, STP and Other must be numbers.");
       return;
     }
     if (withdrawal !== "" && !Number.isFinite(Number(withdrawal))) {
@@ -54,20 +68,22 @@ export function AddEntryModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           month,
-          amount_added: amountAdded === "" ? 0 : Number(amountAdded),
+          sip_amount: toNum(sipText),
+          lumpsum_amount: toNum(lumpsumText),
+          stp_amount: toNum(stpText),
+          other_amount: toNum(otherText),
           withdrawal: withdrawal === "" ? 0 : Number(withdrawal),
           planned_amount: plannedAmount === "" ? null : Number(plannedAmount),
           current_value: currentValue,
           notes: notes || null,
-          negative_amount_note: Number(amountAdded) < 0 ? negativeAmountNote.trim() || null : null,
+          negative_amount_note: total < 0 ? negativeAmountNote.trim() || null : null,
         }),
       });
       if (!res.ok) throw new Error("Couldn't save that month's entry.");
 
       setOpen(false);
       formRef.current?.reset();
-      setAmountAddedText("");
-      setNegativeAmountNote("");
+      resetBreakdown();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -118,30 +134,75 @@ export function AddEntryModal() {
               </div>
 
               <div>
-                <label htmlFor="mf_amount_added" className="mb-1 block text-xs text-muted">
-                  Amount added this month <span className="text-muted">(0 if none)</span>
-                </label>
-                <span className="flex items-center gap-1">
-                  <input
-                    id="mf_amount_added"
-                    name="amount_added"
-                    type="number"
-                    step="any"
-                    placeholder="0"
-                    value={amountAddedText}
-                    onChange={(e) => setAmountAddedText(e.target.value)}
-                    className={`min-h-[44px] w-full rounded-lg border bg-field px-3 py-2 ${
-                      Number(amountAddedText) < 0 ? "border-neg-border text-neg" : "border-border-strong text-text"
-                    }`}
-                  />
-                  {amountAddedText !== "" && Number(amountAddedText) < 0 && (
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs text-muted">Added this month, by how it went in (0 if none)</span>
+                  <span className="text-xs text-muted">
+                    Total:{" "}
+                    <span className={`font-semibold ${total < 0 ? "text-neg" : "text-text"}`}>
+                      {formatMoney("IN", total)}
+                    </span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs text-muted">
+                    SIP
+                    <input
+                      name="sip_amount"
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={sipText}
+                      onChange={(e) => setSipText(e.target.value)}
+                      className="mt-0.5 min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-2.5 py-1.5 text-sm text-text"
+                    />
+                  </label>
+                  <label className="text-xs text-muted">
+                    Lumpsum
+                    <input
+                      name="lumpsum_amount"
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={lumpsumText}
+                      onChange={(e) => setLumpsumText(e.target.value)}
+                      className="mt-0.5 min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-2.5 py-1.5 text-sm text-text"
+                    />
+                  </label>
+                  <label className="text-xs text-muted">
+                    STP
+                    <input
+                      name="stp_amount"
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={stpText}
+                      onChange={(e) => setStpText(e.target.value)}
+                      className="mt-0.5 min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-2.5 py-1.5 text-sm text-text"
+                    />
+                  </label>
+                  <label className="text-xs text-muted">
+                    Other
+                    <input
+                      name="other_amount"
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.target.value)}
+                      className="mt-0.5 min-h-[40px] w-full rounded-lg border border-border-strong bg-field px-2.5 py-1.5 text-sm text-text"
+                    />
+                  </label>
+                </div>
+                {total < 0 && (
+                  <div className="mt-1.5 flex items-center gap-1 text-xs text-neg">
+                    Total is negative
                     <NegativeAmountNoteButton
                       initialValue={negativeAmountNote}
                       hasNote={!!negativeAmountNote}
                       onSave={setNegativeAmountNote}
                     />
-                  )}
-                </span>
+                  </div>
+                )}
               </div>
 
               <div>

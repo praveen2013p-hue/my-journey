@@ -20,8 +20,24 @@ export async function POST(request: Request): Promise<NextResponse> {
   const body = await request.json().catch(() => null);
   const monthRaw = typeof body?.month === "string" ? body.month : "";
   const month = /^\d{4}-\d{2}$/.test(monthRaw) ? `${monthRaw}-01` : monthRaw;
-  const amountAddedRaw = body?.amount_added;
-  const amountAdded = amountAddedRaw === null || amountAddedRaw === undefined || amountAddedRaw === "" ? 0 : Number(amountAddedRaw);
+
+  const toNum = (raw: unknown): number => (raw === null || raw === undefined || raw === "" ? 0 : Number(raw));
+  // A month's contribution is a mix of SIP, lumpsum and STP (DECISIONS.md) -
+  // whenever any of these is given, amount_added is always their sum, never
+  // trusted from the client directly, so the total can't drift from the parts.
+  const hasBreakdown =
+    body?.sip_amount !== undefined ||
+    body?.lumpsum_amount !== undefined ||
+    body?.stp_amount !== undefined ||
+    body?.other_amount !== undefined;
+  const sipAmount = hasBreakdown ? toNum(body?.sip_amount) : null;
+  const lumpsumAmount = hasBreakdown ? toNum(body?.lumpsum_amount) : null;
+  const stpAmount = hasBreakdown ? toNum(body?.stp_amount) : null;
+  const otherAmount = hasBreakdown ? toNum(body?.other_amount) : null;
+  const amountAdded = hasBreakdown
+    ? (sipAmount ?? 0) + (lumpsumAmount ?? 0) + (stpAmount ?? 0) + (otherAmount ?? 0)
+    : toNum(body?.amount_added);
+
   const withdrawalRaw = body?.withdrawal;
   const withdrawal = withdrawalRaw === null || withdrawalRaw === undefined || withdrawalRaw === "" ? 0 : Number(withdrawalRaw);
   const plannedAmountRaw = body?.planned_amount;
@@ -37,6 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (
     !/^\d{4}-\d{2}-01$/.test(month) ||
     !Number.isFinite(amountAdded) ||
+    (hasBreakdown && ![sipAmount, lumpsumAmount, stpAmount, otherAmount].every(Number.isFinite)) ||
     !Number.isFinite(withdrawal) ||
     withdrawal < 0 ||
     (plannedAmount !== null && (!Number.isFinite(plannedAmount) || plannedAmount < 0)) ||
@@ -49,6 +66,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const entry = await upsertMutualFundEntry(session.userId, {
     month,
     amount_added: amountAdded,
+    sip_amount: sipAmount,
+    lumpsum_amount: lumpsumAmount,
+    stp_amount: stpAmount,
+    other_amount: otherAmount,
     withdrawal,
     planned_amount: plannedAmount,
     current_value: currentValue,

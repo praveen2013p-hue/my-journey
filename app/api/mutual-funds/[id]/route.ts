@@ -18,6 +18,10 @@ export async function PATCH(
   const body = await request.json().catch(() => null);
   const update: {
     amount_added?: number;
+    sip_amount?: number | null;
+    lumpsum_amount?: number | null;
+    stp_amount?: number | null;
+    other_amount?: number | null;
     withdrawal?: number;
     planned_amount?: number | null;
     current_value?: number;
@@ -25,7 +29,33 @@ export async function PATCH(
     negative_amount_note?: string | null;
   } = {};
 
-  if (body?.amount_added !== undefined) {
+  // A month's contribution is a mix of SIP, lumpsum and STP (DECISIONS.md) -
+  // whenever the Edit form sends the breakdown, amount_added is always
+  // recomputed as their sum, never trusted from the client directly, so the
+  // total can't drift from the parts. Falls back to a direct amount_added
+  // when no breakdown is sent (e.g. older API callers, or the table's
+  // standalone negative-amount-note save, which never touches amount_added).
+  const hasBreakdown =
+    body?.sip_amount !== undefined ||
+    body?.lumpsum_amount !== undefined ||
+    body?.stp_amount !== undefined ||
+    body?.other_amount !== undefined;
+
+  if (hasBreakdown) {
+    const toNum = (raw: unknown): number => (raw === null || raw === undefined || raw === "" ? 0 : Number(raw));
+    const sipAmount = toNum(body.sip_amount);
+    const lumpsumAmount = toNum(body.lumpsum_amount);
+    const stpAmount = toNum(body.stp_amount);
+    const otherAmount = toNum(body.other_amount);
+    if (![sipAmount, lumpsumAmount, stpAmount, otherAmount].every(Number.isFinite)) {
+      return NextResponse.json({ error: "invalid_amount_added" }, { status: 400 });
+    }
+    update.sip_amount = sipAmount;
+    update.lumpsum_amount = lumpsumAmount;
+    update.stp_amount = stpAmount;
+    update.other_amount = otherAmount;
+    update.amount_added = sipAmount + lumpsumAmount + stpAmount + otherAmount;
+  } else if (body?.amount_added !== undefined) {
     const amountAdded = Number(body.amount_added);
     if (!Number.isFinite(amountAdded)) {
       return NextResponse.json({ error: "invalid_amount_added" }, { status: 400 });
