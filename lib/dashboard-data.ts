@@ -4,7 +4,7 @@
  */
 
 import { addDays, format } from "date-fns";
-import { listAlerts } from "./db/alerts";
+import { getLatestWeekEnding, listAlerts } from "./db/alerts";
 import type { Grade, Market } from "./db/schema-types";
 import { getSectorsPageData } from "./sectors-page-data";
 
@@ -39,9 +39,7 @@ function emptyTriggerCounts(): TriggerCounts {
 
 async function resolveWeekEnding(requested?: string): Promise<string | null> {
   if (requested) return requested;
-  const all = await listAlerts({});
-  if (all.length === 0) return null;
-  return all.reduce((latest, a) => (a.week_ending > latest ? a.week_ending : latest), all[0].week_ending);
+  return getLatestWeekEnding();
 }
 
 export async function getDashboardData(requestedWeek?: string): Promise<DashboardData> {

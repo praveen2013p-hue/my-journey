@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AddTradeModal } from "@/components/journal/AddTradeModal";
+import { PnlCalendar } from "@/components/journal/PnlCalendar";
+import { ResetAllButton } from "@/components/journal/ResetAllButton";
 import { StrategyResultsTable } from "@/components/journal/StrategyResultsTable";
 import { ClosedTradesTable, OpenTradesTable } from "@/components/journal/TradesTable";
 import { Chip } from "@/components/Chip";
@@ -10,6 +12,7 @@ import type { Market } from "@/lib/db/schema-types";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { getFreshnessData } from "@/lib/freshness-data";
 import { getJournalPageData } from "@/lib/journal-data";
+import { todayInMarketTimezone } from "@/lib/time";
 
 export default async function JournalPage({
   searchParams,
@@ -33,11 +36,14 @@ export default async function JournalPage({
         title="Journal"
         subtitle="Your own trades · separate from your wife's journal"
         actions={
-          <AddTradeModal
-            market={market}
-            tickerOptions={data.tickerOptions}
-            strategyTagNames={data.strategyTags.map((t) => t.name)}
-          />
+          <>
+            <AddTradeModal
+              market={market}
+              tickerOptions={data.tickerOptions}
+              strategyTagNames={data.strategyTags.map((t) => t.name)}
+            />
+            <ResetAllButton market={market} tradeCount={data.openTrades.length + data.closedTrades.length} />
+          </>
         }
       />
 
@@ -87,6 +93,18 @@ export default async function JournalPage({
           </div>
         </div>
       </div>
+
+      <PnlCalendar
+        market={market}
+        trades={data.closedTrades.map((row) => ({
+          id: row.trade.id,
+          ticker: row.trade.ticker,
+          exchange: row.exchange,
+          sellDate: row.trade.sell_date as string,
+          pnlAbs: row.pnlAbs,
+        }))}
+        defaultMonth={todayInMarketTimezone(market).slice(0, 7)}
+      />
 
       <div className="flex gap-1.5 border-b border-border" role="tablist">
         <Link

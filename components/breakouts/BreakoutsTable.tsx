@@ -1,12 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Chip, gradeVariant } from "@/components/Chip";
 import { TradingViewLink } from "@/components/TradingViewLink";
+import { AddToButton } from "@/components/journal/AddToButton";
 import type { BreakoutRow } from "@/lib/breakouts-data";
 import type { SignalType } from "@/lib/db/schema-types";
 import { quoteKey, useQuotes } from "@/lib/use-quotes";
-import { SidePanel } from "./SidePanel";
+
+// The side panel pulls in `lightweight-charts` (a genuinely heavy
+// dependency) for its weekly chart - lazy-loaded so that weight is only
+// ever downloaded once a row is actually clicked, not as part of every
+// Breakouts/Pullbacks page's initial JS (DECISIONS.md).
+const SidePanel = dynamic(() => import("./SidePanel").then((m) => m.SidePanel), {
+  ssr: false,
+  loading: () => (
+    <aside className="flex w-full flex-shrink-0 flex-col gap-4 border-l border-border bg-panel-alt p-6 md:w-[430px]">
+      <div className="h-6 w-2/3 animate-pulse rounded bg-panel" />
+      <div className="h-24 animate-pulse rounded bg-panel" />
+      <div className="h-48 animate-pulse rounded bg-panel" />
+    </aside>
+  ),
+});
 
 type SortKey =
   | "ticker"
@@ -21,6 +37,32 @@ type SortKey =
 function fmtNum(value: number | null, digits = 2): string {
   if (value === null || Number.isNaN(value)) return "—";
   return value.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function SortHeader({
+  label,
+  k,
+  className,
+  sortKey,
+  sortDir,
+  onToggle,
+}: {
+  label: string;
+  k: SortKey;
+  className?: string;
+  sortKey: SortKey;
+  sortDir: 1 | -1;
+  onToggle: (k: SortKey) => void;
+}) {
+  return (
+    <th
+      scope="col"
+      className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted hover:text-text ${className ?? ""}`}
+      onClick={() => onToggle(k)}
+    >
+      {label} {sortKey === k && (sortDir === 1 ? "▲" : "▼")}
+    </th>
+  );
 }
 
 export function BreakoutsTable({
@@ -78,18 +120,6 @@ export function BreakoutsTable({
     }
   }
 
-  function SortHeader({ label, k, className }: { label: string; k: SortKey; className?: string }) {
-    return (
-      <th
-        scope="col"
-        className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted hover:text-text ${className ?? ""}`}
-        onClick={() => toggleSort(k)}
-      >
-        {label} {sortKey === k && (sortDir === 1 ? "▲" : "▼")}
-      </th>
-    );
-  }
-
   const selectedRow = rows.find((r) => r.id === selectedId) ?? null;
 
   return (
@@ -99,32 +129,77 @@ export function BreakoutsTable({
           <thead>
             <tr className="border-b border-border">
               <th scope="col" className="px-3 py-2.5" />
-              <SortHeader label="Stock" k="ticker" />
+              <SortHeader label="Stock" k="ticker" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
                 Market
               </th>
-              <SortHeader label="Grade" k="grade" />
-              <SortHeader label="Trigger" k="trigger" className="text-right" />
-              <SortHeader label="Live" k="live" className="text-right" />
-              <SortHeader label="Since" k="since" className="text-right" />
+              <SortHeader label="Grade" k="grade" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+              <SortHeader
+                label="Trigger"
+                k="trigger"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
+              <SortHeader
+                label="Live"
+                k="live"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
+              <SortHeader
+                label="Since"
+                k="since"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-semibold text-muted">
                 Breakout level
               </th>
-              <SortHeader label="Vol ×" k="volRatio" className="text-right" />
-              <SortHeader label="RS" k="mrs" className="text-right" />
+              <SortHeader
+                label="Vol ×"
+                k="volRatio"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
+              <SortHeader
+                label="RS"
+                k="mrs"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
                 Sector · Industry
               </th>
-              <SortHeader label="Score" k="quality" className="text-right" />
+              <SortHeader
+                label="Score"
+                k="quality"
+                className="text-right"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggle={toggleSort}
+              />
               <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
                 Flags
+              </th>
+              <th scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-xs font-semibold text-muted">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-3 py-8 text-center text-sm text-muted">
+                <td colSpan={13} className="px-3 py-8 text-center text-sm text-muted">
                   No alerts match these filters.
                 </td>
               </tr>
@@ -216,6 +291,14 @@ export function BreakoutsTable({
                       {extended && <Chip variant="amber">Extended &gt;20%</Chip>}
                       {!belowMa && !extended && <span className="text-muted">—</span>}
                     </div>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <AddToButton
+                      market={row.market}
+                      ticker={row.ticker}
+                      alertId={row.id}
+                      defaultPrice={live ?? row.triggerPrice}
+                    />
                   </td>
                 </tr>
               );

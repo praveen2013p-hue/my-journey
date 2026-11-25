@@ -49,7 +49,7 @@ export default async function DashboardPage({
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <TriggersCard triggers={data.triggers} />
+        <TriggersCard triggers={data.triggers} weekEnding={data.weekEnding} />
         <RegimeCard />
       </div>
 

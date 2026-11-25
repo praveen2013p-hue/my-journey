@@ -2,16 +2,20 @@
  * Server-side data assembly for the Sectors page, BRIEF.md §7.2 + §16.
  */
 
+import { subWeeks, format } from "date-fns";
 import { listAlerts } from "./db/alerts";
 import { computeAndStoreSectorMetrics } from "./db/sector-metrics-orchestrator";
 import { listSectorMap } from "./db/sector-map";
 import {
   getLatestSectorWeekEnding,
   listSectorMetricsForWeek,
-  listSectorSnapshotHistory,
+  listRecentSectorSnapshotHistory,
 } from "./db/sectors";
 import type { Market } from "./db/schema-types";
 import type { Stage } from "./weinstein";
+
+/** The sparkline only shows the last 13 weeks (BRIEF.md §7.2); a little slack in case a week is missing. */
+const SPARKLINE_LOOKBACK_WEEKS = 16;
 
 export interface SectorRow {
   sector: string;
@@ -56,9 +60,10 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
     metricsRows = await listSectorMetricsForWeek(market, weekEnding);
   }
 
+  const sinceWeekEnding = format(subWeeks(new Date(`${weekEnding}T00:00:00Z`), SPARKLINE_LOOKBACK_WEEKS), "yyyy-MM-dd");
   const [sectorMapRows, history, alertsThisWeek] = await Promise.all([
     listSectorMap(market),
-    listSectorSnapshotHistory(market),
+    listRecentSectorSnapshotHistory(market, sinceWeekEnding),
     listAlerts({ weekEnding }),
   ]);
 

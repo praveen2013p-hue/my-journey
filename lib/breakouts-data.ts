@@ -6,15 +6,16 @@
  */
 
 import { addDays, format } from "date-fns";
-import { findLatestBreakout, listAlerts } from "./db/alerts";
+import { countAlertsCreatedAfter, getLatestWeekEnding, listAlerts } from "./db/alerts";
 import { bumpLastSeenAlerts } from "./db/settings";
 import type {
   AlertRow,
   Grade,
   Market,
   SignalType,
+  SymbolMapRow,
 } from "./db/schema-types";
-import { getSymbolMapping } from "./db/symbol-map";
+import { listSymbolMappingsForTickers } from "./db/symbol-map";
 
 export interface BreakoutsFilters {
   week?: string;
@@ -94,12 +95,26 @@ function asGrades(value: string | undefined): Grade[] {
   return parsed.length > 0 ? parsed : ALL_GRADES;
 }
 
-async function buildRow(
+/** The most recent breakout at or before `beforeWeekEnding` for one ticker, from an already-fetched in-memory list (no DB call per row). */
+function latestBreakoutFrom(
+  breakoutsForMarket: AlertRow[],
+  ticker: string,
+  beforeWeekEnding: string,
+): AlertRow | null {
+  const matches = breakoutsForMarket
+    .filter((r) => r.ticker === ticker && r.week_ending <= beforeWeekEnding)
+    .sort((a, b) => (a.week_ending < b.week_ending ? 1 : -1));
+  return matches[0] ?? null;
+}
+
+function buildRow(
   alert: AlertRow,
   previousCutoff: string | null,
+  symbolMappings: Map<string, SymbolMapRow>,
+  breakoutsByMarket: Map<Market, AlertRow[]>,
   signalType: SignalType,
-): Promise<BreakoutRow> {
-  const mapping = await getSymbolMapping(alert.market, alert.ticker);
+): BreakoutRow {
+  const mapping = symbolMappings.get(`${alert.market}:${alert.ticker}`);
   const avgVolume4w =
     alert.volume !== null && alert.vol_ratio ? alert.volume / alert.vol_ratio : null;
 
@@ -108,7 +123,7 @@ async function buildRow(
   let weeksSinceBreakout: number | null = null;
 
   if (signalType === "pullback") {
-    const original = await findLatestBreakout(alert.market, alert.ticker, alert.week_ending);
+    const original = latestBreakoutFrom(breakoutsByMarket.get(alert.market) ?? [], alert.ticker, alert.week_ending);
     if (original) {
       originalBreakoutDate = original.week_ending;
       originalGrade = original.grade;
@@ -162,8 +177,8 @@ export async function getBreakoutsPageData(
 
   let weekEnding: string | null = null;
   if (!rangeMode) {
-    weekEnding = filters.week ?? (await listAlerts({ signalType }).then(latestWeek));
-    if (!weekEnding) weekEnding = (await listAlerts({}).then(latestWeek)) ?? format(new Date(), "yyyy-MM-dd");
+    weekEnding = filters.week ?? (await getLatestWeekEnding(signalType));
+    if (!weekEnding) weekEnding = (await getLatestWeekEnding()) ?? format(new Date(), "yyyy-MM-dd");
   }
 
   // Previous cutoff is read then advanced exactly once per page view
@@ -183,7 +198,30 @@ export async function getBreakoutsPageData(
     search: search || undefined,
   });
 
-  const rows = await Promise.all(filteredAlerts.map((a) => buildRow(a, previousCutoff, signalType)));
+  // Batch what buildRow used to fetch per-row: one symbol-mapping query per
+  // market instead of one per alert, and (pullbacks only) the breakout
+  // alerts needed for "original breakout" fetched once per market instead
+  // of once per pullback row.
+  const marketsOnPage = Array.from(new Set(filteredAlerts.map((a) => a.market)));
+  const symbolMappings = new Map<string, SymbolMapRow>();
+  await Promise.all(
+    marketsOnPage.map(async (m) => {
+      const tickers = filteredAlerts.filter((a) => a.market === m).map((a) => a.ticker);
+      const mapped = await listSymbolMappingsForTickers(m, tickers);
+      for (const [ticker, row] of mapped) symbolMappings.set(`${m}:${ticker}`, row);
+    }),
+  );
+
+  const breakoutsByMarket = new Map<Market, AlertRow[]>();
+  if (signalType === "pullback") {
+    await Promise.all(
+      marketsOnPage.map(async (m) => {
+        breakoutsByMarket.set(m, await listAlerts({ market: m, signalType: "breakout" }));
+      }),
+    );
+  }
+
+  const rows = filteredAlerts.map((a) => buildRow(a, previousCutoff, symbolMappings, breakoutsByMarket, signalType));
 
   // Sector/industry dropdown options come from the unfiltered set for this
   // date window, so picking one doesn't hide the others from the list.
@@ -207,9 +245,7 @@ export async function getBreakoutsPageData(
     tabCounts[a.signal_type][a.market] += 1;
   }
 
-  const allAlerts = await listAlerts({});
-  const newSinceLastVisit =
-    previousCutoff === null ? 0 : allAlerts.filter((a) => a.created_at > previousCutoff).length;
+  const newSinceLastVisit = previousCutoff === null ? 0 : await countAlertsCreatedAfter(previousCutoff);
 
   return {
     weekEnding,
@@ -229,9 +265,4 @@ export async function getBreakoutsPageData(
     tabCounts,
     newSinceLastVisit,
   };
-}
-
-function latestWeek(rows: AlertRow[]): string | null {
-  if (rows.length === 0) return null;
-  return rows.reduce((latest, r) => (r.week_ending > latest ? r.week_ending : latest), rows[0].week_ending);
 }

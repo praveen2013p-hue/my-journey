@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOptionalSession } from "@/lib/auth/dal";
-import { createTrade, listTrades } from "@/lib/db/trades";
+import { createTrade, deleteAllTrades, listTrades } from "@/lib/db/trades";
 import type { Market } from "@/lib/db/schema-types";
 
 export const dynamic = "force-dynamic";
@@ -63,4 +63,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     alert_id: alertId,
   });
   return NextResponse.json({ trade }, { status: 201 });
+}
+
+/** "Reset all data" (Issue 14) - requires `?market=IN|US`; never deletes both markets in one call. */
+export async function DELETE(request: Request): Promise<NextResponse> {
+  const session = await getOptionalSession();
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const market = parseMarket(searchParams.get("market"));
+  if (!market) return NextResponse.json({ error: "market_required" }, { status: 400 });
+
+  const deletedCount = await deleteAllTrades(session.userId, market);
+  return NextResponse.json({ ok: true, deletedCount });
 }

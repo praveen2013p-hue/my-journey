@@ -81,6 +81,39 @@ export async function resolveOrCreateSymbolMapping(
   });
 }
 
+/**
+ * Same lookup as `getSymbolMapping`, but for many tickers in one round
+ * trip - Breakouts/Pullbacks used to call `getSymbolMapping` once per
+ * row (an N+1: one DB call per alert on the page). Returns a map keyed
+ * by ticker; a ticker with no mapping row is simply absent.
+ */
+export async function listSymbolMappingsForTickers(
+  market: Market,
+  tvTickers: string[],
+): Promise<Map<string, SymbolMapRow>> {
+  const unique = Array.from(new Set(tvTickers));
+  const result = new Map<string, SymbolMapRow>();
+  if (unique.length === 0) return result;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("symbol_map")
+      .select("*")
+      .eq("market", market)
+      .in("tv_ticker", unique);
+    if (error) throw error;
+    for (const row of data as SymbolMapRow[]) result.set(row.tv_ticker, row);
+    return result;
+  }
+
+  const store = await readStore();
+  for (const row of store.symbol_map) {
+    if (row.market === market && unique.includes(row.tv_ticker)) result.set(row.tv_ticker, row);
+  }
+  return result;
+}
+
 export async function listUnmappedSymbols(): Promise<SymbolMapRow[]> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();

@@ -193,7 +193,7 @@ export function Sidebar({ siteName, email }: SidebarProps) {
       )}
 
       <aside
-        className={`hidden md:flex md:flex-col md:gap-5 border-r border-border bg-sidebar p-4 transition-[flex-basis] ${
+        className={`hidden md:sticky md:top-0 md:flex md:h-screen md:flex-col md:gap-5 self-start overflow-y-auto border-r border-border bg-sidebar p-4 transition-[flex-basis] ${
           collapsed ? "md:basis-[68px] md:px-2.5" : "md:basis-[232px]"
         } flex-shrink-0`}
       >

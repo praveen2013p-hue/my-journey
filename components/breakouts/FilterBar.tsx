@@ -1,9 +1,12 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "@/components/icons";
 import type { Grade, Market } from "@/lib/db/schema-types";
+import type { TickerSuggestion } from "@/lib/db/alerts";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 interface FilterBarProps {
   weekEnding: string | null;
@@ -29,6 +32,44 @@ export function FilterBar(props: FilterBarProps) {
   const searchParams = useSearchParams();
   const [searchText, setSearchText] = useState(props.search);
   const [showRange, setShowRange] = useState(props.rangeMode);
+  const [suggestions, setSuggestions] = useState<TickerSuggestion[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const query = searchText.trim();
+    if (!query) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch(`/api/tickers/suggest?market=${props.market}&q=${encodeURIComponent(query)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!cancelled && data) setSuggestions(data.suggestions ?? []);
+        })
+        .catch(() => {
+          // keep whatever suggestions were already showing
+        });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchText, props.market]);
+
+  useEffect(() => {
+    if (!suggestionsOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) setSuggestionsOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [suggestionsOpen]);
+
+  function pickSuggestion(s: TickerSuggestion) {
+    setSearchText(s.ticker);
+    setSuggestionsOpen(false);
+    pushParams({ search: s.ticker });
+  }
 
   function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -180,19 +221,47 @@ export function FilterBar(props: FilterBarProps) {
             </option>
           ))}
         </select>
-        <div className="flex min-h-[44px] min-w-[260px] items-center gap-2 rounded-lg border border-border-strong bg-field px-3 text-muted">
-          <SearchIcon />
-          <input
-            type="text"
-            placeholder="Search ticker or name"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") pushParams({ search: searchText || null });
-            }}
-            onBlur={() => pushParams({ search: searchText || null })}
-            className="w-full bg-transparent text-text outline-none placeholder:text-muted"
-          />
+        <div ref={searchBoxRef} className="relative min-w-[260px]">
+          <div className="flex min-h-[44px] items-center gap-2 rounded-lg border border-border-strong bg-field px-3 text-muted">
+            <SearchIcon />
+            <input
+              type="text"
+              placeholder="Search ticker or sector"
+              value={searchText}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+                setSuggestionsOpen(true);
+              }}
+              onFocus={() => setSuggestionsOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setSuggestionsOpen(false);
+                  pushParams({ search: searchText || null });
+                }
+                if (e.key === "Escape") setSuggestionsOpen(false);
+              }}
+              className="w-full bg-transparent text-text outline-none placeholder:text-muted"
+            />
+          </div>
+          {suggestionsOpen && searchText.trim() !== "" && suggestions.length > 0 && (
+            <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border-strong bg-panel py-1 shadow-lg">
+              {suggestions.map((s) => (
+                <li key={`${s.market}:${s.ticker}`}>
+                  <button
+                    type="button"
+                    onClick={() => pickSuggestion(s)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-panel-alt"
+                  >
+                    <span className="font-semibold">{s.ticker}</span>
+                    <span className="truncate text-xs text-muted">
+                      {s.market}
+                      {s.sector ? ` · ${s.sector}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

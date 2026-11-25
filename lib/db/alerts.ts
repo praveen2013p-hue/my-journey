@@ -309,13 +309,49 @@ export async function listAlerts(
   });
 }
 
-/** Latest `week_ending` among alerts matching the given signal type, or null if none exist. */
+/**
+ * Latest `week_ending` among alerts matching the given signal type, or
+ * null if none exist. A narrow `ORDER BY week_ending DESC LIMIT 1` -
+ * deliberately NOT `listAlerts(...)` + reduce, which used to fetch every
+ * matching row (all columns, including the heavy `raw`/`fundamentals`/
+ * `quality_breakdown` JSON blobs) just to find one value. Called on every
+ * Breakouts/Pullbacks/Dashboard page view, so this was a real cost.
+ */
 export async function getLatestWeekEnding(
   signalType?: SignalType,
 ): Promise<string | null> {
-  const rows = await listAlerts(signalType ? { signalType } : {});
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    let query = supabase.from("alerts").select("week_ending");
+    if (signalType) query = query.eq("signal_type", signalType);
+    const { data, error } = await query.order("week_ending", { ascending: false }).limit(1).maybeSingle();
+    if (error) throw error;
+    return (data as { week_ending: string } | null)?.week_ending ?? null;
+  }
+
+  const store = await readStore();
+  const rows = signalType ? store.alerts.filter((a) => a.signal_type === signalType) : store.alerts;
   if (rows.length === 0) return null;
   return rows.reduce((latest, row) => (row.week_ending > latest ? row.week_ending : latest), rows[0].week_ending);
+}
+
+/**
+ * How many alerts were created after `sinceIso`, for the "N new since
+ * your last visit" badge (BRIEF.md §7.1) - a `COUNT`, not a fetch of
+ * every alert ever stored just to `.filter().length` it client-side.
+ */
+export async function countAlertsCreatedAfter(sinceIso: string): Promise<number> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { count, error } = await supabase
+      .from("alerts")
+      .select("id", { count: "exact", head: true })
+      .gt("created_at", sinceIso);
+    if (error) throw error;
+    return count ?? 0;
+  }
+  const store = await readStore();
+  return store.alerts.filter((a) => a.created_at > sinceIso).length;
 }
 
 export async function getAlertById(id: string): Promise<AlertRow | null> {
@@ -340,6 +376,73 @@ export async function findLatestBreakout(
     .filter((r) => r.ticker === ticker && r.week_ending <= beforeWeekEnding)
     .sort((a, b) => (a.week_ending < b.week_ending ? 1 : -1));
   return matches[0] ?? null;
+}
+
+export interface TickerSuggestion {
+  ticker: string;
+  market: Market;
+  exchange: string;
+  sector: string | null;
+  industry: string | null;
+}
+
+/**
+ * Live ticker-search suggestions (debounced on the client). Matches on
+ * ticker first; the data model has no company-name field anywhere
+ * (TradingView's alert payload only ever sends ticker/exchange/sector/
+ * industry - DECISIONS.md), so sector/industry text is the closest
+ * "descriptive" match available, not a real company name. Narrow select
+ * (no `raw`/`fundamentals`/`quality_breakdown` blobs) and a small limit -
+ * this runs on every keystroke (debounced), unlike `listAlerts`.
+ */
+export async function searchTickerSuggestions(
+  market: Market | "ALL",
+  query: string,
+  limit = 8,
+): Promise<TickerSuggestion[]> {
+  const needle = query.trim().toUpperCase();
+  if (!needle) return [];
+
+  let candidates: Array<Pick<AlertRow, "ticker" | "market" | "exchange" | "sector" | "industry">>;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    let dbQuery = supabase
+      .from("alerts")
+      .select("ticker, market, exchange, sector, industry")
+      .or(`ticker.ilike.%${needle}%,sector.ilike.%${needle}%,industry.ilike.%${needle}%`);
+    if (market !== "ALL") dbQuery = dbQuery.eq("market", market);
+    const { data, error } = await dbQuery.limit(200);
+    if (error) throw error;
+    candidates = data as typeof candidates;
+  } else {
+    const store = await readStore();
+    candidates = store.alerts.filter(
+      (a) =>
+        (market === "ALL" || a.market === market) &&
+        (a.ticker.toUpperCase().includes(needle) ||
+          (a.sector ?? "").toUpperCase().includes(needle) ||
+          (a.industry ?? "").toUpperCase().includes(needle)),
+    );
+  }
+
+  const byTicker = new Map<string, TickerSuggestion>();
+  for (const row of candidates) {
+    const key = `${row.market}:${row.ticker}`;
+    if (!byTicker.has(key)) {
+      byTicker.set(key, { ticker: row.ticker, market: row.market, exchange: row.exchange, sector: row.sector, industry: row.industry });
+    }
+  }
+
+  // Tickers that literally start with the query sort first - the common case of typing the real ticker.
+  return Array.from(byTicker.values())
+    .sort((a, b) => {
+      const aStarts = a.ticker.toUpperCase().startsWith(needle);
+      const bStarts = b.ticker.toUpperCase().startsWith(needle);
+      if (aStarts !== bStarts) return aStarts ? -1 : 1;
+      return a.ticker.localeCompare(b.ticker);
+    })
+    .slice(0, limit);
 }
 
 /** Latest time a secret-valid alert was received, for the data-freshness strip (BRIEF.md §14.2). */

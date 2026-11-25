@@ -102,6 +102,35 @@ export async function countSectorSnapshotsForWeek(
   return store.sector_snapshots.filter((s) => s.market === market && s.week_ending === weekEnding).length;
 }
 
+/**
+ * Only the stored snapshots at or after `sinceWeekEnding`, for a caller
+ * that just needs a recent window (the Sectors/Dashboard sparkline needs
+ * 13 weeks, the current week's row needs 1) rather than every week ever
+ * backfilled (lib/sector-backfill.ts can store 100+ weeks per sector -
+ * fine for the ranking engine's own Δ52 lookback, wasteful to re-fetch in
+ * full on every Dashboard/Sectors page view just to read the last 13).
+ */
+export async function listRecentSectorSnapshotHistory(
+  market: Market,
+  sinceWeekEnding: string,
+): Promise<SectorSnapshotRow[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("sector_snapshots")
+      .select("*")
+      .eq("market", market)
+      .gte("week_ending", sinceWeekEnding)
+      .order("week_ending", { ascending: true });
+    if (error) throw error;
+    return data as SectorSnapshotRow[];
+  }
+  const store = await readStore();
+  return store.sector_snapshots
+    .filter((s) => s.market === market && s.week_ending >= sinceWeekEnding)
+    .sort((a, b) => (a.week_ending < b.week_ending ? -1 : 1));
+}
+
 /** Every stored snapshot for a market, across all weeks - the history the ranking engine needs for Δn/rank_move. */
 export async function listSectorSnapshotHistory(market: Market): Promise<SectorSnapshotRow[]> {
   if (isSupabaseConfigured()) {

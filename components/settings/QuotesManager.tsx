@@ -83,33 +83,44 @@ export function QuotesManager({ quotes }: { quotes: QuoteRow[] }) {
         </button>
       </form>
 
-      <ul className="flex flex-col gap-1.5">
-        {quotes.map((q) => (
-          <li
-            key={q.id}
-            className={`flex items-center gap-2.5 rounded-lg border border-border-strong px-3 py-2 text-sm ${q.active ? "bg-panel-alt" : "bg-panel-alt/40 opacity-60"}`}
-          >
-            <span className="min-w-0 flex-1 truncate">
-              &ldquo;{q.text}&rdquo;{q.author && <span className="text-muted"> — {q.author}</span>}
-            </span>
-            <button
-              type="button"
-              onClick={() => toggleActive(q.id, !q.active)}
-              className="rounded-md border border-border-strong bg-panel px-2 py-1 text-xs font-medium hover:bg-panel-alt"
-            >
-              {q.active ? "Hide" : "Unhide"}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(q.id)}
-              className="rounded-md border border-border-strong bg-panel px-2 py-1 text-xs font-medium text-neg hover:bg-panel-alt"
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-        {quotes.length === 0 && <p className="text-sm text-muted">No quotes yet.</p>}
-      </ul>
+      {quotes.length === 0 ? (
+        <p className="text-sm text-muted">No quotes yet.</p>
+      ) : (
+        <details className="group" open={quotes.length <= 4}>
+          <summary className="flex min-h-[40px] cursor-pointer list-none items-center gap-2 rounded-lg border border-border-strong bg-panel-alt px-3 text-sm font-medium hover:bg-panel">
+            <span className="transition-transform group-open:rotate-90">▸</span>
+            {quotes.length} quote{quotes.length === 1 ? "" : "s"} saved —
+            <span className="hidden group-open:inline">click to collapse</span>
+            <span className="inline group-open:hidden">click to expand</span>
+          </summary>
+          <ul className="mt-2 flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1">
+            {quotes.map((q) => (
+              <li
+                key={q.id}
+                className={`flex items-center gap-2.5 rounded-lg border border-border-strong px-3 py-2 text-sm ${q.active ? "bg-panel-alt" : "bg-panel-alt/40 opacity-60"}`}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  &ldquo;{q.text}&rdquo;{q.author && <span className="text-muted"> — {q.author}</span>}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleActive(q.id, !q.active)}
+                  className="rounded-md border border-border-strong bg-panel px-2 py-1 text-xs font-medium hover:bg-panel-alt"
+                >
+                  {q.active ? "Hide" : "Unhide"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(q.id)}
+                  className="rounded-md border border-border-strong bg-panel px-2 py-1 text-xs font-medium text-neg hover:bg-panel-alt"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </section>
   );
 }

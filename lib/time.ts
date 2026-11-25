@@ -52,6 +52,24 @@ export function weekEndingForAlert(instant: Date, market: Market): string {
   return format(friday, "yyyy-MM-dd");
 }
 
+/**
+ * Today's calendar date (yyyy-MM-dd) as seen in the given market's
+ * exchange timezone - e.g. so the Journal P&L calendar (BRIEF.md-adjacent
+ * feature) defaults to "this month in IST" rather than "this month on
+ * whatever timezone the server process happens to run in," which can be a
+ * different calendar date near midnight UTC. Deliberately reads the
+ * UTC-anchored date's components with `getUTC*` rather than
+ * date-fns `format()` (which uses the Date's *local* getters) - on a
+ * server not running with TZ=UTC, `format()` here could silently read
+ * back the wrong calendar day.
+ */
+export function todayInMarketTimezone(market: Market, now: Date = new Date()): string {
+  const d = localCalendarDate(now, EXCHANGE_TIMEZONE[market]);
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${mm}-${dd}`;
+}
+
 /** Sector board §5c: `week` is the Monday bar-open date; week_ending = Monday + 4 days. */
 export function weekEndingFromMonday(mondayIso: string): string {
   const [year, month, day] = mondayIso.split("-").map(Number);

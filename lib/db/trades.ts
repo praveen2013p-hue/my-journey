@@ -125,3 +125,29 @@ export async function deleteTrade(userId: string, id: string): Promise<void> {
     store.trades = store.trades.filter((t) => !(t.id === id && t.user_id === userId));
   });
 }
+
+/**
+ * "Reset all data" (Journal), scoped to one market - never both at once.
+ * The app treats India and US as two separate journals everywhere else
+ * ("India and US are never combined" on the Journal page itself), so a
+ * single click wiping both would be a surprising landmine; the caller
+ * (the confirmation UI) must say which market it's resetting. Returns
+ * how many trades were deleted, for the confirmation UI to report back.
+ */
+export async function deleteAllTrades(userId: string, market: Market): Promise<number> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { error, count } = await supabase
+      .from("trades")
+      .delete({ count: "exact" })
+      .eq("user_id", userId)
+      .eq("market", market);
+    if (error) throw error;
+    return count ?? 0;
+  }
+  return mutateStore((store) => {
+    const before = store.trades.length;
+    store.trades = store.trades.filter((t) => !(t.user_id === userId && t.market === market));
+    return before - store.trades.length;
+  });
+}

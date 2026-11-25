@@ -352,3 +352,109 @@ stop and ask for these.
   `/api/admin/sector-map-resolve` route) - no code change or redeploy
   needed to fix a wrong symbol, and the same tool works for any of the
   24 still-unresolved India sectors as he confirms them over time.
+
+## Site-wide performance pass + UI cleanup + feature batch (16-issue request)
+
+- **Root cause of "every page is slow", confirmed by reading the code,
+  not guessed**: `lib/breakouts-data.ts` and `lib/dashboard-data.ts` both
+  called `listAlerts({})` with NO filter - a `select("*")` of every alert
+  ever stored, JSON blob columns (`raw`/`fundamentals`/`quality_breakdown`)
+  included, just to reduce it to one value (the latest week_ending, or a
+  "new since last visit" count). `lib/db/alerts.ts`'s `getLatestWeekEnding`
+  is now a narrow `ORDER BY week_ending DESC LIMIT 1`, and a new
+  `countAlertsCreatedAfter` is a `COUNT`, not a fetch-then-`.length`.
+  Scales with "how many alerts have ever existed," which only ever grows -
+  not something to re-pay on every single page view.
+- **Pullbacks' own extra slowness**: `buildRow`'s "original breakout"
+  lookup (`findLatestBreakout`) and its symbol-mapping lookup
+  (`getSymbolMapping`) were both called once PER ROW - an N+1 that hits
+  Pullbacks twice (symbol mapping + breakout lookup) for every pullback on
+  the page. Both are now fetched once per distinct market present on the
+  page (`listSymbolMappingsForTickers`, one `listAlerts({market,
+  signalType:"breakout"})` per market) and looked up in memory per row.
+- **Dashboard/Sectors fetched the sector-backfill's own full history on
+  every view**: `listSectorSnapshotHistory` has no limit by design (the
+  ranking engine's Δ52 needs real lookback, and the 2-year-backfill
+  orchestrator needs the full history to detect which weeks already came
+  from a real alert) - but `lib/sectors-page-data.ts` only ever needed the
+  last ~16 weeks (a 13-week sparkline + the current week). New
+  `listRecentSectorSnapshotHistory(market, sinceWeekEnding)` bounds that
+  one call site; the ranking engine and the backfill orchestrator keep
+  using the full-history function untouched.
+- **Breakouts/Pullbacks' initial JS bundle included `lightweight-charts`**
+  (confirmed: a 176KB/56KB-gzipped chunk) even when no row was selected,
+  because `BreakoutsTable` statically imported `SidePanel`, which
+  statically imports the chart. `SidePanel` is now `next/dynamic(...,
+  {ssr:false})` with a skeleton `loading` fallback - that chunk now only
+  downloads once a row is actually clicked.
+- **Loading skeletons** (`components/Skeleton.tsx` + a `loading.tsx` per
+  route) for Dashboard/Breakouts/Pullbacks/Journal/Settings, so a slow
+  server render shows a skeleton instead of a frozen blank page -
+  independent of the fixes above, since even a fast page has *some*
+  render time.
+- **Top banners removed from the shared layout, not patched per-page**:
+  `RegimeBannerClient` lived in `app/(app)/layout.tsx`, so it rendered on
+  every single page - that's why it showed up on Breakouts/Pullbacks even
+  though neither page ever imported it. Deleted outright (not hidden):
+  Dashboard already has its own dedicated `RegimeCard` widget, and the
+  Sidebar already shows India/US stage as small dots on every page, so
+  nothing is lost. `DataFreshnessStrip` ("Prices updated"/"Alerts
+  received") is removed from Breakouts/Pullbacks specifically (asked for);
+  Dashboard/Journal/Settings keep it since nobody asked to remove it
+  there.
+- **Settings sidebar "jumping to the bottom" bug, found and fixed**: the
+  sidebar `<aside>` had no sticky positioning, so with `flex`'s default
+  `align-items: stretch` it stretched to match the *main content's*
+  height - on a long page (Settings), the email/sign-out block at the
+  bottom of the sidebar's own flex column got pushed down to match that
+  height, landing at the very bottom of the whole page. Fixed with
+  `sticky top-0 self-start h-screen overflow-y-auto` - CSS-only, no
+  layout restructuring. Mobile was never affected (separate drawer).
+- **Quotes manager collapsible**: wrapped the (potentially long) quotes
+  list in a native `<details>` with a bounded, scrollable inner list
+  instead of letting it grow the whole Settings page. The login page's
+  own quote display (`LoginQuoteRotator`) shows one quote at a time and
+  was never affected by this.
+- **Dashboard grade/pullback counts are now links** (Issues 9/10) to the
+  matching filtered Breakouts/Pullbacks view (market + week + grade)
+  instead of static numbers.
+- **"Add to ▾" (Issues 11/12)**: a small extensible dropdown
+  (`components/journal/AddToButton.tsx`) added to every Breakouts/
+  Pullbacks row, Journal only for now, a disabled "Watchlist (soon)"
+  placeholder for later. Found and fixed a real pre-existing bug while
+  doing this: the side panel's "Log trade" button was `disabled` with a
+  stale `title="Journal arrives in Phase 3"` - Journal shipped a long
+  time ago (Phase 3 is done), the button was just never wired up
+  afterwards. It now uses the same `AddToButton`.
+- **Live ticker search (Issue 13)**: `lib/db/alerts.ts`'s
+  `searchTickerSuggestions` (debounced 250ms client-side in
+  `FilterBar.tsx`) matches on ticker first, then sector/industry text.
+  Honesty note: the data model has no company-name field anywhere -
+  TradingView's alert payload only ever sends ticker/exchange/sector/
+  industry - so "name" matching is approximated via sector/industry, not
+  a real company name. A real one would need a new ticker->name mapping
+  table, out of scope here.
+- **Reset all data (Issue 14)**: scoped to the currently-selected market
+  only, never both - the app already treats India/US as separate journals
+  everywhere else (the Journal page's own copy says so), so one click
+  wiping both would be a surprising landmine. Confirmation requires
+  typing "RESET", stronger than the plain `confirm()` already used for
+  single-trade delete, since this can erase many trades at once.
+- **Per-trade delete with confirmation (Issue 15) was already built** -
+  every trade row already had a Delete button with a `confirm()` dialog.
+  No change needed; verified it still works after the other edits.
+- **P&L calendar (Issue 16) is a new feature, not a bug fix** - audited,
+  there was no calendar anywhere in the app before this. Built
+  `lib/journal-calendar.ts` (pure, fully unit-tested month-grid engine)
+  rendered by `components/journal/PnlCalendar.tsx`. Scope decision: a
+  day's P&L is the sum of REALISED P&L for trades whose `sell_date` falls
+  that day (closed trades only - open trades already have a home on the
+  Open trades table/Dashboard). Timezone-safety was the explicit worry
+  here, so this code never relies on `date-fns format()` reading a
+  UTC-built Date's *local* getters (a real, if currently dormant, trap
+  that `lib/time.ts`'s pre-existing `weekEndingForAlert` happens to also
+  have, masked only because Vercel's Node runtime defaults to TZ=UTC) -
+  every date string in `journal-calendar.ts` is built manually from
+  `getUTC*` components. New `lib/time.ts`'s `todayInMarketTimezone`
+  (same fix) picks the calendar's default month correctly in IST
+  regardless of the server process's own timezone.

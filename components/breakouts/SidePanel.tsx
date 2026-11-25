@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Chip, gradeVariant, stageVariant } from "@/components/Chip";
-import { CloseIcon, ExternalLinkIcon, PlusIcon } from "@/components/icons";
+import { CloseIcon, ExternalLinkIcon } from "@/components/icons";
+import { AddToButton } from "@/components/journal/AddToButton";
 import { TradingViewLink, tradingViewUrl } from "@/components/TradingViewLink";
 import type { BreakoutRow } from "@/lib/breakouts-data";
 import type { SignalType } from "@/lib/db/schema-types";
@@ -126,14 +127,14 @@ export function SidePanel({
       </div>
 
       <div className="flex flex-wrap gap-2.5">
-        <button
-          type="button"
-          disabled
-          title="Journal arrives in Phase 3"
-          className="flex min-h-[44px] cursor-not-allowed items-center gap-2 rounded-lg border border-gold bg-gold px-3.5 font-semibold text-bg opacity-50"
-        >
-          <PlusIcon /> Log trade
-        </button>
+        <AddToButton
+          market={row.market}
+          ticker={row.ticker}
+          alertId={row.id}
+          defaultPrice={livePrice ?? row.triggerPrice}
+          triggerLabel="+ Log trade ▾"
+          triggerClassName="flex min-h-[44px] items-center gap-2 rounded-lg border border-gold bg-gold px-3.5 font-semibold text-bg hover:bg-gold-hover"
+        />
         <a
           href={tradingViewUrl(row.exchange, row.ticker)}
           target="_blank"

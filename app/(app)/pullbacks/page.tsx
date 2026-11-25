@@ -1,11 +1,9 @@
 import { BreakoutsTable } from "@/components/breakouts/BreakoutsTable";
 import { FilterBar } from "@/components/breakouts/FilterBar";
 import { BreakoutsTabs } from "@/components/breakouts/Tabs";
-import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader } from "@/components/PageHeader";
 import { verifySession } from "@/lib/auth/dal";
 import { getBreakoutsPageData, type BreakoutsFilters } from "@/lib/breakouts-data";
-import { getFreshnessData } from "@/lib/freshness-data";
 
 export default async function PullbacksPage({
   searchParams,
@@ -14,10 +12,7 @@ export default async function PullbacksPage({
 }) {
   const session = await verifySession();
   const sp = await searchParams;
-  const [freshness, data] = await Promise.all([
-    getFreshnessData(),
-    getBreakoutsPageData(session.userId, "pullback", sp),
-  ]);
+  const data = await getBreakoutsPageData(session.userId, "pullback", sp);
 
   const queryString = new URLSearchParams(
     Object.entries(sp).filter(([, v]) => v !== undefined) as [string, string][],
@@ -25,7 +20,6 @@ export default async function PullbacksPage({
 
   return (
     <>
-      <DataFreshnessStrip {...freshness} />
       <PageHeader title="Pullbacks" />
       <BreakoutsTabs active="pullback" tabCounts={data.tabCounts} queryString={queryString} />
       {data.newSinceLastVisit > 0 && (

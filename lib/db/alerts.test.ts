@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getLatestWeekEnding, listAlerts, upsertAlert } from "./alerts";
+import { countAlertsCreatedAfter, getLatestWeekEnding, listAlerts, searchTickerSuggestions, upsertAlert } from "./alerts";
 import { replaceConstituents } from "./sector-constituents";
 import { __resetStoreForTests } from "./local-store";
 import { upsertSectorMetric, upsertSectorSnapshot } from "./sectors";
@@ -95,6 +95,56 @@ describe("listAlerts filters", () => {
   it("getLatestWeekEnding finds the most recent week with alerts", async () => {
     await upsertAlert(sampleInput({ ticker: "TANLA", week_ending: "2026-11-27" }));
     expect(await getLatestWeekEnding()).toBe("2026-11-27");
+  });
+});
+
+describe("searchTickerSuggestions", () => {
+  beforeEach(async () => {
+    await upsertAlert(sampleInput({ ticker: "SBIN", sector: "Finance", industry: "Public Banks" }));
+    await upsertAlert(sampleInput({ ticker: "ABSBI", sector: "Finance", industry: "Public Banks" }));
+    await upsertAlert(sampleInput({ ticker: "SBILIFE", sector: "Finance", industry: "Insurance" }));
+    await upsertAlert(sampleInput({ ticker: "TCS", market: "IN", sector: "IT", industry: "Software" }));
+    await upsertAlert(sampleInput({ ticker: "AAPL", market: "US", exchange: "NASDAQ", sector: "Technology", industry: "Hardware" }));
+  });
+
+  it("matches tickers by substring, case-insensitively", async () => {
+    const results = await searchTickerSuggestions("ALL", "sbi");
+    expect(results.map((r) => r.ticker).sort()).toEqual(["ABSBI", "SBILIFE", "SBIN"]);
+  });
+
+  it("ranks a ticker that starts with the query before one that merely contains it", async () => {
+    const results = await searchTickerSuggestions("ALL", "sbi");
+    // SBILIFE and SBIN both start with "SBI"; ABSBI only contains it - should sort last.
+    expect(results.map((r) => r.ticker)).toEqual(["SBILIFE", "SBIN", "ABSBI"]);
+  });
+
+  it("also matches on sector/industry text, since there's no company-name field", async () => {
+    const results = await searchTickerSuggestions("ALL", "insurance");
+    expect(results.map((r) => r.ticker)).toEqual(["SBILIFE"]);
+  });
+
+  it("respects the market filter", async () => {
+    const results = await searchTickerSuggestions("US", "a");
+    expect(results.every((r) => r.market === "US")).toBe(true);
+    expect(results.map((r) => r.ticker)).toContain("AAPL");
+  });
+
+  it("returns nothing for an empty query", async () => {
+    expect(await searchTickerSuggestions("ALL", "")).toEqual([]);
+  });
+});
+
+describe("countAlertsCreatedAfter", () => {
+  it("counts only alerts created strictly after the cutoff", async () => {
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    await upsertAlert(sampleInput({ ticker: "NEWCO" }));
+    expect(await countAlertsCreatedAfter(cutoff)).toBe(1);
+  });
+
+  it("excludes alerts at or before the cutoff", async () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    await upsertAlert(sampleInput({ ticker: "NEWCO" }));
+    expect(await countAlertsCreatedAfter(future)).toBe(0);
   });
 });
 
