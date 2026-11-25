@@ -155,6 +155,20 @@ export async function searchIndexInstruments(accessToken: string, query: string)
     .slice(0, 40);
 }
 
+/**
+ * A sector's `display_name` isn't a search query as-is - it can carry a
+ * parenthetical aside ("PSE (PSU cos)") or an "&" TradingView never puts
+ * in Kite's own index names ("EV & New Auto") - strip those so the
+ * auto-suggest search below has a fighting chance of matching.
+ */
+export function sectorSearchKeyword(displayName: string): string {
+  return displayName
+    .replace(/\(.*?\)/g, "")
+    .replace(/&/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Test-only. */
 export function __resetInstrumentsCacheForTests(): void {
   cache = null;

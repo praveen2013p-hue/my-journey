@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseIndexInstruments, parseTokensBySymbol } from "./instruments";
+import { parseIndexInstruments, parseTokensBySymbol, sectorSearchKeyword } from "./instruments";
 
 describe("parseTokensBySymbol", () => {
   it("parses instrument_token and tradingsymbol from a normal row", () => {
@@ -52,5 +52,19 @@ describe("parseIndexInstruments", () => {
   it("returns an empty array for CSV with no INDICES rows", () => {
     const csv = `${header}\n779521,3045,SBIN,STATE BANK OF INDIA,0,,0,0.05,1,EQ,NSE,NSE`;
     expect(parseIndexInstruments(csv)).toEqual([]);
+  });
+});
+
+describe("sectorSearchKeyword", () => {
+  it("strips a parenthetical aside", () => {
+    expect(sectorSearchKeyword("PSE (PSU cos)")).toBe("PSE");
+  });
+
+  it("strips an ampersand TradingView carries but Kite's index names don't", () => {
+    expect(sectorSearchKeyword("EV & New Auto")).toBe("EV New Auto");
+  });
+
+  it("leaves an already-clean name untouched", () => {
+    expect(sectorSearchKeyword("Capital Markets")).toBe("Capital Markets");
   });
 });

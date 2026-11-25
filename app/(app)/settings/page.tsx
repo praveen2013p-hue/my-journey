@@ -16,7 +16,7 @@ import { getFreshnessData } from "@/lib/freshness-data";
 import { formatIst } from "@/lib/format-ist";
 import { SECTOR_MAP_SEED } from "@/lib/sector-map-seed";
 import { buildKiteLoginUrl } from "@/lib/zerodha/auth";
-import { searchIndexInstruments } from "@/lib/zerodha/instruments";
+import { sectorSearchKeyword, searchIndexInstruments, type IndexInstrument } from "@/lib/zerodha/instruments";
 
 interface BackfillResult {
   ok: boolean;
@@ -70,6 +70,20 @@ export default async function SettingsPage({
   const unresolvedIndiaSectors = unresolvedSectors.filter((s) => s.market === "IN");
   const instrumentMatches =
     isOwner && zerodhaSession && sp.q ? await searchIndexInstruments(zerodhaSession.accessToken, sp.q) : [];
+
+  // Auto-suggest candidates per unresolved sector, so confirming one is
+  // usually a single click instead of a manual search - the search box
+  // below stays as a fallback for whichever ones don't auto-match.
+  const suggestionsBySector = new Map<string, IndexInstrument[]>();
+  if (isOwner && zerodhaSession) {
+    const entries = await Promise.all(
+      unresolvedIndiaSectors.map(async (s) => {
+        const matches = await searchIndexInstruments(zerodhaSession.accessToken, sectorSearchKeyword(s.display_name));
+        return [s.display_name, matches.slice(0, 3)] as const;
+      }),
+    );
+    for (const [name, matches] of entries) suggestionsBySector.set(name, matches);
+  }
 
   return (
     <>
@@ -209,16 +223,41 @@ export default async function SettingsPage({
             <p className="mb-2 text-xs text-muted">
               No confirmed TradingView/provider symbol yet, so the Sectors page shows &ldquo;—&rdquo; for these
               indices&apos; own 1W price change (their Stage/RS from your webhook still works fine).
+              {isOwner && zerodhaSession && (
+                <> Where a likely Kite match was found, click it to confirm - no typing needed.</>
+              )}
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {unresolvedSectors.map((s) => (
-                <span
-                  key={s.id}
-                  className="rounded-full border border-warn-border bg-warn-wash px-2.5 py-0.5 text-xs font-semibold text-warn"
-                >
-                  {s.market} · {s.display_name}
-                </span>
-              ))}
+            <div className="flex flex-col gap-1.5">
+              {unresolvedSectors.map((s) => {
+                const candidates = s.market === "IN" ? (suggestionsBySector.get(s.display_name) ?? []) : [];
+                return (
+                  <div key={s.id} className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-warn-border bg-warn-wash px-2.5 py-0.5 text-xs font-semibold text-warn">
+                      {s.market} · {s.display_name}
+                    </span>
+                    {candidates.length === 0 ? (
+                      isOwner && zerodhaSession && s.market === "IN" ? (
+                        <span className="text-xs text-muted">no auto-match - try the search below</span>
+                      ) : null
+                    ) : (
+                      candidates.map((c) => (
+                        <form key={c.tradingsymbol} action="/api/admin/sector-map-resolve" method="POST">
+                          <input type="hidden" name="market" value="IN" />
+                          <input type="hidden" name="sector" value={s.display_name} />
+                          <input type="hidden" name="symbol" value={c.tradingsymbol} />
+                          <button
+                            type="submit"
+                            title={c.name}
+                            className="rounded-full border border-border-strong bg-chip-neutral px-2.5 py-0.5 text-xs hover:border-gold-border hover:bg-gold-wash hover:text-gold-light"
+                          >
+                            {c.tradingsymbol}
+                          </button>
+                        </form>
+                      ))
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

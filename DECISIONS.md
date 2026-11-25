@@ -525,3 +525,31 @@ stop and ask for these.
   (two rows, one with `rsUp: null`) and asserts both rows are actually
   stored - confirmed it fails without the fix (0 rows stored) and passes
   with it.
+
+## Auto-suggested sector symbols in Settings
+
+- Resolving the 24 still-unconfirmed India sector symbols one at a time
+  (manual search box, type a query, read results, type the symbol into a
+  separate form) was the obvious next bottleneck once the alert pipeline
+  was fully verified live. Settings now runs a search *automatically*
+  per unresolved sector (`sectorSearchKeyword(display_name)` through the
+  existing `searchIndexInstruments`) and shows up to 3 candidates as
+  one-click buttons right next to each unresolved sector chip - a form
+  posting straight to the existing `/api/admin/sector-map-resolve` route,
+  no typing needed when a match is found. The manual search box stays as
+  the fallback for sectors `sectorSearchKeyword` can't find (e.g. where
+  TradingView's name and Kite's diverge further than stripping "&" and
+  parentheticals can bridge).
+- `sectorSearchKeyword` only strips the two things TradingView's naming
+  carries that Kite's real index names don't (a parenthetical aside like
+  "PSE (PSU cos)", and "&" as in "EV & New Auto") - it doesn't attempt
+  anything smarter (abbreviation expansion, synonym lists), since a wrong
+  "smart" guess risks matching confidently to the wrong index, which is
+  worse than "no match, use the search box."
+- Still not solved by this: the Mansfield RS benchmark
+  (`BENCHMARK_SYMBOL.IN` in `lib/regime.ts`, currently the placeholder
+  `"NIFTY_TOTAL_MKT"`) isn't a `sector_map` row - it's a hardcoded
+  constant, so there's nothing for this UI to resolve. Fixing it needs
+  the real Kite tradingsymbol found (e.g. via the manual search box,
+  searching "total market" or "nifty 500") and then a one-line code
+  change here, the same way the market-snapshot index symbols work.
