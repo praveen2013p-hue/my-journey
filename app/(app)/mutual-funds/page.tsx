@@ -1,4 +1,6 @@
 import { AddEntryModal } from "@/components/mutual-funds/AddEntryModal";
+import { ExportCsvButton } from "@/components/mutual-funds/ExportCsvButton";
+import { ImportCsvModal } from "@/components/mutual-funds/ImportCsvModal";
 import { MutualFundDashboard } from "@/components/mutual-funds/MutualFundDashboard";
 import { YearGroupsView } from "@/components/mutual-funds/YearGroupsView";
 import { PageHeader } from "@/components/PageHeader";
@@ -38,7 +40,13 @@ export default async function MutualFundsPage({
             ? `${activeProfile.name} - Aiming for 50 Crore Mutual Fund Portfolio`
             : "Aiming for 50 Crore Mutual Fund Portfolio"
         }
-        actions={<AddEntryModal profileId={activeProfile.id} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <ImportCsvModal profileId={activeProfile.id} />
+            <ExportCsvButton entries={entries} profileName={activeProfile.name} />
+            <AddEntryModal profileId={activeProfile.id} />
+          </div>
+        }
       />
 
       <MutualFundDashboard

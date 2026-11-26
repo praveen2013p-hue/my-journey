@@ -29,3 +29,78 @@ export function toCsv(columns: string[], rows: Array<Array<string | number | boo
   for (const row of rows) lines.push(row.map(csvCell).join(","));
   return lines.join("\r\n");
 }
+
+/**
+ * General-purpose CSV reader for the Mutual Fund import feature
+ * (DECISIONS.md) - unlike `parseTickerCsv` above (one bare column, no
+ * real quoting needs), this handles quoted fields with embedded commas,
+ * doubled `""` quotes, and embedded newlines, so a `notes` column
+ * containing any of those round-trips correctly. `\r\n` and `\n` line
+ * endings both work; a genuinely blank line is skipped rather than
+ * returned as a one-empty-field row.
+ */
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  let lineHasContent = false;
+
+  const endRow = () => {
+    row.push(field);
+    if (lineHasContent) rows.push(row);
+    row = [];
+    field = "";
+    lineHasContent = false;
+  };
+
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i += 1;
+        continue;
+      }
+      field += c;
+      i += 1;
+      continue;
+    }
+
+    if (c === '"') {
+      inQuotes = true;
+      lineHasContent = true;
+      i += 1;
+      continue;
+    }
+    if (c === ",") {
+      row.push(field);
+      field = "";
+      lineHasContent = true;
+      i += 1;
+      continue;
+    }
+    if (c === "\r") {
+      i += 1;
+      continue;
+    }
+    if (c === "\n") {
+      endRow();
+      i += 1;
+      continue;
+    }
+    field += c;
+    lineHasContent = true;
+    i += 1;
+  }
+  // Last line with no trailing newline.
+  if (lineHasContent) endRow();
+
+  return rows;
+}

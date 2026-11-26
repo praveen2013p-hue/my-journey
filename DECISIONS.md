@@ -1588,3 +1588,45 @@ alter table public.mutual_fund_profiles
   roughly flat over that window), then deleted the seeded entries.
   348/348 tests pass (15 new), `tsc`/`eslint` clean, `npm run build`
   clean. No DB migration needed (purely derived/static data).
+
+## 2026-11-26: CSV import/export for Mutual Fund entries
+
+- "Export CSV" (next to "+ Add entry") downloads the active profile's
+  full entry history - one row per month, oldest first, columns
+  matching the entry form plus the derived `amount_added` (never typed
+  directly, same convention as everywhere else in this feature).
+- "Import CSV" accepts a file in the same shape and bulk-creates
+  entries for the active profile. A month that already has an entry is
+  always **skipped, never overwritten** - re-importing the same export
+  twice is a safe no-op, not a way to accidentally lose edits made
+  since. The result summary reports exactly what happened: N created,
+  which months were skipped (already existed) and why any row was
+  rejected (bad month, unparseable number, negative withdrawal, etc.).
+- A month appearing more than once **within the uploaded file** rejects
+  the whole import up front (400, listing the duplicate months) rather
+  than silently picking one occurrence - picking one would be
+  discarding data with no way for the user to know which one won.
+- The parsing/validation itself (`lib/mutual-fund-csv.ts`,
+  `parseMutualFundCsv`) is a pure function with no I/O, so it's
+  unit-tested directly; the new API route
+  (`app/api/mutual-fund-entries/import/route.ts`) only wires it to the
+  existing profile-ownership check and `upsertMutualFundEntry`.
+  `amount_added` is recomputed from the breakdown columns exactly like
+  `POST /api/mutual-funds` already does (never trusted from the file
+  directly) - the file's own `amount_added` cell is only used as a
+  fallback when none of sip/lumpsum/stp/other has a value, matching the
+  "never classified" convention for pre-breakdown entries.
+- A general-purpose quoted-CSV reader (`parseCsv`, handles embedded
+  commas/quotes/newlines) was added to the existing `lib/csv.ts`
+  alongside its pre-existing `parseTickerCsv`/`toCsv` (left untouched
+  and reused for export, rather than writing a second CSV writer).
+- Verified live: exported a seeded entry and confirmed the CSV's exact
+  column/row shape; imported a 3-row file (1 new month -> created, 1
+  month that already existed -> skipped and named, 1 row with an
+  invalid current_value -> rejected and named with a reason) and
+  confirmed the result summary and the page's entry list matched
+  exactly; separately confirmed a file with the same month twice is
+  rejected outright, naming the duplicate, with nothing imported.
+  371/371 tests pass (29 new across `lib/csv.ts` and
+  `lib/mutual-fund-csv.ts`), `tsc`/`eslint` clean, `npm run build`
+  clean. No DB migration needed.
