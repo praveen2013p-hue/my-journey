@@ -1700,3 +1700,48 @@ YearSection.tsx`. Goal tracking, the Nifty 50 benchmark overlay, CSV
 import/export, and the Net Worth view are unrelated features and were
 left untouched. Full suite green, `tsc`/`eslint`/`npm run build` clean
 after removal.
+
+## 2026-11-26 - Settings page redesign: categorized, premium shell
+
+User: "The setting page need to be more professional, beautiful
+premium and categorized beautifully and yet simple." Pure visual/
+structural pass over `app/(app)/settings/page.tsx` - no form action,
+API route, or piece of data changed; every control works exactly as
+before.
+
+Taxonomy chosen (10 existing sub-sections grouped into 4 categories,
+each its own icon + title + one-line description above a single
+`divide-y` card, rather than 10 identically-styled standalone boxes):
+- **General** - Site name, Login page quotes, Personal (birth year).
+  Identity/branding/preferences belong together; "Login page quotes"
+  is about site content, same family as site name, not "market data"
+  despite the word "quotes" overlapping with stock quotes elsewhere.
+- **Market Data** - Unmapped symbols, Sector constituents (India) +
+  its nested unresolved-sector-symbol sub-panel, Zerodha connection.
+  Everything about resolving/connecting to price data sources.
+- **Trading** - Strategy tags, Alert health. Journal-tagging and the
+  TradingView webhook's own health are the day-to-day trading-ops
+  surface, distinct from market-data plumbing.
+- **Maintenance** - 2-year sector history backfill, Data downloads,
+  Backup status. Occasional/admin operations, not everyday settings.
+
+Other choices:
+- A sticky, horizontally-scrollable category jump-nav (icon + label
+  pills, anchor links) sits under the page header - a lightweight
+  premium touch, not a tab system, so the page is still one plain
+  scroll (per "yet simple").
+- `QuotesManager`/`StrategyTagsManager` (separate client components)
+  had only their *outer* shell changed - standalone bordered `<section>`
+  + uppercase-muted `h2` became a plain `<div className="p-5">` + `h3`
+  row to nest inside the new card language. Zero internal logic touched.
+  `UnresolvedSectorSymbols` needed no change - it was already a nested
+  fragment, not a standalone section.
+- New `CategorySection`/`SettingRow` helper components added directly
+  in `page.tsx` (not extracted to `components/`) since they're specific
+  to this one page's layout.
+- Verified live at both 1440px and 390px viewports: all 4 categories
+  render, jump-nav scrolls to a section, the site-name save round-trips
+  correctly (saved then restored), and a strategy tag can still be
+  created and deleted - confirming the restyle didn't break any
+  existing action. Zero console errors either viewport. Full suite
+  (375/375), `tsc`/`eslint`/`npm run build` all clean. No DB migration.

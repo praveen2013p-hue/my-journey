@@ -44,10 +44,10 @@ export function QuotesManager({ quotes }: { quotes: QuoteRow[] }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-panel p-5">
-      <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">
+    <div className="p-5">
+      <h3 className="mb-3.5 text-sm font-semibold text-text">
         Login page quotes ({quotes.filter((q) => q.active).length} active)
-      </h2>
+      </h3>
 
       <form onSubmit={handleAdd} className="mb-4 flex flex-wrap items-end gap-2.5">
         <div className="flex-1" style={{ minWidth: 220 }}>
@@ -121,6 +121,6 @@ export function QuotesManager({ quotes }: { quotes: QuoteRow[] }) {
           </ul>
         </details>
       )}
-    </section>
+    </div>
   );
 }

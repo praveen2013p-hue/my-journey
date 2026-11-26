@@ -46,8 +46,8 @@ export function StrategyTagsManager({ tags }: { tags: StrategyTagRow[] }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-panel p-5">
-      <h2 className="mb-3.5 text-xs font-semibold uppercase tracking-wider text-muted">Strategy tags</h2>
+    <div className="p-5">
+      <h3 className="mb-3.5 text-sm font-semibold text-text">Strategy tags</h3>
 
       <form onSubmit={handleAdd} className="mb-4 flex items-end gap-2.5">
         <div>
@@ -119,6 +119,6 @@ export function StrategyTagsManager({ tags }: { tags: StrategyTagRow[] }) {
         ))}
         {tags.length === 0 && <p className="text-sm text-muted">No strategy tags yet - create one here or while adding a trade.</p>}
       </ul>
-    </section>
+    </div>
   );
 }
