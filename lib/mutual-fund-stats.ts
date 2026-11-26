@@ -13,6 +13,7 @@
  * avoids `Date` entirely instead.
  */
 
+import { lookupBenchmarkLevel } from "./benchmark-index-data";
 import type { MutualFundEntryRow } from "./db/schema-types";
 import { monthLabel, shiftMonth } from "./month-utils";
 import type { CashFlow } from "./xirr";
@@ -210,6 +211,63 @@ export function computeGoalProjection(
 
   const months = Math.log(goalAmount / currentValue) / Math.log(1 + monthlyRate);
   return { status: "projected", months };
+}
+
+export interface BenchmarkPoint {
+  month: string;
+  /**
+   * Null when this month (or an earlier month that had a non-zero
+   * contribution/withdrawal) falls outside the benchmark index table's
+   * covered range - never extrapolated or approximated past that point.
+   */
+  value: number | null;
+}
+
+/**
+ * "Did I beat the index" comparison line, DECISIONS.md (benchmark
+ * overlay) - simulates putting the EXACT SAME monthly cash flows
+ * (amount_added - withdrawal, same sign convention as cumulativeInvested)
+ * into the benchmark index instead of the real portfolio: each month's
+ * net flow "buys" `netFlow / indexLevelThatMonth` index units, and the
+ * running unit holding is valued at each month's own index level. This
+ * is an apples-to-apples comparison against the real contribution
+ * history (not a naive ratio-scale of invested amounts, which would
+ * ignore exactly when each rupee went in).
+ *
+ * `lookupLevel` defaults to the real `lookupBenchmarkLevel` table but is
+ * injectable so tests can hand-verify the unit-purchase math against
+ * simple, round index levels instead of the real (irregularly-spaced)
+ * table values.
+ */
+export function computeBenchmarkSeries(
+  entries: MutualFundEntryRow[],
+  lookupLevel: (month: string) => number | null = lookupBenchmarkLevel,
+): BenchmarkPoint[] {
+  const sorted = [...entries].sort((a, b) => (a.month < b.month ? -1 : 1));
+
+  let units = 0;
+  // Once a month with a real contribution/withdrawal falls outside the
+  // index table's range, the running unit count can no longer be a
+  // faithful simulation (that flow was never "invested" anywhere) - every
+  // later month is null too, rather than silently understating the
+  // comparison from a broken running total.
+  let coverageBroken = false;
+
+  return sorted.map((entry) => {
+    const level = lookupLevel(entry.month);
+    const netFlow = entry.amount_added - entry.withdrawal;
+
+    if (level === null || level <= 0) {
+      if (netFlow !== 0) coverageBroken = true;
+      return { month: entry.month, value: null };
+    }
+    if (coverageBroken) {
+      return { month: entry.month, value: null };
+    }
+
+    units += netFlow / level;
+    return { month: entry.month, value: units * level };
+  });
 }
 
 export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundView {

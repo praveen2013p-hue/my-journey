@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatMoney, formatPct } from "@/lib/format-money";
-import { computeGoalProjection, monthLabel } from "@/lib/mutual-fund-stats";
+import { computeBenchmarkSeries, computeGoalProjection, monthLabel } from "@/lib/mutual-fund-stats";
 import type { MutualFundDashboard as Dashboard, MutualFundEntryView, PeriodChange } from "@/lib/mutual-fund-stats";
 import { WealthGrowthChartLazy } from "./WealthGrowthChartLazy";
 
@@ -179,10 +179,14 @@ export function MutualFundDashboard({
     );
   }
 
-  const chartPoints = rows.map((r) => ({
+  // `computeBenchmarkSeries` re-sorts by month ascending internally, same as
+  // `rows` already is (from `buildMutualFundView`), so the two line up 1:1 by index.
+  const benchmarkSeries = computeBenchmarkSeries(rows.map((r) => r.entry));
+  const chartPoints = rows.map((r, i) => ({
     time: r.entry.month,
     invested: r.cumulativeInvested,
     value: r.entry.current_value,
+    benchmark: benchmarkSeries[i]?.value ?? null,
   }));
 
   return (

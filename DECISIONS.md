@@ -1542,3 +1542,49 @@ causes found, in order of actual measured impact:
 alter table public.mutual_fund_profiles
   add column if not exists goal_amount numeric;
 ```
+
+## 2026-11-26: Benchmark overlay on the Mutual Funds wealth growth chart
+
+- Added a third, dashed-blue line to the Overview's wealth growth chart
+  (`components/mutual-funds/WealthGrowthChart.tsx`) showing how the
+  exact same monthly cash flows would have grown in the Nifty 50
+  instead - an apples-to-apples "did I beat the index" comparison, not
+  a naive ratio-scale of invested amounts.
+- Methodology (`computeBenchmarkSeries`, `lib/mutual-fund-stats.ts`):
+  each month's net flow (`amount_added - withdrawal`, same sign
+  convention as `cumulativeInvested`) "buys" `netFlow / indexLevel`
+  benchmark units at that month's index level; the running unit holding
+  is valued at each month's own level. A month outside the index
+  table's coverage is simply omitted (null) rather than approximated -
+  and once a month with a real (non-zero) flow falls outside coverage,
+  every later month is null too, since the running unit count can no
+  longer be a faithful simulation from that point on.
+- Benchmark data source (`lib/benchmark-index-data.ts`): this app has
+  no live market-data provider wired for mutual funds at all (it's a
+  private, manual-entry tracker), so adding one just for a comparison
+  line wasn't justified. Instead, a static monthly Nifty 50 level table
+  (2014-12 through 2026-11) was built from a small set of anchor points
+  sourced via WebSearch - year-end closes for 2015-2023 cross-checked
+  against a public historical-close table, 2024/2025 levels from
+  (unverified) recall, and three real 2026 closing levels found live -
+  with every month between anchors **linearly interpolated**. This is
+  explicitly approximate and documented as such in the file: it's a
+  visual comparison, not a financial-grade feed, so a real month's
+  volatility (a dip and recovery) will look smoother here than it
+  actually was. If real precision is ever needed, this table should be
+  replaced with an actual NSE/vendor download.
+- Judgment calls: (1) the overlay is a static always-on third line
+  (not toggle-able) - simpler, and the chart already has 3 distinct
+  colors/styles (solid gold, solid gray, dashed blue) plus an updated
+  legend line underneath it; a toggle can be added later if the line
+  gets in the way. (2) `computeBenchmarkSeries` takes an injectable
+  `lookupLevel` function (defaulting to the real table) specifically so
+  tests can hand-verify the unit-purchase math against simple, round
+  index levels instead of the real table's irregular values.
+- Verified live: seeded 3 months of entries (Sep-Nov 2025, ₹10,000/mo,
+  ending at ₹31,200), confirmed the chart renders 3 lines with the
+  updated legend text, confirmed the dashed blue line tracks sensibly
+  close to the gold line (both the real portfolio and the index were
+  roughly flat over that window), then deleted the seeded entries.
+  348/348 tests pass (15 new), `tsc`/`eslint` clean, `npm run build`
+  clean. No DB migration needed (purely derived/static data).

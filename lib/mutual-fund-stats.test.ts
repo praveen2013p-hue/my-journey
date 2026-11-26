@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMutualFundView, computeGoalProjection, computeTrailingCagr } from "./mutual-fund-stats";
+import { buildMutualFundView, computeBenchmarkSeries, computeGoalProjection, computeTrailingCagr } from "./mutual-fund-stats";
 import { computeXirr, daysSinceEpoch } from "./xirr";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
@@ -345,5 +345,73 @@ describe("computeGoalProjection", () => {
   it("is 'no_growth' when the XIRR implies a zero or negative monthly rate - never 'Infinity' or a guessed number", () => {
     expect(computeGoalProjection(100000, 500000, 0).status).toBe("no_growth");
     expect(computeGoalProjection(100000, 500000, -5).status).toBe("no_growth");
+  });
+});
+
+describe("computeBenchmarkSeries", () => {
+  // Round, hand-verifiable index levels injected via `lookupLevel` - the real
+  // table's irregular values would make the expected math hard to check by
+  // hand, and that's not what this test is for (the table itself isn't
+  // exercised here at all).
+  const levels: Record<string, number> = {
+    "2026-01-01": 100,
+    "2026-02-01": 110,
+    "2026-03-01": 121,
+  };
+  const lookup = (month: string) => levels[month] ?? null;
+
+  it("simulates buying index units with the same net cash flow each month, valued at that month's level", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000 }),
+      entry({ month: "2026-02-01", amount_added: 11000 }),
+      entry({ month: "2026-03-01", amount_added: 0 }),
+    ];
+    const series = computeBenchmarkSeries(entries, lookup);
+
+    // Jan: 10000 / 100 = 100 units, valued at 100 -> 10,000
+    expect(series[0].value).toBeCloseTo(10000, 6);
+    // Feb: +11000 / 110 = 100 more units (200 total), valued at 110 -> 22,000
+    expect(series[1].value).toBeCloseTo(22000, 6);
+    // Mar: no new flow, still 200 units, valued at 121 -> 24,200
+    expect(series[2].value).toBeCloseTo(24200, 6);
+  });
+
+  it("treats a withdrawal as a negative flow, same sign convention as cumulativeInvested", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000 }),
+      entry({ month: "2026-02-01", amount_added: 0, withdrawal: 5500 }),
+    ];
+    const series = computeBenchmarkSeries(entries, lookup);
+
+    expect(series[0].value).toBeCloseTo(10000, 6);
+    // Feb: netFlow = 0 - 5500 = -5500; -5500/110 = -50 units -> 100-50=50 units, valued at 110 -> 5,500
+    expect(series[1].value).toBeCloseTo(5500, 6);
+  });
+
+  it("is null for a month with no index coverage, and null for every month after a missed contribution", () => {
+    const entries = [
+      entry({ month: "2025-12-01", amount_added: 5000 }), // not in `levels` - no coverage
+      entry({ month: "2026-01-01", amount_added: 10000 }), // has coverage, but the running total is already broken
+      entry({ month: "2026-02-01", amount_added: 0 }),
+    ];
+    const series = computeBenchmarkSeries(entries, lookup);
+
+    expect(series[0].value).toBeNull();
+    expect(series[1].value).toBeNull();
+    expect(series[2].value).toBeNull();
+  });
+
+  it("a zero-flow month with no index coverage doesn't break coverage for months around it", () => {
+    const entries = [
+      entry({ month: "2026-01-01", amount_added: 10000 }),
+      entry({ month: "2025-11-01", amount_added: 0 }), // no coverage, but nothing to invest that month either
+      entry({ month: "2026-02-01", amount_added: 11000 }),
+    ];
+    const series = computeBenchmarkSeries(entries, lookup);
+    const byMonth = new Map(series.map((p) => [p.month, p.value]));
+
+    expect(byMonth.get("2025-11-01")).toBeNull();
+    expect(byMonth.get("2026-01-01")).toBeCloseTo(10000, 6);
+    expect(byMonth.get("2026-02-01")).toBeCloseTo(22000, 6);
   });
 });
