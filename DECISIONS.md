@@ -1403,3 +1403,63 @@ causes found, in order of actual measured impact:
   "INVESTMENT" (with pencil), divider, "Mutual Funds" (still expands to
   Self / + Add on click), "NPS" - confirmed on desktop and mobile.
   331/331 tests pass, build clean.
+
+## Mutual Funds: Rolling CAGR (1Y/3Y/5Y), 2026-11-26
+
+- One of six "make Mutual Funds more powerful" ideas the user approved
+  ("Build all") - this entry covers Rolling CAGR only; the other
+  approved items are tracked and shipped separately.
+- Three new trailing-period return figures per row - `cagr1y`,
+  `cagr3y`, `cagr5y` - alongside the existing since-inception XIRR.
+  Deliberately NOT a naive slice of the last N years' contribution
+  flows: that would make money already sitting in the portfolio before
+  the window invisible to the calculation, even though it kept
+  compounding right alongside everything else. Instead, for a row at
+  month M and a window of N years: find the entry for EXACTLY month
+  (M − N years) - if there isn't one (a gap, or less than N years of
+  history), the figure is `null`, same "never approximate to whatever
+  entry happens to be close" convention `vsLastMonth`/`vsLastYear`
+  already use via `shiftMonth` + an exact-month map lookup. That
+  month's own `current_value` becomes a single starting outflow, as if
+  a lump sum equal to the portfolio's value back then were invested on
+  that date. Every contribution/withdrawal flow strictly after that
+  month through month M is added on top, and month M's own
+  `current_value` is the terminal inflow (same day as the last
+  contribution flow, matching the since-inception XIRR's own
+  convention). Solved via the existing `computeXirr` (`lib/xirr.ts`) -
+  no second solver.
+- New exported pure helper: `computeTrailingCagr(entries, targetMonth,
+  years)` in `lib/mutual-fund-stats.ts`. Unit tests cover: a clean
+  lump-sum-plus-growth case (hand-verifiable exactly 10%, same shape as
+  the existing "exactly 10% XIRR" test); the null case when there's no
+  entry exactly N years back; and a constructed scenario proving this
+  is NOT naive flow-slicing - a 500000 lump sum already in the
+  portfolio a year before the target, plus 12 months of a 10000 SIP on
+  top, ending at a value reflecting ~0% real gain. The correct,
+  lump-sum-anchored calculation reports a sane ~0% return; a
+  deliberately naive slice that only sees the window's own 120000 of
+  contributions against the same terminal value reports a wildly
+  overstated 100%+ "return" - the test asserts the correct figure stays
+  sane and the two disagree by over 100 percentage points.
+- Surfaced as a single compact "CAGR (1Y/3Y/5Y)" column in the YearRows
+  table (shared by both List and Grid views), immediately after XIRR -
+  three stacked figures per cell, each green/red by sign or "—" when
+  null, with a tooltip explaining the null case. `colSpan` on the
+  inline edit-row bumped from 13 to 14 for the new column.
+- Judgment calls: (1) combined the three figures into one column rather
+  than three separate ones, to avoid growing the already-wide table
+  further; column count work was identical either way for `colSpan`
+  purposes. (2) `computeTrailingCagr` takes the raw entries array and
+  does its own sort/month-map lookup internally (rather than reusing
+  the view-builder's already-sorted array and map) so it stays a
+  small, independently testable pure function with the exact shape of
+  precedent used elsewhere in this file - it's called 3x per row,
+  acceptable for a personal tracker's scale (at most a few hundred
+  months), not worth optimizing further.
+- Verified live: seeded 11 consecutive months from a fresh dev server -
+  every row's 1Y figure correctly stayed "—" (not enough history).
+  Added a 12th month exactly 12 calendar months after the first -
+  confirmed its 1Y figure populated correctly (+21.6% for the seeded
+  growth numbers) while 3Y/5Y stayed "—" (correctly still insufficient
+  history for those windows). Screenshot taken. 336/336 tests pass (8
+  new), `tsc`/`eslint` clean, build clean.

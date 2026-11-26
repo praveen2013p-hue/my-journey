@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildMutualFundView } from "./mutual-fund-stats";
+import { buildMutualFundView, computeTrailingCagr } from "./mutual-fund-stats";
+import { computeXirr, daysSinceEpoch } from "./xirr";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow {
@@ -221,5 +222,97 @@ describe("buildMutualFundView", () => {
     const { rows } = buildMutualFundView(entries);
     expect(rows[1].cumulativeAdded).toBe(8000); // 10000 - 2000
     expect(rows[1].cumulativeInvested).toBe(8000); // 10000 + (-2000) - 0
+  });
+
+  it("populates cagr1y/cagr3y/cagr5y on rows once enough history exists", () => {
+    const entries = [
+      entry({ month: "2025-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2026-01-01", amount_added: 0, current_value: 11000 }),
+    ];
+    const { rows } = buildMutualFundView(entries);
+    expect(rows[0].cagr1y).toBeNull(); // nothing a year before the first entry
+    expect(rows[1].cagr1y).toBeCloseTo(10, 3); // same shape as the exactly-10%-XIRR test above
+    expect(rows[1].cagr3y).toBeNull(); // only 1 year of history exists
+    expect(rows[1].cagr5y).toBeNull();
+  });
+});
+
+describe("computeTrailingCagr", () => {
+  it("computes exactly 10% for a lump sum grown 1.1x over exactly a year, anchored to the start-of-window value", () => {
+    const entries = [
+      entry({ month: "2025-01-01", current_value: 100000 }),
+      entry({ month: "2026-01-01", current_value: 110000 }),
+    ];
+    expect(computeTrailingCagr(entries, "2026-01-01", 1)).toBeCloseTo(10, 3);
+  });
+
+  it("is null when there's no entry for exactly N years before the target month - never approximated", () => {
+    const entries = [
+      entry({ month: "2025-02-01", current_value: 100000 }), // 11 months before, not 12
+      entry({ month: "2026-01-01", current_value: 110000 }),
+    ];
+    expect(computeTrailingCagr(entries, "2026-01-01", 1)).toBeNull();
+  });
+
+  it("is null when the target month itself has no entry", () => {
+    const entries = [entry({ month: "2025-01-01", current_value: 100000 })];
+    expect(computeTrailingCagr(entries, "2026-01-01", 1)).toBeNull();
+  });
+
+  it("anchors to the lump sum already in the portfolio at the start of the window - NOT a naive slice of only the window's own contribution flows", () => {
+    // A large lump sum (500000) already sitting in the portfolio exactly
+    // 1 year before the target month, then 12 months of a 10000 SIP on
+    // top of it, ending at a value that reflects zero net gain overall
+    // (500000 + 12*10000 invested == 620000 terminal value).
+    const months = [
+      "2025-01-01",
+      "2025-02-01",
+      "2025-03-01",
+      "2025-04-01",
+      "2025-05-01",
+      "2025-06-01",
+      "2025-07-01",
+      "2025-08-01",
+      "2025-09-01",
+      "2025-10-01",
+      "2025-11-01",
+      "2025-12-01",
+      "2026-01-01",
+    ];
+    const entries = months.map((month, i) =>
+      i === 0
+        ? entry({ month, amount_added: 0, current_value: 500000 })
+        : entry({
+            month,
+            amount_added: 10000,
+            current_value: i === months.length - 1 ? 620000 : 500000 + i * 10000,
+          }),
+    );
+
+    const correctCagr = computeTrailingCagr(entries, "2026-01-01", 1);
+
+    // A naive implementation would slice only the window's own
+    // contribution flows (ignoring the 500000 already there at the
+    // start), i.e. 12 outflows of -10000 plus the same 620000 terminal
+    // inflow - manufacturing a huge "return" out of money that was
+    // mostly already in the portfolio before the window even started.
+    const naiveFlows = entries
+      .filter((e) => e.month !== "2025-01-01")
+      .map((e) => ({ days: daysSinceEpoch(e.month), amount: e.withdrawal - e.amount_added }));
+    naiveFlows.push({ days: daysSinceEpoch("2026-01-01"), amount: 620000 });
+    const naiveRate = computeXirr(naiveFlows);
+    const naiveCagr = naiveRate !== null ? naiveRate * 100 : null;
+
+    // Correct: 620000 invested in total (500000 lump sum + 120000 of
+    // SIP), 620000 back out - essentially a flat (~0%) return.
+    expect(correctCagr).not.toBeNull();
+    expect(correctCagr!).toBeGreaterThan(-10);
+    expect(correctCagr!).toBeLessThan(10);
+
+    // Naive slicing disagrees wildly - it only "sees" 120000 invested
+    // for a 620000 payout, which is a dramatically overstated return.
+    expect(naiveCagr).not.toBeNull();
+    expect(naiveCagr!).toBeGreaterThan(100);
+    expect(naiveCagr! - correctCagr!).toBeGreaterThan(100);
   });
 });
