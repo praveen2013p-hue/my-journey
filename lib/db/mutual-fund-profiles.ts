@@ -59,8 +59,47 @@ export async function createMutualFundProfile(userId: string, name: string): Pro
   }
 
   return mutateStore((store) => {
-    const row: MutualFundProfileRow = { id: crypto.randomUUID(), user_id: userId, name: trimmed, created_at };
+    const row: MutualFundProfileRow = {
+      id: crypto.randomUUID(),
+      user_id: userId,
+      name: trimmed,
+      goal_amount: null,
+      created_at,
+    };
     store.mutual_fund_profiles.push(row);
+    return row;
+  });
+}
+
+/**
+ * Sets (or clears, with `null`) this profile's target corpus - purely
+ * informational, same pattern as `createMutualFundProfile`'s
+ * Supabase-vs-local-store branching. Returns null if the profile doesn't
+ * exist or doesn't belong to this user, same "not found" convention as
+ * `updateMutualFundEntry`.
+ */
+export async function setMutualFundProfileGoal(
+  userId: string,
+  profileId: string,
+  goalAmount: number | null,
+): Promise<MutualFundProfileRow | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("mutual_fund_profiles")
+      .update({ goal_amount: goalAmount })
+      .eq("id", profileId)
+      .eq("user_id", userId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return (data as MutualFundProfileRow) ?? null;
+  }
+
+  return mutateStore((store) => {
+    const row = store.mutual_fund_profiles.find((p) => p.id === profileId && p.user_id === userId);
+    if (!row) return null;
+    row.goal_amount = goalAmount;
     return row;
   });
 }

@@ -41,7 +41,12 @@ export default async function MutualFundsPage({
         actions={<AddEntryModal profileId={activeProfile.id} />}
       />
 
-      <MutualFundDashboard dashboard={dashboard} rows={rows} />
+      <MutualFundDashboard
+        dashboard={dashboard}
+        rows={rows}
+        profileId={activeProfile.id}
+        goalAmount={activeProfile.goal_amount}
+      />
 
       {byYear.length === 0 ? (
         <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">

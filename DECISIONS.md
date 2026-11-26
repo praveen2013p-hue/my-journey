@@ -1463,3 +1463,82 @@ causes found, in order of actual measured impact:
   growth numbers) while 3Y/5Y stayed "—" (correctly still insufficient
   history for those windows). Screenshot taken. 336/336 tests pass (8
   new), `tsc`/`eslint` clean, build clean.
+
+## Mutual Funds: goal tracking (target corpus + progress + projected time-to-goal), 2026-11-26
+
+- Another of the six approved "make Mutual Funds more powerful"
+  ideas ("Build all") - this entry covers goal tracking only, shipped
+  as its own commit separate from Rolling CAGR.
+- New nullable `goal_amount numeric` column on `mutual_fund_profiles`
+  (migration 0012 - checked the migrations folder first; 0011 was the
+  highest already applied). Per-profile, not per-user: "Self" and
+  "Wife" can each aim for a different target corpus. New setter
+  `setMutualFundProfileGoal(userId, profileId, goalAmount)` in
+  `lib/db/mutual-fund-profiles.ts`, mirroring
+  `createMutualFundProfile`'s Supabase-vs-local-store branching exactly,
+  and a small JSON POST route,
+  `app/api/mutual-fund-profiles/[id]/goal/route.ts`, mirroring
+  `app/api/settings/nav-long-term-label/route.ts`'s shape (session
+  check, validate, call setter, return the updated row).
+  `goal_amount: null` means "no goal set yet" - a real, distinct state
+  from "goal is zero."
+- Progress and a projected time-to-goal are shown in the Overview the
+  moment a profile has a goal set. The projection is deliberately the
+  most conservative one that doesn't require guessing anything about
+  the future: it assumes the portfolio's own latest since-inception
+  XIRR holds steady, and makes NO assumption about future
+  contributions continuing - if the user keeps contributing, the real
+  time-to-goal will only be shorter than this. Formula (also written
+  into a code comment above `computeGoalProjection` in
+  `lib/mutual-fund-stats.ts`, matching the Safe SWP comment's rigor):
+  convert the annualized XIRR to an equivalent monthly compounding
+  rate, `monthlyRate = (1 + xirrPct/100)^(1/12) - 1`, then solve
+  `currentValue * (1 + monthlyRate)^months = goalAmount` for `months`:
+  `months = ln(goalAmount / currentValue) / ln(1 + monthlyRate)`.
+  Every case that isn't a clean forward-looking projection gets its
+  own explicit state instead of a guessed number (same "never
+  approximate" philosophy as the CAGR figures and
+  `vsLastMonth`/`vsLastYear`): already past the goal ("Goal reached."),
+  no since-inception XIRR yet ("Not enough history yet..."), or a
+  zero/negative monthly rate implied by the XIRR ("doesn't project
+  forward growth..."). Unit-tested directly, including a
+  hand-verifiable case constructed so the expected answer is exactly
+  70 months by the closed-form formula's own construction (a monthly
+  rate of exactly 1%, run for exactly 70 months).
+  - When no goal is set, the Overview shows an inline "Set a target
+    corpus" input + Save button directly - no separate Settings
+    round-trip. Once set, it shows a progress bar (gold, turning green
+    at 100%+), the progress percentage, the projected timeline text,
+    and a small "Edit" link that reopens the same inline input
+    pre-filled with the current goal.
+- Judgment calls: (1) the goal-amount API route rejects 0 and negative
+  values as invalid (a goal must be a positive target) but allows
+  clearing it back to `null` via a separate code path
+  (`goal_amount: null` in the request body) - the user never asked
+  about 0/negative, but a zero or negative "target corpus" isn't a
+  sensible goal to project against. (2) No separate "Clear goal"
+  button was added in the UI - "Edit" reopens the input, and the user
+  can set a new value; a dedicated clear button was left out as
+  unnecessary surface area, since nothing in the brief asked for one
+  and the API already supports it for a future UI pass if wanted.
+  (3) `MutualFundDashboard.tsx` became a client component
+  (`"use client"`) to support the inline save/edit interaction -
+  consistent with `WealthGrowthChartLazy`, already a client component
+  nested in the same tree.
+- Verified live: confirmed the empty "Set a target corpus" state with
+  no goal set; set a goal of ₹5,00,000 with only one month of history
+  (no XIRR yet) and confirmed "Not enough history yet to project a
+  timeline."; added a second month a year later (50% growth, so XIRR
+  +50%) and confirmed progress showed exactly 30.0% (₹1,50,000 /
+  ₹5,00,000) with a sane projected timeline; edited the goal down to
+  ₹1,00,000 (already below current value) and confirmed "Goal
+  reached."; cleared the goal via the API and confirmed the page
+  returns to the empty "Set a target corpus" state. Screenshots taken.
+  344/344 tests pass (9 new), `tsc`/`eslint` clean, build clean.
+
+**Migration to run in Supabase's SQL editor:**
+
+```sql
+alter table public.mutual_fund_profiles
+  add column if not exists goal_amount numeric;
+```

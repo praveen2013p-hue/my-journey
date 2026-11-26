@@ -5,6 +5,7 @@ import {
   ensureSelfProfile,
   listMutualFundProfiles,
   listMutualFundProfilesEnsuringSelf,
+  setMutualFundProfileGoal,
 } from "./mutual-fund-profiles";
 
 const USER_ID = "praveen2013p@gmail.com";
@@ -35,6 +36,11 @@ describe("createMutualFundProfile", () => {
 
     const profiles = await listMutualFundProfiles(USER_ID);
     expect(profiles).toHaveLength(1);
+  });
+
+  it("starts with no goal set", async () => {
+    const profile = await createMutualFundProfile(USER_ID, "Self");
+    expect(profile.goal_amount).toBeNull();
   });
 });
 
@@ -75,5 +81,32 @@ describe("listMutualFundProfilesEnsuringSelf", () => {
     await createMutualFundProfile(USER_ID, "Wife");
     const profiles = await listMutualFundProfilesEnsuringSelf(USER_ID);
     expect(profiles.map((p) => p.name)).toEqual(["Self", "Wife"]);
+  });
+});
+
+describe("setMutualFundProfileGoal", () => {
+  it("sets a target corpus on the profile", async () => {
+    const profile = await createMutualFundProfile(USER_ID, "Self");
+    const updated = await setMutualFundProfileGoal(USER_ID, profile.id, 5000000);
+    expect(updated?.goal_amount).toBe(5000000);
+
+    const [reloaded] = await listMutualFundProfiles(USER_ID);
+    expect(reloaded.goal_amount).toBe(5000000);
+  });
+
+  it("clears a goal back to null", async () => {
+    const profile = await createMutualFundProfile(USER_ID, "Self");
+    await setMutualFundProfileGoal(USER_ID, profile.id, 5000000);
+    const cleared = await setMutualFundProfileGoal(USER_ID, profile.id, null);
+    expect(cleared?.goal_amount).toBeNull();
+  });
+
+  it("returns null and changes nothing for a profile that doesn't belong to this user", async () => {
+    const profile = await createMutualFundProfile("other@example.com", "Self");
+    const result = await setMutualFundProfileGoal(USER_ID, profile.id, 5000000);
+    expect(result).toBeNull();
+
+    const [unchanged] = await listMutualFundProfiles("other@example.com");
+    expect(unchanged.goal_amount).toBeNull();
   });
 });

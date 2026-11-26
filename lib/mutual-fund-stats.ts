@@ -167,6 +167,51 @@ export function computeTrailingCagr(
   return rate !== null ? rate * 100 : null;
 }
 
+export type GoalProjection =
+  | { status: "reached" }
+  | { status: "no_xirr" }
+  | { status: "no_growth" }
+  | { status: "projected"; months: number };
+
+/**
+ * Projected time-to-goal, DECISIONS.md - deliberately the most
+ * conservative projection that doesn't require guessing anything about
+ * the future: it assumes the portfolio's own latest since-inception
+ * XIRR holds steady, and makes NO assumption about future contributions
+ * (a SIP continuing, a lumpsum showing up, etc.) - if the user keeps
+ * contributing, the real time-to-goal will only be shorter than this.
+ *
+ * Converts the annualized XIRR to an equivalent monthly compounding
+ * rate - `monthlyRate = (1 + xirrPct/100)^(1/12) - 1` - then solves
+ * `currentValue * (1 + monthlyRate)^months = goalAmount` for `months`:
+ * `months = ln(goalAmount / currentValue) / ln(1 + monthlyRate)`.
+ *
+ * Every case that isn't a clean, forward-looking projection gets its own
+ * explicit status instead of a guessed number - same "never approximate"
+ * philosophy as `vsLastMonth`/`vsLastYear`/the CAGR figures above:
+ * - `"reached"`: currentValue is already at or past the goal.
+ * - `"no_xirr"`: there isn't a since-inception XIRR yet to project from
+ *   (e.g. the very first month).
+ * - `"no_growth"`: the monthly rate implied by the latest XIRR is zero
+ *   or negative - projecting forward would mean "never," which isn't a
+ *   number to show, it's its own explanatory state.
+ * - `"projected"`: the only case with an actual number.
+ */
+export function computeGoalProjection(
+  currentValue: number,
+  goalAmount: number,
+  xirrPct: number | null,
+): GoalProjection {
+  if (currentValue >= goalAmount) return { status: "reached" };
+  if (xirrPct === null) return { status: "no_xirr" };
+
+  const monthlyRate = Math.pow(1 + xirrPct / 100, 1 / 12) - 1;
+  if (monthlyRate <= 0) return { status: "no_growth" };
+
+  const months = Math.log(goalAmount / currentValue) / Math.log(1 + monthlyRate);
+  return { status: "projected", months };
+}
+
 export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundView {
   const sorted = [...entries].sort((a, b) => (a.month < b.month ? -1 : 1));
   const byMonth = new Map<string, MutualFundEntryRow>();

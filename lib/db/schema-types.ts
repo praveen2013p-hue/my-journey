@@ -227,6 +227,8 @@ export interface MutualFundProfileRow {
   id: string;
   user_id: string;
   name: string;
+  /** Target corpus this profile is aiming for - null means no goal has been set yet (distinct from a goal of 0). Purely informational; never affects any invested/gain/XIRR math. */
+  goal_amount: number | null;
   created_at: string;
 }
 

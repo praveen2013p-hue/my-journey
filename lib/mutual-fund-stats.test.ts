@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMutualFundView, computeTrailingCagr } from "./mutual-fund-stats";
+import { buildMutualFundView, computeGoalProjection, computeTrailingCagr } from "./mutual-fund-stats";
 import { computeXirr, daysSinceEpoch } from "./xirr";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
@@ -314,5 +314,36 @@ describe("computeTrailingCagr", () => {
     expect(naiveCagr).not.toBeNull();
     expect(naiveCagr!).toBeGreaterThan(100);
     expect(naiveCagr! - correctCagr!).toBeGreaterThan(100);
+  });
+});
+
+describe("computeGoalProjection", () => {
+  it("projects months-to-goal from the monthly rate implied by XIRR - hand-verifiable by construction", () => {
+    // Build a monthly rate of exactly 1% (0.01), then an XIRR that
+    // converts back to exactly that monthly rate, then a goal set to
+    // exactly 70 months of 1%-monthly growth away - so the expected
+    // answer is exactly 70 by construction of the closed-form formula.
+    const monthlyRate = 0.01;
+    const xirrPct = (Math.pow(1 + monthlyRate, 12) - 1) * 100;
+    const currentValue = 100000;
+    const goalAmount = currentValue * Math.pow(1 + monthlyRate, 70);
+
+    const result = computeGoalProjection(currentValue, goalAmount, xirrPct);
+    expect(result.status).toBe("projected");
+    expect((result as { status: "projected"; months: number }).months).toBeCloseTo(70, 5);
+  });
+
+  it("is 'reached' when currentValue is already at or past the goal - never a negative/guessed month count", () => {
+    expect(computeGoalProjection(500000, 500000, 12).status).toBe("reached");
+    expect(computeGoalProjection(600000, 500000, 12).status).toBe("reached");
+  });
+
+  it("is 'no_xirr' when there's no since-inception XIRR yet to project from", () => {
+    expect(computeGoalProjection(100000, 500000, null).status).toBe("no_xirr");
+  });
+
+  it("is 'no_growth' when the XIRR implies a zero or negative monthly rate - never 'Infinity' or a guessed number", () => {
+    expect(computeGoalProjection(100000, 500000, 0).status).toBe("no_growth");
+    expect(computeGoalProjection(100000, 500000, -5).status).toBe("no_growth");
   });
 });
