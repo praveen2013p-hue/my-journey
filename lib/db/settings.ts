@@ -34,7 +34,7 @@ const DEFAULT_USER_SETTINGS: Omit<UserSettingsRow, "user_id"> = {
   timezone: "Asia/Kolkata",
   last_seen_alerts_at: null,
   birth_year: null,
-  nav_long_term_label: "My Long Term Holding",
+  nav_long_term_label: "Investment",
   updated_at: new Date(0).toISOString(),
 };
 

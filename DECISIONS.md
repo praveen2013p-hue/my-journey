@@ -1374,3 +1374,32 @@ causes found, in order of actual measured impact:
   tree auto-expands correctly on both `/nps` and `/mutual-funds`.
   331/331 tests pass (4 new), build clean, screenshots taken desktop
   and mobile.
+
+## Sidebar correction: flat "Investment" section, not a collapsible category, 2026-11-26
+
+- The user flagged the previous "My Long Term Holding" collapsible
+  category (chevron, rename, nesting) as "not what i wanted... like
+  hierarchy" and attached a hand-drawn sketch: a plain section label
+  ("Investment") sandwiched between two divider lines, with "mutual
+  fund" and "NPS" listed flatly underneath - no further indentation, no
+  expand/collapse arrow on the label itself.
+- Clarified one open question the sketch didn't resolve either way:
+  whether "Mutual fund" should also become a flat link (moving the
+  Self/Wife/Son/Daughter switcher into the page itself). Confirmed:
+  keep Mutual Funds expandable in the sidebar exactly as it already
+  works - only the OUTER wrapper was the problem, not that one.
+- Replaced `LongTermHoldingCategory` (collapsible, click-to-toggle)
+  with `InvestmentSectionLabel`: a plain, non-clickable heading between
+  two `border-t` rules, still renameable via the same small pencil icon
+  and the same `nav_long_term_label` setting - just no longer a tree
+  node. "Mutual Funds" (still its own expandable tree) and "NPS" (a
+  flat link) now sit as ordinary siblings in the nav list, not nested
+  inside anything.
+- Changed the setting's default text from "My Long Term Holding" to
+  "Investment" (matching the sketch) - migration 0011 updates the
+  column default and any row still on the old default, additive rather
+  than editing the already-pushed 0010.
+- Verified live against the sketch directly: Journal, divider,
+  "INVESTMENT" (with pencil), divider, "Mutual Funds" (still expands to
+  Self / + Add on click), "NPS" - confirmed on desktop and mobile.
+  331/331 tests pass, build clean.

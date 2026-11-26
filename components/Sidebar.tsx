@@ -11,7 +11,6 @@ import {
   ChevronRightIcon,
   DashboardIcon,
   JournalIcon,
-  LongTermHoldingIcon,
   MenuIcon,
   MutualFundIcon,
   NpsIcon,
@@ -201,28 +200,16 @@ function MutualFundsTreeNav({
 }
 
 /**
- * "My Long Term Holding" category (DECISIONS.md): groups NPS and Mutual
- * Funds under one renameable, collapsible parent - like
- * `MutualFundsTreeNav`, the parent row toggles expand/collapse rather
- * than navigating anywhere itself.
+ * "Investment" - a plain, non-interactive section label sandwiched
+ * between two divider lines (DECISIONS.md: a hand-sketched correction
+ * after an earlier collapsible-category version was flagged as the
+ * wrong idea - "not what i wanted... like hierarchy"). NPS and Mutual
+ * Funds sit underneath as ordinary flat nav items, not nested inside
+ * this label - it's a heading, not a tree node. Still renameable via a
+ * small pencil icon, since that part of the original ask stands.
  */
-function LongTermHoldingCategory({
-  label: initialLabel,
-  profiles,
-  collapsed,
-}: {
-  label: string;
-  profiles: MutualFundProfileRow[];
-  collapsed: boolean;
-}) {
-  const pathname = usePathname();
+function InvestmentSectionLabel({ label: initialLabel, collapsed }: { label: string; collapsed: boolean }) {
   const router = useRouter();
-  const isOnCategoryPage =
-    pathname === "/nps" || pathname.startsWith("/nps/") || pathname === "/mutual-funds" || pathname.startsWith("/mutual-funds/");
-
-  const [userToggledExpanded, setUserToggledExpanded] = useState<boolean | null>(null);
-  const expanded = userToggledExpanded ?? isOnCategoryPage;
-
   const [label, setLabel] = useState(initialLabel);
   const [renaming, setRenaming] = useState(false);
   const [draftLabel, setDraftLabel] = useState(initialLabel);
@@ -252,95 +239,50 @@ function LongTermHoldingCategory({
   }
 
   if (collapsed) {
-    return (
-      <>
-        <Link
-          href="/nps"
-          prefetch={false}
-          className={`flex min-h-[44px] items-center justify-center rounded-lg px-2.5 font-medium transition-colors ${
-            pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
-          }`}
-        >
-          <NpsIcon />
-        </Link>
-        <MutualFundsTreeNav profiles={profiles} collapsed={collapsed} />
-      </>
-    );
+    return <div className="my-1 border-t border-border" />;
   }
 
   return (
-    <div>
-      <div
-        className={`flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
-          isOnCategoryPage ? "text-gold-light" : "text-muted"
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setUserToggledExpanded(!expanded)}
-          className="flex min-w-0 flex-1 items-center gap-3 hover:text-text"
+    <div className="my-1.5">
+      <div className="border-t border-border" />
+      {renaming ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitRename();
+          }}
+          className="px-3 py-1.5"
         >
-          <LongTermHoldingIcon />
-          {renaming ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitRename();
-              }}
-              className="min-w-0 flex-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="text"
-                autoFocus
-                value={draftLabel}
-                onChange={(e) => setDraftLabel(e.target.value)}
-                onBlur={() => submitRename()}
-                aria-label="Category name"
-                className="min-h-[32px] w-full min-w-0 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
-              />
-            </form>
-          ) : (
-            <span className="min-w-0 flex-1 truncate text-left" title={label}>
-              {label}
-            </span>
-          )}
-        </button>
-        {!renaming && (
+          <input
+            type="text"
+            autoFocus
+            value={draftLabel}
+            onChange={(e) => setDraftLabel(e.target.value)}
+            onBlur={() => submitRename()}
+            aria-label="Section name"
+            className="min-h-[28px] w-full min-w-0 rounded-md border border-border-strong bg-field px-2 text-xs text-text"
+          />
+        </form>
+      ) : (
+        <div className="flex items-center gap-1.5 px-3 py-1.5">
+          <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-wider text-muted" title={label}>
+            {label}
+          </span>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               setDraftLabel(label);
               setRenaming(true);
             }}
-            aria-label="Rename category"
-            className="flex-shrink-0 rounded p-1 text-muted hover:bg-panel-alt hover:text-text"
+            aria-label="Rename section"
+            className="flex-shrink-0 rounded p-0.5 text-muted hover:bg-panel-alt hover:text-text"
             disabled={savingLabel}
           >
-            <PencilIcon width={13} height={13} />
+            <PencilIcon width={11} height={11} />
           </button>
-        )}
-        <button type="button" onClick={() => setUserToggledExpanded(!expanded)} className="flex-shrink-0">
-          <ChevronRightIcon className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-3">
-          <Link
-            href="/nps"
-            prefetch={false}
-            className={`flex min-h-[36px] items-center gap-2 rounded-lg px-3 text-sm transition-colors ${
-              pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"
-            }`}
-          >
-            <NpsIcon width={16} height={16} />
-            NPS
-          </Link>
-          <MutualFundsTreeNav profiles={profiles} collapsed={false} />
         </div>
       )}
+      <div className="border-t border-border" />
     </div>
   );
 }
@@ -449,7 +391,21 @@ export function Sidebar({ siteName, email, mutualFundProfiles, longTermHoldingLa
           );
         })}
 
-        <LongTermHoldingCategory label={longTermHoldingLabel} profiles={mutualFundProfiles} collapsed={collapsed} />
+        <InvestmentSectionLabel label={longTermHoldingLabel} collapsed={collapsed} />
+
+        <MutualFundsTreeNav profiles={mutualFundProfiles} collapsed={collapsed} />
+
+        <Link
+          href="/nps"
+          prefetch={false}
+          className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+            collapsed ? "justify-center px-2.5" : ""
+          } ${pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
+          onClick={() => setMobileOpen(false)}
+        >
+          <NpsIcon />
+          {!collapsed && <span>NPS</span>}
+        </Link>
 
         {NAV_ITEMS_AFTER_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
           const isActive = pathname === href || pathname.startsWith(`${href}/`);

@@ -28,9 +28,9 @@ describe("getUserSettings", () => {
     expect(afterRepeatedReads.mtimeMs).toBe(afterCreate.mtimeMs);
   });
 
-  it("defaults nav_long_term_label to 'My Long Term Holding'", async () => {
+  it("defaults nav_long_term_label to 'Investment'", async () => {
     const settings = await getUserSettings("praveen@example.com");
-    expect(settings.nav_long_term_label).toBe("My Long Term Holding");
+    expect(settings.nav_long_term_label).toBe("Investment");
   });
 });
 
