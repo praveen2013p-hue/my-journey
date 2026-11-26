@@ -1745,3 +1745,58 @@ Other choices:
   created and deleted - confirming the restyle didn't break any
   existing action. Zero console errors either viewport. Full suite
   (375/375), `tsc`/`eslint`/`npm run build` all clean. No DB migration.
+
+## 2026-11-26 - "RS Rank History" column on the Sectors page
+
+User showed a competitor's screenshot: a table column headed "RS RANK
+HISTORY / 30→15→5→0", with 4 numbers per row connected by arrows,
+color-coded low/mid/high, showing how a sector's relative-strength
+percentile had trended over the last ~30 days. Explicitly asked for
+this one feature only, and explicitly scoped it to sectors, not
+industries.
+
+- New pure module `lib/sector-rs-rank-history.ts`: for every sector,
+  resolves the closest snapshot at-or-before each of 4 calendar-day
+  checkpoints (30/15/5/0 days before the current week ending - reusing
+  the existing tolerant "closest snapshot at or before" lookup pattern
+  from `lib/sector-metrics.ts`, generalized from weeks to days), then
+  runs each checkpoint's resolved mrs values through the existing
+  `computeRsRatingPercentiles` (lib/rs-rating.ts) to get a 1-99
+  percentile - a GENUINELY SEPARATE percentile pool per checkpoint
+  (the market's RS distribution as it stood at that point in time),
+  not one fixed "today's" pool reused four times. A sector with no
+  resolved snapshot at or before a checkpoint gets null there, never an
+  approximated value - same discipline as every other ranking function
+  in this codebase.
+- Sectors-only scoping follows the same precedent as
+  `lib/sector-rotation.ts`'s own rotation matrix: the caller
+  (`lib/sectors-page-data.ts`) filters `historyBySector` to
+  `kind === "sector"` entries before calling the pure function, so
+  industries never enter the percentile pool and never get a
+  `rsRankHistory` (empty array, not null-filled - documented on the
+  `SectorRow` type).
+- UI (`components/sectors/SectorsTable.tsx`): a new "RS Rank History"
+  column, 4 `Chip` pills per row connected by arrows, reusing the
+  existing `Chip` component rather than inventing new pill markup.
+  Hidden entirely (header and cells) when the US market's toggle is on
+  "Industries"; always shown for India (which has no industries).
+  Color tiers: percentile >= 67 green, <= 33 red, otherwise amber -
+  the same "top/bottom third" idea as `RotationHeatmap`'s own
+  `cellClass`, applied directly to the 1-99 percentile scale rather
+  than a rank/N ratio. The competitor's screenshot used a middle
+  "blue" tone this app's palette has no equivalent for; the existing
+  amber/warn wash (already this app's "middle tier" color everywhere
+  else - traded-value ratio, RotationHeatmap) stands in for it rather
+  than inventing a new token.
+- Verified live: seeded 6 weeks of US sector-board snapshots (3
+  sectors + 1 industry) and 1 week of India data via the real webhook
+  endpoint, then hand-verified every displayed percentile against the
+  formula by hand (all matched exactly). Confirmed the column and its
+  legend line disappear completely under the US Industries toggle,
+  and that India (no toggle) always shows it, correctly rendering
+  dashes for checkpoints with no history yet rather than a guess.
+- 8 new tests (4 pure-function, 1 new integration test in
+  `lib/sectors-page-data.test.ts` proving industries get `[]` while
+  sectors get a populated 4-entry array). Full suite 380/380,
+  `tsc`/`eslint`/`npm run build` all clean. No DB migration (pure
+  derived data from existing sector_snapshots).

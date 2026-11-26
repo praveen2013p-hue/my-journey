@@ -173,4 +173,45 @@ describe("getSectorsPageData", () => {
     expect(psuBank.totalStocks).toBe(1);
     expect(psuBank.rsAbove0).toBe(1);
   });
+
+  it("populates rsRankHistory for sector rows but never for industry rows - RS Rank History is sectors-only", async () => {
+    await seedSectorMapIfEmpty(SECTOR_MAP_SEED);
+    await upsertSectorSnapshot({
+      market: "US",
+      week_ending: "2026-11-20",
+      sector: "Technology", // kind: "sector"
+      stage: 2,
+      mrs: 10,
+      rs_up: true,
+      vs_ma: 5,
+      chg4: 2,
+      focus: false,
+      source: "alert",
+    });
+    await upsertSectorSnapshot({
+      market: "US",
+      week_ending: "2026-11-20",
+      sector: "Semiconductors", // kind: "industry"
+      stage: 2,
+      mrs: 15,
+      rs_up: true,
+      vs_ma: 5,
+      chg4: 2,
+      focus: false,
+      source: "alert",
+    });
+
+    const data = await getSectorsPageData("US");
+    const tech = data.rows.find((r) => r.sector === "Technology")!;
+    const semis = data.rows.find((r) => r.sector === "Semiconductors")!;
+
+    expect(tech.kind).toBe("sector");
+    expect(tech.rsRankHistory).toHaveLength(4);
+    // Only one sector reported this week, so every checkpoint that resolves
+    // to it gets the single-value percentile (n=1 -> 100% -> clamped 99).
+    expect(tech.rsRankHistory[3]).toBe(99);
+
+    expect(semis.kind).toBe("industry");
+    expect(semis.rsRankHistory).toEqual([]);
+  });
 });

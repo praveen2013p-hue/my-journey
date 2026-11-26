@@ -12,6 +12,7 @@ import {
   listSectorMetricsForWeek,
   listRecentSectorSnapshotHistory,
 } from "./db/sectors";
+import { computeSectorRsRankHistory } from "./sector-rs-rank-history";
 import type { Market } from "./db/schema-types";
 import type { Stage } from "./weinstein";
 
@@ -43,6 +44,13 @@ export interface SectorRow {
   rsAbove0: number | null;
   /** Last 13 weeks of mrs, oldest first, for the trend sparkline. */
   sparkline: number[];
+  /**
+   * 1-99 RS percentile at [30d, 15d, 5d, 0d] ago, oldest first - null
+   * entries where there's no resolved snapshot that far back yet.
+   * Sectors only: always `[]` for an industry row, since "RS rank
+   * among industries" is a different, unbuilt population (DECISIONS.md).
+   */
+  rsRankHistory: (number | null)[];
 }
 
 export interface SectorsPageData {
@@ -82,6 +90,17 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
     list.push(snap);
     historyBySector.set(snap.sector, list);
   }
+
+  // RS Rank History is a sectors-only concept (DECISIONS.md) - same
+  // kind==="sector" scoping lib/sector-rotation.ts already uses for its
+  // rotation matrix, so industries never enter the percentile pool.
+  const sectorOnlyNames = new Set(sectorMapRows.filter((r) => r.kind === "sector").map((r) => r.display_name));
+  const sectorOnlyHistory: Record<string, { weekEnding: string; stage: Stage | null; mrs: number | null }[]> = {};
+  for (const [sector, snaps] of historyBySector) {
+    if (!sectorOnlyNames.has(sector)) continue;
+    sectorOnlyHistory[sector] = snaps.map((s) => ({ weekEnding: s.week_ending, stage: s.stage, mrs: s.mrs }));
+  }
+  const rsRankHistoryBySector = computeSectorRsRankHistory(sectorOnlyHistory, weekEnding);
 
   const triggerCountBySector = new Map<string, number>();
   for (const alert of alertsThisWeek) {
@@ -128,6 +147,7 @@ export async function getSectorsPageData(market: Market): Promise<SectorsPageDat
       totalStocks: sectorTickers ? sectorTickers.length : null,
       rsAbove0,
       sparkline,
+      rsRankHistory: mapRow.kind === "sector" ? (rsRankHistoryBySector[mapRow.display_name] ?? [null, null, null, null]) : [],
     };
   });
 
