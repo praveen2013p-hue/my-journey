@@ -1688,3 +1688,15 @@ alter table public.mutual_fund_profiles
   380/380 tests pass (9 new in `lib/net-worth-stats.test.ts`),
   `tsc`/`eslint` clean, `npm run build` clean. No DB migration needed.
   Dev server and seeded local-store data cleaned up after verification.
+
+## 2026-11-26 - Removed the Rolling CAGR (1Y/3Y/5Y) feature
+
+The user tried it and didn't like it, with no further detail given -
+removing it outright rather than tweaking it. Removed:
+`computeTrailingCagr` and the `cagr1y`/`cagr3y`/`cagr5y` fields from
+`lib/mutual-fund-stats.ts` (and their tests), and the "CAGR (1Y/3Y/5Y)"
+column + `CagrFigure` component from `components/mutual-funds/
+YearSection.tsx`. Goal tracking, the Nifty 50 benchmark overlay, CSV
+import/export, and the Net Worth view are unrelated features and were
+left untouched. Full suite green, `tsc`/`eslint`/`npm run build` clean
+after removal.

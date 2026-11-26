@@ -32,19 +32,6 @@ function breakdownDefaults(entry: MutualFundEntryView["entry"]): {
   };
 }
 
-function CagrFigure({ label, pct }: { label: string; pct: number | null }) {
-  return (
-    <span className="whitespace-nowrap">
-      <span className="text-muted">{label} </span>
-      {pct === null ? (
-        <span className="text-muted">—</span>
-      ) : (
-        <span className={pct >= 0 ? "text-pos" : "text-neg"}>{formatPct(pct)}</span>
-      )}
-    </span>
-  );
-}
-
 function EditEntryForm({ row, onDone }: { row: MutualFundEntryView; onDone: () => void }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -272,12 +259,6 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
             >
               XIRR
             </th>
-            <th
-              className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
-              title="Trailing annualized return over the last 1/3/5 years, anchored to the portfolio's own value exactly that many years before this month - shows — when there's no entry for that exact month (a gap, or not enough history yet)"
-            >
-              CAGR (1Y/3Y/5Y)
-            </th>
             <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold">Notes</th>
             <th
               className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"
@@ -366,16 +347,6 @@ export function YearRows({ rows }: { rows: MutualFundEntryView[] }) {
                 ) : (
                   <span className={row.xirrPct >= 0 ? "text-pos" : "text-neg"}>{formatPct(row.xirrPct)}</span>
                 )}
-              </td>
-              <td
-                className="whitespace-nowrap px-3 py-2.5 text-right text-xs tabular-nums"
-                title="Trailing annualized return anchored to the portfolio's own value exactly that many years before this month - — when there's no entry for that exact month"
-              >
-                <div className="flex flex-col items-end gap-0.5">
-                  <CagrFigure label="1Y" pct={row.cagr1y} />
-                  <CagrFigure label="3Y" pct={row.cagr3y} />
-                  <CagrFigure label="5Y" pct={row.cagr5y} />
-                </div>
               </td>
               <td className="max-w-[160px] truncate px-3 py-2.5 text-xs text-muted">{row.entry.notes ?? "—"}</td>
               <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">

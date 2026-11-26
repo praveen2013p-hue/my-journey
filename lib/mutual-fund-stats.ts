@@ -16,7 +16,6 @@
 import { lookupBenchmarkLevel } from "./benchmark-index-data";
 import type { MutualFundEntryRow } from "./db/schema-types";
 import { monthLabel, shiftMonth } from "./month-utils";
-import type { CashFlow } from "./xirr";
 import { computeXirr, daysSinceEpoch } from "./xirr";
 
 export { monthLabel, shiftMonth };
@@ -39,19 +38,6 @@ export interface MutualFundEntryView {
    * valued on the same day).
    */
   xirrPct: number | null;
-  /**
-   * Trailing 1-year annualized return (%), anchored to the portfolio's
-   * own value exactly 1 year before this month - NOT a naive slice of
-   * the last 12 months' contributions (that would ignore compounding of
-   * money already in the portfolio before the window). Null when there's
-   * no entry for that exact calendar month (a gap, or under a year of
-   * history) - never approximated. See `computeTrailingCagr`.
-   */
-  cagr1y: number | null;
-  /** Same as cagr1y, anchored 3 years back. */
-  cagr3y: number | null;
-  /** Same as cagr1y, anchored 5 years back. */
-  cagr5y: number | null;
   /** This month's Gain minus the exact previous calendar month's Gain - "how much the profit/loss moved this month." Null when there's no entry for that exact prior month (a skipped month, or this is the first one) - never approximated. */
   pnlChangeAbs: number | null;
   /**
@@ -125,49 +111,6 @@ function computeSafeSwpMonthly(currentValue: number): number {
   return (currentValue * (SWP_ANNUAL_RATE_PCT / 100)) / 12;
 }
 
-/**
- * Trailing N-year CAGR as of `targetMonth`, solved via the same XIRR
- * engine as the since-inception figure (`lib/xirr.ts`) - not a second
- * solver. Deliberately NOT a naive slice of the last N years' worth of
- * contribution flows: money already sitting in the portfolio before the
- * window started would then be invisible to the calculation, even
- * though it kept compounding right alongside everything else. Instead:
- * find the entry for EXACTLY `targetMonth` minus N years (null if there
- * isn't one - a gap, or less than N years of history, is never
- * approximated to "whatever entry happens to be close"), treat that
- * month's own current_value as a single starting outflow (as if a lump
- * sum equal to the portfolio's value back then were invested on that
- * date), then add every contribution/withdrawal flow strictly after
- * that month through `targetMonth`, and finally `targetMonth`'s own
- * current_value as the terminal inflow (same day as the last
- * contribution flow, matching the since-inception XIRR's convention).
- */
-export function computeTrailingCagr(
-  entries: MutualFundEntryRow[],
-  targetMonth: string,
-  years: number,
-): number | null {
-  const byMonth = new Map<string, MutualFundEntryRow>();
-  for (const e of entries) byMonth.set(e.month, e);
-
-  const targetEntry = byMonth.get(targetMonth);
-  if (!targetEntry) return null;
-
-  const startMonth = shiftMonth(targetMonth, -years * 12);
-  const startEntry = byMonth.get(startMonth);
-  if (!startEntry) return null;
-
-  const flows: CashFlow[] = [{ days: daysSinceEpoch(startMonth), amount: -startEntry.current_value }];
-  for (const e of [...entries].sort((a, b) => (a.month < b.month ? -1 : 1))) {
-    if (e.month <= startMonth || e.month > targetMonth) continue;
-    flows.push({ days: daysSinceEpoch(e.month), amount: e.withdrawal - e.amount_added });
-  }
-  flows.push({ days: daysSinceEpoch(targetMonth), amount: targetEntry.current_value });
-
-  const rate = computeXirr(flows);
-  return rate !== null ? rate * 100 : null;
-}
-
 export type GoalProjection =
   | { status: "reached" }
   | { status: "no_xirr" }
@@ -189,7 +132,7 @@ export type GoalProjection =
  *
  * Every case that isn't a clean, forward-looking projection gets its own
  * explicit status instead of a guessed number - same "never approximate"
- * philosophy as `vsLastMonth`/`vsLastYear`/the CAGR figures above:
+ * philosophy as `vsLastMonth`/`vsLastYear`:
  * - `"reached"`: currentValue is already at or past the goal.
  * - `"no_xirr"`: there isn't a since-inception XIRR yet to project from
  *   (e.g. the very first month).
@@ -300,9 +243,6 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
       gainAbs,
       gainPct,
       xirrPct: xirrPctFinal,
-      cagr1y: computeTrailingCagr(sorted, entry.month, 1),
-      cagr3y: computeTrailingCagr(sorted, entry.month, 3),
-      cagr5y: computeTrailingCagr(sorted, entry.month, 5),
       safeSwpMonthly: computeSafeSwpMonthly(entry.current_value),
     };
   }).map((row, i, all) => {
