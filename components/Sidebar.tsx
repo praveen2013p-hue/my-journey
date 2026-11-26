@@ -13,6 +13,7 @@ import {
   JournalIcon,
   MenuIcon,
   MutualFundIcon,
+  NetWorthIcon,
   NpsIcon,
   PencilIcon,
   PerformanceIcon,
@@ -392,6 +393,19 @@ export function Sidebar({ siteName, email, mutualFundProfiles, longTermHoldingLa
         })}
 
         <InvestmentSectionLabel label={longTermHoldingLabel} collapsed={collapsed} />
+
+        {/* A summary of everything underneath this label, so it sits above Mutual Funds/NPS rather than alongside them (DECISIONS.md). */}
+        <Link
+          href="/net-worth"
+          prefetch={false}
+          className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+            collapsed ? "justify-center px-2.5" : ""
+          } ${pathname === "/net-worth" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
+          onClick={() => setMobileOpen(false)}
+        >
+          <NetWorthIcon />
+          {!collapsed && <span>Net Worth</span>}
+        </Link>
 
         <MutualFundsTreeNav profiles={mutualFundProfiles} collapsed={collapsed} />
 

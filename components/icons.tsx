@@ -91,6 +91,16 @@ export function NpsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function NetWorthIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5c.6.9 1.9 1.5 3.5 1.5 2 0 3.5-1 3.5-2.3 0-1.4-1.3-1.9-3.5-2.4-2.2-.5-3.5-1-3.5-2.4C8.5 7.9 10 7 12 7c1.6 0 2.9.6 3.5 1.5" />
+      <path d="M12 5.5v1.3M12 17.2v1.3" />
+    </Icon>
+  );
+}
+
 export function LongTermHoldingIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

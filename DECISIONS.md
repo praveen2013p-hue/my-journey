@@ -1630,3 +1630,61 @@ alter table public.mutual_fund_profiles
   371/371 tests pass (29 new across `lib/csv.ts` and
   `lib/mutual-fund-csv.ts`), `tsc`/`eslint` clean, `npm run build`
   clean. No DB migration needed.
+
+## 2026-11-26: Combined "Net Worth" view (Mutual Funds + NPS)
+
+- New read-only page at `/net-worth` (`lib/net-worth-stats.ts`,
+  `components/net-worth/NetWorthDashboard.tsx`): a consolidated Current
+  value / Total invested / Overall gain / Combined XIRR across every
+  Mutual Fund profile (every family member) plus NPS, a combined wealth
+  growth chart, and a per-entity breakdown table. Pure aggregation of
+  data the Mutual Funds and NPS trackers already compute - no new DB
+  tables, no new entry forms.
+- **Pooled XIRR, not an average of the individual XIRRs**: every
+  entity's own contribution/withdrawal flows (at their own dates) go
+  into one combined flow list, plus a single combined terminal flow -
+  dated at the latest month ANY entity has an entry for, valued at the
+  sum of every entity's own latest known `current_value` as of that
+  month (forward-filled for an entity that hasn't been updated as
+  recently - it still holds that value). `computeXirr` then solves one
+  rate for the whole pooled set. Averaging each entity's own XIRR would
+  have been wrong - it ignores how much capital and timing each stream
+  actually represents (verified by a hand-built test: a 100%-return
+  profile with 100k mixed with a flat 0%-return profile with 900k pools
+  to exactly 10%, the capital-weighted truth, not the naive 50%
+  average).
+- **Combined wealth chart forward-fills, never zero-fills**: the chart
+  is the union of every entity's months; for a month where one entity
+  has no entry yet, that entity's last known invested/value carries
+  forward rather than dropping to 0 (a profile that simply hasn't been
+  updated this month still holds its prior value).
+- Reused `WealthGrowthChartLazy` (the benchmark-overlay chart) rather
+  than building a second chart component - the benchmark line is always
+  passed `null` here (no single "Nifty equivalent" makes sense for a
+  pooled, cross-entity series), which the existing component already
+  renders as simply no blue line.
+- `NetWorthDashboard` is a plain Server Component (no `"use client"`) -
+  unlike `MutualFundDashboard`, this page has no inline interactive
+  input, so it can render the client-boundary chart directly the same
+  way the original pre-Goal-tracking design did.
+- Nav: "Net Worth" placed as the first item under the "Investment"
+  section label, above Mutual Funds and NPS (a summary of both, so it
+  reads first).
+- `lib/net-worth-stats.ts` depends on the *shape* `MutualFundDashboard`/
+  `NpsDashboard`/their row views already share (both are structurally
+  identical), not either concrete type - keeps this module decoupled
+  from which tracker an entity actually came from.
+- Verified live: seeded Self (Jan 1L in/1L value, Jun 0 in/1.05L value),
+  Wife (Jan 50k in/48k value, no second month), NPS (Jan 20k in/20k
+  value, May 0 in/21k value). Hand-checked every figure against the
+  screen: combined current value 1,74,000 and invested 1,70,000 (exact
+  sums), combined XIRR +5.7% (verified by hand: pooled flows -1,70,000
+  at day 0 vs. +1,74,000 at day 152 solves to 5.75-5.8%, matching
+  displayed); Self's own +12.4%, NPS's own +15.9%, and Wife's `—` (only
+  one month, nothing to solve a rate from) all independently hand-
+  verified against the XIRR formula and matched exactly. Forward-fill
+  confirmed in the same run: Wife's and NPS's earlier values visibly
+  carried through May/Jun in the combined chart rather than disappearing.
+  380/380 tests pass (9 new in `lib/net-worth-stats.test.ts`),
+  `tsc`/`eslint` clean, `npm run build` clean. No DB migration needed.
+  Dev server and seeded local-store data cleaned up after verification.
