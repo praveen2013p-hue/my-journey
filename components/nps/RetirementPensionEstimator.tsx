@@ -7,6 +7,9 @@ import { computeRetirementPensionEstimate } from "@/lib/nps-stats";
 const DEFAULT_LUMP_SUM_PCT = 60;
 const DEFAULT_ANNUITY_RATE_PCT = 6;
 
+const FULL_DISCLAIMER =
+  "NPS exit rules split the corpus into a lump-sum withdrawal and a mandatory annuity purchase - government subscribers must put at least 40% into the annuity; PFRDA's December 2025 amendment lowered that minimum to 20% for non-government subscribers. The annuity rate above is whatever you enter - real rates (roughly 5.5%-7.5% p.a. as of 2025-26) vary by insurer, plan, and your age at purchase, and this app has no live feed for them.";
+
 /**
  * "If you retired today" what-if calculator, DECISIONS.md - NPS only,
  * shown nowhere else. Both inputs are the user's own assumptions, not
@@ -35,13 +38,18 @@ export function RetirementPensionEstimator({ currentValue }: { currentValue: num
 
   return (
     <div className="min-w-0 rounded-lg border border-border-strong bg-panel-alt p-3">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        If you retired today
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted">If you retired today</span>
+        {estimate && (
+          <span className="text-lg font-semibold tabular-nums text-pos" title="Estimated monthly pension">
+            {formatMoney("IN", estimate.monthlyPension)}/mo
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Lump sum withdrawal (%)
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+        <label className="flex items-center gap-1.5">
+          Lump sum
           <input
             type="number"
             min="0"
@@ -49,51 +57,33 @@ export function RetirementPensionEstimator({ currentValue }: { currentValue: num
             step="any"
             value={lumpSumPctText}
             onChange={(e) => setLumpSumPctText(e.target.value)}
-            className="min-h-[36px] w-24 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+            aria-label="Lump sum withdrawal percent"
+            className="min-h-[30px] w-14 rounded-md border border-border-strong bg-field px-1.5 text-sm text-text"
           />
+          %
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Assumed annuity rate (% p.a.)
+        <label className="flex items-center gap-1.5">
+          Annuity rate
           <input
             type="number"
             min="0"
             step="any"
             value={annuityRatePctText}
             onChange={(e) => setAnnuityRatePctText(e.target.value)}
-            className="min-h-[36px] w-28 rounded-md border border-border-strong bg-field px-2 text-sm text-text"
+            aria-label="Assumed annuity rate percent per year"
+            className="min-h-[30px] w-14 rounded-md border border-border-strong bg-field px-1.5 text-sm text-text"
           />
+          % p.a.
         </label>
+        {estimate && (
+          <span className="min-w-0 truncate">
+            → {formatMoney("IN", estimate.lumpSumAmount)} lump sum + {formatMoney("IN", estimate.annuityAmount)} annuity
+          </span>
+        )}
       </div>
 
-      {estimate && (
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="min-w-0">
-            <div className="text-xs text-muted">Lump sum withdrawal</div>
-            <div className="mt-0.5 truncate text-[17px] font-semibold tabular-nums">
-              {formatMoney("IN", estimate.lumpSumAmount)}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-muted">Annuity purchase</div>
-            <div className="mt-0.5 truncate text-[17px] font-semibold tabular-nums">
-              {formatMoney("IN", estimate.annuityAmount)}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-muted">Estimated monthly pension</div>
-            <div className="mt-0.5 truncate text-[17px] font-semibold tabular-nums text-pos">
-              {formatMoney("IN", estimate.monthlyPension)}/mo
-            </div>
-          </div>
-        </div>
-      )}
-
-      <p className="mt-2.5 text-[11px] leading-snug text-muted">
-        Your own estimate, not a quote: NPS exit rules split the corpus into a lump-sum withdrawal and a mandatory
-        annuity purchase - government subscribers must put at least 40% into the annuity; PFRDA&apos;s December 2025
-        amendment lowered that minimum to 20% for non-government subscribers. The annuity rate above is whatever you
-        enter - real rates (roughly 5.5%-7.5% p.a. as of 2025-26) vary by insurer, plan, and your age at purchase, and
-        this app has no live feed for them. Confirm the current rule and get a real quote before relying on this.
+      <p className="mt-2 text-[11px] leading-snug text-muted" title={FULL_DISCLAIMER}>
+        Your own assumptions, not a quote - rates and rules vary by insurer/subscriber type and change over time.
       </p>
     </div>
   );

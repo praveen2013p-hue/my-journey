@@ -2567,3 +2567,37 @@ finished verification myself.
 
 Full suite 435/435, `tsc`/`eslint`/`npm run build` all clean. No DB
 migration needed - every fix here is pure logic/presentation.
+
+## 2026-11-27 - NPS "Invested = Valuation" investigated (not a bug); Retirement Pension Estimator made compact
+
+User reported Invested and Valuation showing the same figure for 2021 on
+NPS, and that the "If you retired today" panel was too large/not visually
+appealing.
+
+**Invested = Valuation investigation**: read `lib/nps-stats.ts` and
+`components/nps/YearSection.tsx` end to end - "Invested" renders
+`row.cumulativeAdded` (every month's `amount_added` summed to date, never
+reduced by a withdrawal - matches its own header tooltip exactly) and
+"Valuation" renders `row.entry.current_value` (that month's own typed
+balance) - two genuinely different fields, cross-checked against
+`lib/mutual-fund-stats.ts`'s identical logic with no divergence found. Not
+a code bug: the two numbers coincide exactly when a month's typed
+`current_value` equals the cumulative amount added up to that point - the
+expected, common case for a first-ever entry (nothing has grown/shrunk
+yet) or a backfilled historical month entered with the invested amount as
+a placeholder valuation. Live-reproduced this exact pattern with a fresh
+seeded first-month entry to confirm the mechanism, then asked the user to
+confirm what they actually entered for 2021 rather than guess at their
+real data.
+
+**Retirement Pension Estimator redesign** (`components/nps/RetirementPensionEstimator.tsx`):
+replaced the stacked layout (full label+input rows, a separate 3-column
+results grid, a permanent 4-line disclaimer paragraph) with one compact
+panel: the headline monthly pension now sits in the header row (same
+hero-emphasis pattern as the other sub-panels), the two inputs sit inline
+with a one-line "→ lump sum + annuity" summary, and the disclaimer is cut
+to one short always-visible line with the fuller original explanation
+still available via a `title` tooltip on it. Card height roughly halved.
+Live-verified at desktop (1440px) and mobile (390px) - reads cleanly at
+both sizes, no overflow, zero console errors. Full suite 435/435,
+`tsc`/`eslint`/`npm run build` all clean.
