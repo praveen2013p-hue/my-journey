@@ -2036,3 +2036,64 @@ ReflectionBox week-switching, Sidebar profile-list refresh after an
 external change, GoalTracker profile-switching, and a Breakouts
 row-click sanity check (no console errors) - seeded/cleaned-up data
 and scratch files, no stray dev-server processes left running.
+
+## 2026-11-27 - Performance pass: "boost the website speed"
+
+Follow-up to the same code-review ask, done sequentially after the 13 bug
+fixes (same files were in play, avoided running both in parallel).
+
+**1. Unnecessary client-side rendering boundary.** `MutualFundDashboard.tsx`
+was `"use client"` top-to-bottom, even though only its inline goal-editing
+form actually needed interactivity - the stat tiles, change lines, and chart
+wrapper are static. Checked `NpsDashboard.tsx` and `USTradingCapitalDashboard.tsx`
+first and found they were *already* Server Components (no client directive at
+all) - only Mutual Funds had this problem, since it's the only one of the
+three with an inline editable widget (the goal tracker). Fixed by extracting
+`GoalTracker` into its own `"use client"` file
+(`components/mutual-funds/GoalTracker.tsx`), leaving `MutualFundDashboard.tsx`
+as a plain Server Component that renders it as a child.
+
+Measured via each page's client-reference-manifest chunk list (summed file
+sizes of every chunk the page actually references - `next build`'s Turbopack
+output doesn't print a First Load JS table for this all-dynamic app, so this
+is the direct substitute):
+- `/mutual-funds`: 84,176 → 76,078 bytes referenced (-8,098 bytes, ~9.6%)
+- `/nps`, `/us-trading-capital`: unchanged (already correct, not touched)
+
+**2. Missing `loading.tsx`.** Added to the 6 routes that didn't have one:
+`performance`, `sectors`, `net-worth`, `nps`, `us-trading-capital`, `review`.
+Each matches its page's actual shape using the existing shared
+`components/Skeleton.tsx` building blocks (no new visual language) - e.g.
+`nps`/`us-trading-capital` copy the `mutual-funds` skeleton exactly (same
+page shape), `sectors` adds a toggle-row + heatmap block, `review` uses a
+two-column block pair instead of stat cards since that page has no Overview
+card.
+
+**3. Broader audit, nothing further changed:**
+- Checked every sizeable `"use client"` component (`Sidebar.tsx`,
+  `YearSection.tsx` ×3, `SectorsTable.tsx`, `BreakoutsTable.tsx`, the
+  `AddEntryModal`s). All are legitimately interactive throughout (inline
+  per-row editing, sort/filter state, forms) - splitting further would be a
+  large, risky refactor for no clear win, so left as-is.
+- NPS/US Trading Capital/Net Worth's wealth-growth charts already go through
+  the established `next/dynamic(..., { ssr: false })` lazy-load pattern -
+  confirmed, not just assumed.
+- Checked every `page.tsx`'s data-loading section for sequential `await`s
+  that should be `Promise.all`'d. The only two standalone-await pages (NPS,
+  US Trading Capital) have a genuine dependency (`listXEntries` needs
+  `session.userId`) - not parallelizable, nothing to fix. Every other page
+  already uses `Promise.all` correctly.
+- `SectorsTable.tsx` was already the one place doing sort/filter with
+  `useMemo` correctly; checked `TradesTable.tsx`/`BreakoutsTable.tsx`/the
+  `YearSection`s for the same gap - none do unmemoized sorting themselves
+  (data arrives pre-sorted, or there's no sort toggle), so nothing to add.
+- `next.config.ts` reviewed - already minimal and intentional (Cache
+  Components off on purpose, Tailwind Turbopack loader only). Nothing
+  speculative added.
+
+Full suite 409/409, `tsc`/`eslint` clean (same 9 pre-existing problems as
+before this pass, none in touched files), `npm run build` clean. Live-verified:
+seeded a real entry + set a goal through the split `GoalTracker` end-to-end
+(save → progress bar → timeline text all correct), confirmed all 6 new
+`loading.tsx` routes render with no errors. Seeded data and scratch files
+cleaned up, no stray dev-server processes.
