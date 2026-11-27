@@ -48,6 +48,8 @@ describe("computeNetWorthDashboard", () => {
       latestMonth: null,
       safeSwpMonthly: 0,
       safeSwpSustain: { status: "no_capital" },
+      vsLastMonth: null,
+      vsLastYear: null,
     });
   });
 
@@ -138,6 +140,59 @@ describe("computeNetWorthDashboard", () => {
     const dashboard = computeNetWorthDashboard([self, nps]);
     expect(dashboard.latestMonth).toBe("2024-06-01");
     expect(dashboard.currentValue).toBe(155000); // 105000 + 50000, NPS forward-filled
+  });
+
+  it("vsLastMonth/vsLastYear pool every entity's forward-filled value, not just an exact-match entry", () => {
+    // Self has an entry every month; NPS only entered Jan and skipped Feb -
+    // the combined "one month ago" figure must still include NPS's
+    // forward-filled Jan value, not drop NPS out entirely.
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-02-01", amount_added: 0, current_value: 110000 },
+    ]);
+    const nps = entity("NPS", "nps", [{ month: "2024-01-01", amount_added: 50000, current_value: 50000 }]);
+    const dashboard = computeNetWorthDashboard([self, nps]);
+
+    expect(dashboard.currentValue).toBe(160000); // 110000 + 50000 (NPS forward-filled)
+    expect(dashboard.vsLastMonth).not.toBeNull();
+    // One month ago (Jan): Self=100000, NPS=50000 -> 150000. 160000-150000=10000.
+    expect(dashboard.vsLastMonth!.valueChangeAbs).toBe(10000);
+    expect(dashboard.vsLastMonth!.valueChangePct).toBeCloseTo((10000 / 150000) * 100, 6);
+  });
+
+  it("vsLastMonth is null only when NO entity has any entry before that comparison month - an entity that simply hadn't started yet still contributes 0, not an exclusion", () => {
+    // Self has 2 months of history; NPS only just opened this month - NPS
+    // correctly contributes 0 to "one month ago," it isn't excluded from
+    // the comparison (its absence is real: that money didn't exist yet).
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-02-01", amount_added: 0, current_value: 110000 },
+    ]);
+    const nps = entity("NPS", "nps", [{ month: "2024-02-01", amount_added: 20000, current_value: 20000 }]);
+    const dashboard = computeNetWorthDashboard([self, nps]);
+
+    expect(dashboard.currentValue).toBe(130000); // 110000 + 20000
+    expect(dashboard.vsLastMonth).not.toBeNull();
+    // One month ago (Jan): Self=100000, NPS has nothing yet (contributes 0) -> 100000.
+    expect(dashboard.vsLastMonth!.valueChangeAbs).toBe(30000);
+  });
+
+  it("vsLastMonth/vsLastYear are both null when nothing existed yet even one month before the only entry anywhere", () => {
+    const self = entity("Self", "mutual_fund", [{ month: "2024-01-01", amount_added: 100000, current_value: 100000 }]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.vsLastMonth).toBeNull();
+    expect(dashboard.vsLastYear).toBeNull();
+  });
+
+  it("vsLastYear compares against 12 months back the same forward-filled way", () => {
+    const self = entity("Self", "mutual_fund", [
+      { month: "2023-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-01-01", amount_added: 0, current_value: 120000 },
+    ]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.vsLastYear).not.toBeNull();
+    expect(dashboard.vsLastYear!.valueChangeAbs).toBe(20000);
+    expect(dashboard.vsLastYear!.valueChangePct).toBeCloseTo(20, 6);
   });
 });
 

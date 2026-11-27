@@ -2276,3 +2276,52 @@ alter table public.user_settings
 alter table public.user_settings
   add column if not exists nav_trading_label text not null default 'Trading';
 ```
+
+## 2026-11-27 - Net Worth Overview: pooled "vs last month"/"vs same month last year"
+
+User ask: on the Net Worth Overview, show how much the WHOLE combined
+portfolio (every segment, every person's profile, Mutual Funds + NPS) has
+changed vs the previous month's entry.
+
+Each entity's own `vsLastMonth`/`vsLastYear` (in `lib/mutual-fund-stats.ts`/
+`lib/nps-stats.ts`) requires an EXACT entry for that entity at exactly one
+month (or year) before - null otherwise, by design, so a single tracker
+never shows an approximated change. That rule doesn't transfer cleanly to a
+POOLED comparison across several entities with different entry cadences: if
+Self enters every month but Wife only entered last month and NPS skipped
+this one, requiring an exact match from every entity at the exact same
+calendar month would make the combined figure show "—" far more often than
+it should. Instead, reused the SAME forward-fill convention
+`computeNetWorthWealthSeries`/the terminal-value calc in
+`computeNetWorthDashboard` already use: each entity's value *as of* the
+comparison month (its latest entry at or before that date, which may be
+earlier than the date itself) is summed into that month's combined total.
+
+- New `combinedValueAtOrBefore(entities, month)` (`lib/net-worth-stats.ts`):
+  sums every entity's forward-filled value as of `month`; an entity with NO
+  entry at or before `month` contributes 0 (it genuinely didn't hold
+  anything yet - e.g. US Trading Capital opened mid-year - not an
+  exclusion), UNLESS literally no entity has any entry that early, in which
+  case the whole comparison is null (nothing to compare against at all,
+  same "no_capital"-style explicit-state discipline used elsewhere).
+- `periodChange` (the existing abs/pct-change formula) exported from
+  `lib/mutual-fund-stats.ts` and reused directly rather than reimplemented.
+- **Reuse cleanup while here**: the `ChangeLine` tile component was
+  byte-for-byte copy-pasted into `MutualFundDashboard.tsx`, `NpsDashboard.tsx`,
+  and `USTradingCapitalDashboard.tsx` (only the `market` argument to
+  `formatMoney` differed). Extracted to `components/ChangeLine.tsx` with an
+  explicit `market` prop, all three call sites updated, and Net Worth
+  becomes its fourth user instead of a fourth copy.
+
+Hand-verified live: seeded Self (3 months, growing) + NPS (opened one month
+after Self, forward-filled correctly into the comparison), confirmed the
+displayed "+₹10,000" matched an independent hand-calculation from the raw
+seeded numbers exactly, and "vs same month last year" correctly showed "—"
+since no entity existed 12 months back yet. New unit tests cover: pooling
+across staggered entry cadences, an entity contributing 0 (not an
+exclusion) before it opened, the true "nothing existed yet" null case, and
+the 12-months-back comparison. Full suite 423/424 (one unrelated,
+pre-existing flaky timeout in `sector-backfill-orchestrator.test.ts` under
+parallel load, independently reproduced in isolation too and already
+documented as pre-existing test-infra flakiness earlier in this file - not
+touched by this change), `tsc`/`eslint`/`npm run build` all clean.

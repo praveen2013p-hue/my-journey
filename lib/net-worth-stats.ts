@@ -12,7 +12,14 @@
  */
 
 import { computeXirr, daysSinceEpoch, type CashFlow } from "./xirr";
-import { computeSafeSwpMonthly, computeSafeSwpSustainYears, type SafeSwpSustainProjection } from "./mutual-fund-stats";
+import {
+  computeSafeSwpMonthly,
+  computeSafeSwpSustainYears,
+  periodChange,
+  shiftMonth,
+  type PeriodChange,
+  type SafeSwpSustainProjection,
+} from "./mutual-fund-stats";
 
 export type NetWorthEntityKind = "mutual_fund" | "nps";
 
@@ -83,6 +90,23 @@ export interface NetWorthDashboard {
   safeSwpMonthly: number;
   /** How many years that Safe SWP amount (frozen at today's figure) would sustain the combined corpus, projected at the combined XIRR - see `computeSafeSwpSustainYears`. */
   safeSwpSustain: SafeSwpSustainProjection;
+  /**
+   * How much the WHOLE combined portfolio (every Mutual Fund profile +
+   * NPS) changed vs one calendar month/year before latestMonth. Unlike
+   * each entity's own `vsLastMonth`/`vsLastYear` (which require an EXACT
+   * entry for that entity at that exact prior month, else null), this
+   * pools each entity's forward-filled value at that date - an entity
+   * that hasn't re-entered this specific month yet still holds its last
+   * known value, same convention as `computeNetWorthWealthSeries`'s chart
+   * series and the terminal-value calc above. Null only when NO entity
+   * had any entry at all as of that comparison date (nothing to compare
+   * against yet) - an entity that simply hadn't started yet (e.g. US
+   * Trading Capital opened mid-year) correctly contributes 0 to that
+   * earlier total rather than being excluded, since that's a real part of
+   * how the combined portfolio grew.
+   */
+  vsLastMonth: PeriodChange | null;
+  vsLastYear: PeriodChange | null;
 }
 
 export interface NetWorthWealthPoint {
@@ -107,6 +131,26 @@ function latestRowAtOrBefore(rows: NetWorthRowLike[], month: string): NetWorthRo
   return atOrBefore[atOrBefore.length - 1];
 }
 
+/**
+ * Sum of every entity's forward-filled `current_value` as of `month` - an
+ * entity with no entry at or before `month` contributes 0 (it genuinely
+ * didn't hold any value yet, e.g. not opened yet), UNLESS *no* entity has
+ * any entry at or before `month`, in which case there's nothing to compare
+ * against at all and this returns null.
+ */
+function combinedValueAtOrBefore(entities: NetWorthEntity[], month: string): number | null {
+  let anyData = false;
+  let total = 0;
+  for (const e of entities) {
+    const row = latestRowAtOrBefore(e.rows, month);
+    if (row) {
+      anyData = true;
+      total += row.entry.current_value;
+    }
+  }
+  return anyData ? total : null;
+}
+
 export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDashboard {
   const withEntries = entities.filter((e) => e.dashboard.latestMonth !== null);
   if (withEntries.length === 0) {
@@ -119,6 +163,8 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
       latestMonth: null,
       safeSwpMonthly: 0,
       safeSwpSustain: { status: "no_capital" },
+      vsLastMonth: null,
+      vsLastYear: null,
     };
   }
 
@@ -151,6 +197,10 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
 
   const rate = computeXirr(flows);
   const xirrPct = rate !== null ? rate * 100 : null;
+
+  const lastMonthValue = combinedValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -1));
+  const lastYearValue = combinedValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -12));
+
   return {
     currentValue,
     totalInvested,
@@ -160,6 +210,8 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
     latestMonth: terminalMonth,
     safeSwpMonthly: computeSafeSwpMonthly(currentValue),
     safeSwpSustain: computeSafeSwpSustainYears(currentValue, xirrPct),
+    vsLastMonth: lastMonthValue !== null ? periodChange(currentValue, lastMonthValue) : null,
+    vsLastYear: lastYearValue !== null ? periodChange(currentValue, lastYearValue) : null,
   };
 }
 

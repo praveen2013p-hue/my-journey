@@ -100,7 +100,7 @@ export interface MutualFundView {
  */
 export const SWP_ANNUAL_RATE_PCT = 4;
 
-function periodChange(current: number, previous: number): PeriodChange {
+export function periodChange(current: number, previous: number): PeriodChange {
   return {
     valueChangeAbs: current - previous,
     valueChangePct: previous !== 0 ? ((current - previous) / previous) * 100 : null,

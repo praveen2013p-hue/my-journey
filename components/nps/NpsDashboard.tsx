@@ -1,27 +1,8 @@
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/nps-stats";
-import type { NpsDashboard as Dashboard, NpsEntryView, PeriodChange } from "@/lib/nps-stats";
+import type { NpsDashboard as Dashboard, NpsEntryView } from "@/lib/nps-stats";
+import { ChangeLine } from "@/components/ChangeLine";
 import { WealthGrowthChartLazy } from "./WealthGrowthChartLazy";
-
-function ChangeLine({ label, change }: { label: string; change: PeriodChange | null }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-xs text-muted">{label}</div>
-      {change === null ? (
-        <div className="mt-1 text-sm text-muted">—</div>
-      ) : (
-        <div
-          className={`mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[17px] font-semibold tabular-nums ${change.valueChangeAbs >= 0 ? "text-pos" : "text-neg"}`}
-        >
-          <span>{formatMoney("IN", change.valueChangeAbs)}</span>
-          <span className="min-w-0 truncate text-sm font-medium" title={`(${formatPct(change.valueChangePct)})`}>
-            ({formatPct(change.valueChangePct)})
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: NpsEntryView[] }) {
   if (dashboard.latestMonth === null) {
@@ -100,8 +81,8 @@ export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: 
               {formatMoney("IN", dashboard.safeSwpMonthly!)}/mo
             </div>
           </div>
-          <ChangeLine label="vs last month" change={dashboard.vsLastMonth} />
-          <ChangeLine label="vs same month last year" change={dashboard.vsLastYear} />
+          <ChangeLine label="vs last month" change={dashboard.vsLastMonth} market="IN" />
+          <ChangeLine label="vs same month last year" change={dashboard.vsLastYear} market="IN" />
         </div>
         <div className="min-w-0">
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Wealth growth</h3>

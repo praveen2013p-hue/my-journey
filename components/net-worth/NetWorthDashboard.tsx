@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChangeLine } from "@/components/ChangeLine";
 import { WealthGrowthChartLazy } from "@/components/mutual-funds/WealthGrowthChartLazy";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/month-utils";
@@ -92,6 +93,18 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
                 </div>
               )}
             </div>
+            <ChangeLine
+              label="vs last month"
+              change={dashboard.vsLastMonth}
+              market="IN"
+              title="How much the whole combined portfolio changed vs one month ago - every entity's value forward-filled to its latest known figure as of that date"
+            />
+            <ChangeLine
+              label="vs same month last year"
+              change={dashboard.vsLastYear}
+              market="IN"
+              title="How much the whole combined portfolio changed vs the same month one year ago"
+            />
             <div className="min-w-0 sm:col-span-3">
               <div
                 className="text-xs text-muted"
