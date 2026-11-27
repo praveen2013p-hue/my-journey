@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Chip, stageVariant, type ChipVariant } from "@/components/Chip";
 import type { Market } from "@/lib/db/schema-types";
+import { colorForSigned } from "@/lib/format-money";
 import type { SectorRow } from "@/lib/sectors-page-data";
 import { ConstituentsPanel } from "./ConstituentsPanel";
 import { Sparkline } from "./Sparkline";
@@ -18,11 +19,6 @@ function fmtPct(value: number | null, digits = 1): string {
 function fmtNum(value: number | null, digits = 1): string {
   if (value === null || Number.isNaN(value)) return "—";
   return `${value > 0 ? "+" : ""}${value.toFixed(digits)}`;
-}
-
-function colorForSigned(value: number | null): string {
-  if (value === null) return "text-muted";
-  return value >= 0 ? "text-pos" : "text-neg";
 }
 
 function colorForRatio(ratio: number | null): string {

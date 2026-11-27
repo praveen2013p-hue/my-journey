@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Chip } from "@/components/Chip";
+import { EmptyState } from "@/components/EmptyState";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/month-utils";
 import type { PeriodChange, SafeSwpSustainProjection } from "@/lib/mutual-fund-stats";
@@ -56,17 +57,13 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
   const { dashboard, breakdown, chartPoints } = view;
 
   if (dashboard.latestMonth === null) {
-    return (
-      <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">
-        No entries yet anywhere - add a month to Mutual Funds or NPS to see your combined net worth here.
-      </div>
-    );
+    return <EmptyState>No entries yet anywhere - add a month to Mutual Funds or NPS to see your combined net worth here.</EmptyState>;
   }
 
   return (
     <>
       <section className="rounded-xl border border-border bg-panel p-5 shadow-md" aria-label="Net worth summary">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3.5 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
           <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>
         </div>

@@ -228,6 +228,36 @@ describe("computeNetWorthDashboard", () => {
     expect(dashboard.gainVsLastMonth!.valueChangeAbs).toBe(10000); // 5000 - (-5000)
   });
 
+  it("gainVsLastMonth/gainVsLastYear's percent is null (never sign-inverted) when the comparison period's gain was zero or negative", () => {
+    // Combined gain last month = -10000 (a loss); this month = +1000 (a real
+    // turnaround). valueChangeAbs is correctly +11000, but a naive
+    // (11000 / -10000) * 100 would show "-110%" next to a positive change -
+    // periodChange's percent math has no positive-base guard, so this must
+    // use a dedicated null-on-non-positive-base path instead.
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 90000 }, // gain -10000
+      { month: "2024-02-01", amount_added: 0, current_value: 101000 }, // gain +1000
+    ]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.gainVsLastMonth).not.toBeNull();
+    expect(dashboard.gainVsLastMonth!.valueChangeAbs).toBe(11000);
+    expect(dashboard.gainVsLastMonth!.valueChangePct).toBeNull();
+  });
+
+  it("gainVsLastMonth's percent computes normally when the comparison period's gain was positive", () => {
+    // Jan gain = 100000 (invest 100000, worth 200000). Feb gain = 120000
+    // (no new money, worth 220000). Percent change in gain itself:
+    // (120000 - 100000) / 100000 * 100 = 20%.
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 200000 },
+      { month: "2024-02-01", amount_added: 0, current_value: 220000 },
+    ]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.gainVsLastMonth).not.toBeNull();
+    expect(dashboard.gainVsLastMonth!.valueChangeAbs).toBe(20000);
+    expect(dashboard.gainVsLastMonth!.valueChangePct).toBeCloseTo(20, 6);
+  });
+
   it("gainVsLastMonth/gainVsLastYear are null under the same 'nothing to compare against yet' condition as vsLastMonth/vsLastYear", () => {
     const self = entity("Self", "mutual_fund", [{ month: "2024-01-01", amount_added: 100000, current_value: 100000 }]);
     const dashboard = computeNetWorthDashboard([self]);

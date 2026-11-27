@@ -1,5 +1,6 @@
 import { Chip } from "@/components/Chip";
 import type { TopSector } from "@/lib/dashboard-data";
+import { colorForSigned } from "@/lib/format-money";
 
 export function TopSectorsCard({ sectors }: { sectors: TopSector[] }) {
   return (
@@ -22,7 +23,7 @@ export function TopSectorsCard({ sectors }: { sectors: TopSector[] }) {
                 <span className="font-medium">{s.sector}</span>
                 <Chip variant="neutral">{s.market}</Chip>
               </span>
-              <span className="tabular-nums text-pos">
+              <span className={`tabular-nums ${colorForSigned(s.mrs)}`}>
                 RS {s.mrs !== null ? (s.mrs > 0 ? "+" : "") + s.mrs.toFixed(1) : "—"}
               </span>
             </li>

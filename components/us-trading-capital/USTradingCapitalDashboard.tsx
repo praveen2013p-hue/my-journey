@@ -1,14 +1,15 @@
 import { Chip } from "@/components/Chip";
+import { EmptyState } from "@/components/EmptyState";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/us-trading-capital-stats";
 import type { UsTradingCapitalDashboard as Dashboard, UsTradingCapitalEntryView } from "@/lib/us-trading-capital-stats";
 import { ChangeLine } from "@/components/ChangeLine";
 import { WealthGrowthChartLazy } from "./WealthGrowthChartLazy";
 
-function realReturnPrompt(reason: "missing_deposit_data" | "missing_current_rate"): string {
-  return reason === "missing_deposit_data"
-    ? "Add the INR amount or FX rate for every deposit to see your real (₹) return."
-    : "Add today's USD/INR rate to see your real return.";
+function realReturnPrompt(reason: "missing_deposit_data" | "missing_withdrawal_data" | "missing_current_rate"): string {
+  if (reason === "missing_deposit_data") return "Add the INR amount or FX rate for every deposit to see your real (₹) return.";
+  if (reason === "missing_withdrawal_data") return "Add the FX rate for this month's withdrawal to see your real return.";
+  return "Add today's USD/INR rate to see your real return.";
 }
 
 export function USTradingCapitalDashboard({
@@ -19,11 +20,7 @@ export function USTradingCapitalDashboard({
   rows: UsTradingCapitalEntryView[];
 }) {
   if (dashboard.latestMonth === null) {
-    return (
-      <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">
-        No entries yet - add your first month below to start tracking.
-      </div>
-    );
+    return <EmptyState>No entries yet - add your first month below to start tracking.</EmptyState>;
   }
 
   const chartPoints = rows.map((r) => ({
@@ -33,12 +30,7 @@ export function USTradingCapitalDashboard({
   }));
 
   return (
-    <section
-      className="sticky top-0 z-10 rounded-xl border border-border bg-panel p-5 shadow-md"
-      aria-label="US Trading Capital summary"
-    >
-      {/* bg-bg strip fills the gap above the sticky card so it doesn't show page content bleeding through while pinned */}
-      <div className="absolute inset-x-0 bottom-full h-4 bg-bg" aria-hidden="true" />
+    <section className="rounded-xl border border-border bg-panel p-5 shadow-md" aria-label="US Trading Capital summary">
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
         <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>

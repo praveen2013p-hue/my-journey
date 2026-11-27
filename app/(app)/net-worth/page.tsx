@@ -16,11 +16,13 @@ import { buildNpsView } from "@/lib/nps-stats";
 export default async function NetWorthPage() {
   const session = await verifySession();
 
-  const profiles = await listMutualFundProfiles(session.userId);
-  const [mfEntriesByProfile, npsEntries] = await Promise.all([
-    Promise.all(profiles.map((profile) => listMutualFundEntries(session.userId, profile.id))),
+  const [profiles, npsEntries] = await Promise.all([
+    listMutualFundProfiles(session.userId),
     listNpsEntries(session.userId),
   ]);
+  const mfEntriesByProfile = await Promise.all(
+    profiles.map((profile) => listMutualFundEntries(session.userId, profile.id)),
+  );
 
   const entities: NetWorthEntity[] = profiles.map((profile, i) => {
     const { dashboard, rows } = buildMutualFundView(mfEntriesByProfile[i]);

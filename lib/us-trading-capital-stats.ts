@@ -25,19 +25,23 @@
  *    optional for this account type, and reusing fx_rate is the only
  *    rate available for that month's cash movements).
  *
- *    A month that has a nonzero amount_added/withdrawal but neither
- *    inr_amount nor fx_rate recorded makes `realReturnPct` null from
- *    that month onward for every later month too (the running INR flow
- *    history is permanently missing a flow, same "coverage broken, stays
- *    broken" idiom as `computeBenchmarkSeries` in lib/mutual-fund-stats.ts)
- *    - `realReturnBlockedReason: "missing_deposit_data"`. A row whose own
- *    `value_fx_rate` is null (but every deposit up to and including it IS
- *    known) gets `realReturnBlockedReason: "missing_current_rate"` -
- *    distinct prompts for distinct fixes. When computeXirr itself
- *    returns null (not enough history to solve a rate, e.g. the very
- *    first month) with full data present, realReturnPct is simply null
- *    with no blocked reason - same generic "—" the USD xirrPct already
- *    uses in that case.
+ *    A month that has a nonzero amount_added but neither inr_amount nor
+ *    fx_rate recorded, or a nonzero withdrawal with no fx_rate recorded,
+ *    makes `realReturnPct` null from that month onward for every later
+ *    month too (the running INR flow history is permanently missing a
+ *    flow, same "coverage broken, stays broken" idiom as
+ *    `computeBenchmarkSeries` in lib/mutual-fund-stats.ts) -
+ *    `realReturnBlockedReason: "missing_deposit_data"` or
+ *    `"missing_withdrawal_data"` respectively (distinct prompts for
+ *    distinct fixes - the reason reported is whichever one FIRST broke
+ *    coverage, remembered alongside the sticky flag, not recomputed
+ *    fresh each row). A row whose own `value_fx_rate` is null (but every
+ *    deposit/withdrawal up to and including it IS known) gets
+ *    `realReturnBlockedReason: "missing_current_rate"`. When computeXirr
+ *    itself returns null (not enough history to solve a rate, e.g. the
+ *    very first month) with full data present, realReturnPct is simply
+ *    null with no blocked reason - same generic "—" the USD xirrPct
+ *    already uses in that case.
  */
 
 import type { UsTradingCapitalEntryRow } from "./db/schema-types";
@@ -46,7 +50,7 @@ import { computeXirr, daysSinceEpoch } from "./xirr";
 
 export { monthLabel, shiftMonth };
 
-export type RealReturnBlockedReason = "missing_deposit_data" | "missing_current_rate";
+export type RealReturnBlockedReason = "missing_deposit_data" | "missing_withdrawal_data" | "missing_current_rate";
 
 export interface UsTradingCapitalEntryView {
   entry: UsTradingCapitalEntryRow;
@@ -143,6 +147,7 @@ export function buildUsTradingCapitalView(entries: UsTradingCapitalEntryRow[]): 
   const contributionFlows: Array<{ days: number; amount: number }> = [];
   const inrContributionFlows: Array<{ days: number; amount: number }> = [];
   let inrCoverageBroken = false;
+  let inrCoverageBrokenReason: "missing_deposit_data" | "missing_withdrawal_data" | null = null;
 
   const rows: UsTradingCapitalEntryView[] = sorted.map((entry) => {
     running += entry.amount_added - entry.withdrawal;
@@ -165,12 +170,20 @@ export function buildUsTradingCapitalView(entries: UsTradingCapitalEntryRow[]): 
     // Real Return - independently-tracked INR flow history.
     const inrDeposit = resolveInrEquivalent(entry.amount_added, entry.inr_amount, entry.fx_rate);
     const inrWithdrawal = resolveInrEquivalent(entry.withdrawal, null, entry.fx_rate);
-    if (inrDeposit === null || inrWithdrawal === null) inrCoverageBroken = true;
+    if (!inrCoverageBroken) {
+      if (inrDeposit === null) {
+        inrCoverageBroken = true;
+        inrCoverageBrokenReason = "missing_deposit_data";
+      } else if (inrWithdrawal === null) {
+        inrCoverageBroken = true;
+        inrCoverageBrokenReason = "missing_withdrawal_data";
+      }
+    }
 
     let realReturnPct: number | null = null;
     let realReturnBlockedReason: RealReturnBlockedReason | null = null;
     if (inrCoverageBroken) {
-      realReturnBlockedReason = "missing_deposit_data";
+      realReturnBlockedReason = inrCoverageBrokenReason;
     } else {
       inrContributionFlows.push({ days, amount: inrWithdrawal! - inrDeposit! });
       if (entry.value_fx_rate === null) {

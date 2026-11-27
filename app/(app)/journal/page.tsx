@@ -7,6 +7,7 @@ import { ClosedTradesTable, OpenTradesTable } from "@/components/journal/TradesT
 import { Chip } from "@/components/Chip";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader } from "@/components/PageHeader";
+import { Card } from "@/components/performance/StatsCards";
 import { verifySession } from "@/lib/auth/dal";
 import type { Market } from "@/lib/db/schema-types";
 import { formatMoney, formatPct } from "@/lib/format-money";
@@ -64,42 +65,28 @@ export default async function JournalPage({
       </div>
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Win rate</div>
-          <div className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.winRate !== null && data.stats.winRate >= 50 ? "text-pos" : "text-text"}`}>
-            {data.stats.winRate !== null ? `${data.stats.winRate.toFixed(0)}%` : "—"}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Average gain</div>
-          <div className="mt-1.5 text-[30px] font-semibold tracking-tight text-pos">{formatPct(data.stats.avgGainPct)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Average loss</div>
-          <div className="mt-1.5 text-[30px] font-semibold tracking-tight text-neg">{formatPct(data.stats.avgLossPct)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Expectancy</div>
-          <div
-            className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.expectancyPct !== null && data.stats.expectancyPct >= 0 ? "text-pos" : "text-neg"}`}
-          >
-            {formatPct(data.stats.expectancyPct)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Realised P&amp;L</div>
-          <div className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.realizedPnl >= 0 ? "text-pos" : "text-neg"}`}>
-            {formatMoney(market, data.stats.realizedPnl)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel p-4.5">
-          <div className="text-xs text-muted">Avg R-multiple</div>
-          <div
-            className={`mt-1.5 text-[30px] font-semibold tracking-tight ${data.stats.avgRMultiple !== null && data.stats.avgRMultiple >= 0 ? "text-pos" : data.stats.avgRMultiple !== null ? "text-neg" : "text-text"}`}
-          >
-            {data.stats.avgRMultiple !== null ? `${data.stats.avgRMultiple >= 0 ? "+" : ""}${data.stats.avgRMultiple.toFixed(2)}R` : "—"}
-          </div>
-        </div>
+        <Card
+          label="Win rate"
+          value={data.stats.winRate !== null ? `${data.stats.winRate.toFixed(0)}%` : "—"}
+          tone={data.stats.winRate !== null && data.stats.winRate >= 50 ? "pos" : undefined}
+        />
+        <Card label="Average gain" value={formatPct(data.stats.avgGainPct)} tone="pos" />
+        <Card label="Average loss" value={formatPct(data.stats.avgLossPct)} tone="neg" />
+        <Card
+          label="Expectancy"
+          value={formatPct(data.stats.expectancyPct)}
+          tone={data.stats.expectancyPct !== null && data.stats.expectancyPct >= 0 ? "pos" : "neg"}
+        />
+        <Card
+          label="Realised P&L"
+          value={formatMoney(market, data.stats.realizedPnl)}
+          tone={data.stats.realizedPnl >= 0 ? "pos" : "neg"}
+        />
+        <Card
+          label="Avg R-multiple"
+          value={data.stats.avgRMultiple !== null ? `${data.stats.avgRMultiple >= 0 ? "+" : ""}${data.stats.avgRMultiple.toFixed(2)}R` : "—"}
+          tone={data.stats.avgRMultiple !== null ? (data.stats.avgRMultiple >= 0 ? "pos" : "neg") : undefined}
+        />
       </div>
 
       <PnlCalendar

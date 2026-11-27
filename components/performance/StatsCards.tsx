@@ -1,9 +1,10 @@
+import { EmptyState } from "@/components/EmptyState";
 import { Sparkline } from "@/components/sectors/Sparkline";
 import type { Market } from "@/lib/db/schema-types";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import type { TradeStatsSummary } from "@/lib/trade-stats";
 
-function Card({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
+export function Card({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
   return (
     <div className="rounded-xl border border-border bg-panel p-4.5">
       <div className="text-xs text-muted">{label}</div>
@@ -16,11 +17,7 @@ function Card({ label, value, tone }: { label: string; value: string; tone?: "po
 
 export function StatsCards({ market, stats }: { market: Market; stats: TradeStatsSummary }) {
   if (stats.tradeCount === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">
-        No closed trades in this time frame yet.
-      </div>
-    );
+    return <EmptyState>No closed trades in this time frame yet.</EmptyState>;
   }
 
   return (

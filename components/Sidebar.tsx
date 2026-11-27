@@ -287,8 +287,24 @@ function SidebarSectionLabel({
   const [renaming, setRenaming] = useState(false);
   const [draftLabel, setDraftLabel] = useState(initialLabel);
   const [savingLabel, setSavingLabel] = useState(false);
+  const [syncedInitialLabel, setSyncedInitialLabel] = useState(initialLabel);
+
+  // The layout re-fetches nav_scanner_label/nav_trading_label/
+  // nav_long_term_label fresh on every navigation (app/(app)/layout.tsx),
+  // but this component isn't remounted by that - without this, a rename
+  // made in another tab/device would never show up here until a hard
+  // reload, the same stale-prop class already fixed for
+  // MutualFundsTreeNav's `initialProfiles` above. Adjusted during render
+  // (React's documented pattern), not in an effect.
+  if (initialLabel !== syncedInitialLabel) {
+    setSyncedInitialLabel(initialLabel);
+    setLabel(initialLabel);
+    setRenaming(false);
+    setDraftLabel(initialLabel);
+  }
 
   async function submitRename() {
+    if (savingLabel) return; // guard against a double-fire from both onSubmit and onBlur
     const trimmed = draftLabel.trim();
     if (!trimmed || trimmed === label) {
       setRenaming(false);

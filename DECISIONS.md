@@ -2486,3 +2486,84 @@ data (Mutual Funds: goal set + 3 months; NPS: 3 months + the pension
 estimator; US Trading Capital: 3 months with real INR/FX data) - hierarchy
 reads cleanly on all three, no clipping, zero console errors. Full suite
 432/432, `tsc`/`eslint`/`npm run build` all clean.
+
+## 2026-11-27 - Deep audit: formulas, bugs, performance, uniformity
+
+User asked for a full pass: re-verify every formula, find and fix bugs,
+make the site faster, and fix inconsistencies. Ran 4 parallel review
+agents (formula cross-verification, bug hunt in everything built since the
+last big review, a performance re-audit, and a visual/code uniformity
+pass), then fixed everything they found:
+
+1. **Formula bug** - `gainVsLastMonth`/`gainVsLastYear` (`lib/net-worth-stats.ts`)
+   fed a gain figure (which can be negative) into `periodChange`, built for
+   dividing by a non-negative value - inverted the sign whenever the
+   comparison period's P&L was itself a loss (e.g. a real +₹11,000
+   turnaround from a -₹10,000 loss showed as "-110%"). Fixed with a
+   dedicated `gainPeriodChange` that returns `null` for the percent
+   whenever the comparison base isn't positive, matching the exact
+   discipline this file's own `gainPct` already uses. New tests cover both
+   the null case and a normal positive-base case.
+2. **Bug** - `SidebarSectionLabel` (Investment/Scanner/Trading) never
+   resynced its `label` from a changed `initialLabel` prop, going stale
+   across tabs/devices after a rename - the exact bug class already fixed
+   for `MutualFundsTreeNav`'s profile list in this same file, missed here
+   and tripled across 3 segments. Fixed with the identical render-time
+   resync pattern. Also added a `savingLabel` re-entry guard to
+   `submitRename()` against a double-fire from `onSubmit` + `onBlur`.
+3. **Bug** - `TopSectorsCard` (Dashboard widget) hardcoded `text-pos` for
+   every Mansfield RS value regardless of sign, showing negative RS in
+   green while the Sectors page correctly shows it in red for the same
+   number. Fixed by promoting `SectorsTable.tsx`'s local `colorForSigned`
+   into a shared export in `lib/format-money.ts` (alongside
+   `formatMoney`/`formatPct`, the same "how do I render a number" concern)
+   and using it in both places.
+4. **Performance** - `app/(app)/net-worth/page.tsx` serialized
+   `listNpsEntries` behind `listMutualFundProfiles` even though it only
+   depends on `session.userId`. Now both run in one `Promise.all`, with
+   the per-profile Mutual Fund entries fetch (which genuinely depends on
+   the resolved profiles) in a second `Promise.all` after.
+5. **Uniformity** - Breakouts/Pullbacks were the only freshness-sensitive
+   pages missing `DataFreshnessStrip`; added it with the same
+   `getFreshnessData()`/`Promise.all` pattern every other page uses.
+6. **Uniformity** - Journal's stat-tile row duplicated Performance's
+   `Card` component's markup inline at `text-[30px]` instead of the
+   shared `text-2xl`. Exported `Card` from `components/performance/StatsCards.tsx`
+   and had Journal import and use it directly - genuine reuse, not just a
+   size match.
+7. **Uniformity** - `GoalTracker`'s progress-bar panel used `border-border`
+   instead of `border-border-strong`, the one-off among every other extra
+   sub-panel across all 4 dashboards (including this component's own
+   editing-state panel). One-class fix.
+8. **Correctness nit** - US Trading Capital's `realReturnBlockedReason`
+   collapsed a missing-withdrawal-conversion-rate case into
+   `"missing_deposit_data"`, pointing the user at the wrong field. Added a
+   distinct `"missing_withdrawal_data"` reason (remembered once coverage
+   first breaks, not recomputed per row) with its own prompt text.
+9. **Cleanup** - extracted the "no entries yet" empty-state box (copy-pasted
+   across 10+ files) into a shared `components/EmptyState.tsx`, used by all
+   4 dashboards and `StatsCards.tsx`.
+10. **Uniformity** - Net Worth's Overview card had `mb-4` where its 3
+    siblings use `mb-3.5` - fixed to match.
+
+**Also discovered live, mid-fix, from the user's own report**: making
+all 4 Overview cards `sticky` (items 1 and 10 above, plus the earlier
+redesign commits) backfired once the cards grew tall with the new
+hero/secondary/Change/extra-panel hierarchy - on a shorter viewport
+(reported on a MacBook), the pinned card could cover the content below it
+entirely while scrolling. Removed `sticky`/the `bg-bg` masking strip from
+all 4 Overview cards (Mutual Funds, NPS, US Trading Capital, Net Worth) -
+the cards are tall enough now that sticky positioning does more harm than
+good; a normal, un-pinned card guarantees nothing below it is ever hidden.
+Live-verified: scrolled 400px on Mutual Funds, confirmed the Overview card
+scrolls away (not pinned) and the entry table below stays fully reachable.
+
+The fix pass for items 1-10 was originally run as a background fork,
+which hit a 5-hour API rate-limit mid-task right after its final
+test/build step. Rather than trust its own unreviewed completion note, I
+independently re-read every diff against the original findings before
+accepting any of it (all correct, well-tested, nothing suspicious) and
+finished verification myself.
+
+Full suite 435/435, `tsc`/`eslint`/`npm run build` all clean. No DB
+migration needed - every fix here is pure logic/presentation.

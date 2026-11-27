@@ -1,4 +1,5 @@
 import { Chip } from "@/components/Chip";
+import { EmptyState } from "@/components/EmptyState";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/nps-stats";
 import type { NpsDashboard as Dashboard, NpsEntryView } from "@/lib/nps-stats";
@@ -8,11 +9,7 @@ import { WealthGrowthChartLazy } from "./WealthGrowthChartLazy";
 
 export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: NpsEntryView[] }) {
   if (dashboard.latestMonth === null) {
-    return (
-      <div className="rounded-xl border border-border bg-panel p-6 text-sm text-muted">
-        No entries yet - add your first month below to start tracking.
-      </div>
-    );
+    return <EmptyState>No entries yet - add your first month below to start tracking.</EmptyState>;
   }
 
   const chartPoints = rows.map((r) => ({
@@ -22,12 +19,7 @@ export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: 
   }));
 
   return (
-    <section
-      className="sticky top-0 z-10 rounded-xl border border-border bg-panel p-5 shadow-md"
-      aria-label="NPS summary"
-    >
-      {/* bg-bg strip fills the gap above the sticky card so it doesn't show page content bleeding through while pinned */}
-      <div className="absolute inset-x-0 bottom-full h-4 bg-bg" aria-hidden="true" />
+    <section className="rounded-xl border border-border bg-panel p-5 shadow-md" aria-label="NPS summary">
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
         <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>

@@ -115,6 +115,17 @@ describe("buildUsTradingCapitalView - Real Return (FX-adjusted, INR)", () => {
     expect(view.dashboard.xirrPct).not.toBeNull();
   });
 
+  it("is null with reason 'missing_withdrawal_data' when a month has no deposit but an unconvertible withdrawal - a distinct reason from missing_deposit_data", () => {
+    const entries = [
+      entry({ month: "2023-01-01", amount_added: 1000, fx_rate: 80, value_fx_rate: 80, current_value: 1000 }),
+      // No deposit this month at all, but a withdrawal with no fx_rate - unconvertible.
+      entry({ month: "2023-06-01", amount_added: 0, withdrawal: 200, value_fx_rate: 83, current_value: 700 }),
+    ];
+    const view = buildUsTradingCapitalView(entries);
+    expect(view.rows[1].realReturnBlockedReason).toBe("missing_withdrawal_data");
+    expect(view.dashboard.realReturnBlockedReason).toBe("missing_withdrawal_data");
+  });
+
   it("is null with reason 'missing_current_rate' when every deposit converts fine but the latest entry has no value_fx_rate", () => {
     const entries = [
       entry({ month: "2023-01-01", amount_added: 1000, fx_rate: 80, value_fx_rate: 80, current_value: 1000 }),

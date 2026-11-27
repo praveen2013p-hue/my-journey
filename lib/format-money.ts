@@ -22,3 +22,9 @@ export function formatPct(value: number | null, digits = 1): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(digits)}%`;
 }
+
+/** Shared sign-to-color helper - muted when there's no value at all, otherwise green for >=0, red for negative. */
+export function colorForSigned(value: number | null): string {
+  if (value === null) return "text-muted";
+  return value >= 0 ? "text-pos" : "text-neg";
+}

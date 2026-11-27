@@ -171,6 +171,22 @@ function combinedInvestedAndValueAtOrBefore(
   return anyData ? { invested, value } : null;
 }
 
+/**
+ * Like `periodChange`, but for comparing two GAIN (profit/loss) figures
+ * rather than two values - a gain can legitimately be negative, so
+ * `periodChange`'s percent math (no positive-base guard, since every
+ * other caller only ever passes a value that's always >= 0) would invert
+ * the sign whenever the comparison period's gain was itself a loss. Same
+ * "null when the base isn't positive" discipline this file's own
+ * `gainPct` already uses, applied here too.
+ */
+function gainPeriodChange(currentGain: number, pastGain: number): PeriodChange {
+  return {
+    valueChangeAbs: currentGain - pastGain,
+    valueChangePct: pastGain > 0 ? ((currentGain - pastGain) / pastGain) * 100 : null,
+  };
+}
+
 export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDashboard {
   const withEntries = entities.filter((e) => e.dashboard.latestMonth !== null);
   if (withEntries.length === 0) {
@@ -234,8 +250,8 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
     safeSwpSustain: computeSafeSwpSustainYears(currentValue, xirrPct),
     vsLastMonth: lastMonth !== null ? periodChange(currentValue, lastMonth.value) : null,
     vsLastYear: lastYear !== null ? periodChange(currentValue, lastYear.value) : null,
-    gainVsLastMonth: lastMonth !== null ? periodChange(gainAbs, lastMonth.value - lastMonth.invested) : null,
-    gainVsLastYear: lastYear !== null ? periodChange(gainAbs, lastYear.value - lastYear.invested) : null,
+    gainVsLastMonth: lastMonth !== null ? gainPeriodChange(gainAbs, lastMonth.value - lastMonth.invested) : null,
+    gainVsLastYear: lastYear !== null ? gainPeriodChange(gainAbs, lastYear.value - lastYear.invested) : null,
   };
 }
 
