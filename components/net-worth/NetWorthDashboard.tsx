@@ -1,23 +1,10 @@
 import Link from "next/link";
-import { ChangeLine } from "@/components/ChangeLine";
-import { WealthGrowthChartLazy } from "@/components/mutual-funds/WealthGrowthChartLazy";
+import { Chip } from "@/components/Chip";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/month-utils";
-import type { SafeSwpSustainProjection } from "@/lib/mutual-fund-stats";
+import type { PeriodChange, SafeSwpSustainProjection } from "@/lib/mutual-fund-stats";
+import { WealthGrowthChartLazy } from "@/components/mutual-funds/WealthGrowthChartLazy";
 import type { NetWorthView } from "@/lib/net-worth-stats";
-
-function StatTile({ label, value, title }: { label: string; value: string; title?: string }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-xs text-muted" title={title}>
-        {label}
-      </div>
-      <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={value}>
-        {value}
-      </div>
-    </div>
-  );
-}
 
 function safeSwpSustainText(projection: SafeSwpSustainProjection): string {
   switch (projection.status) {
@@ -28,10 +15,23 @@ function safeSwpSustainText(projection: SafeSwpSustainProjection): string {
     case "invalid_rate":
       return "XIRR too negative to project";
     case "indefinite":
-      return "sustains indefinitely at the current XIRR";
+      return "sustains indefinitely";
     case "projected":
-      return `sustains ~${projection.years.toFixed(1)} yrs at the current XIRR`;
+      return `sustains ~${projection.years.toFixed(1)} yrs`;
   }
+}
+
+/** One cell of the Value/P&L × vs-last-month/vs-last-year grid - no label of its own, the row/column headers carry that. */
+function ChangeCell({ change }: { change: PeriodChange | null }) {
+  if (change === null) {
+    return <span className="text-muted">—</span>;
+  }
+  return (
+    <span className={`inline-flex flex-wrap items-baseline gap-x-1 tabular-nums ${change.valueChangeAbs >= 0 ? "text-pos" : "text-neg"}`}>
+      <span className="font-semibold">{formatMoney("IN", change.valueChangeAbs)}</span>
+      <span className="text-xs font-medium text-muted">({formatPct(change.valueChangePct)})</span>
+    </span>
+  );
 }
 
 /**
@@ -41,6 +41,16 @@ function safeSwpSustainText(projection: SafeSwpSustainProjection): string {
  * (a client-boundary dynamic import) can be rendered directly the same
  * way the original Mutual Funds Overview did before Goal tracking forced
  * that one to become a client component for its own inline input.
+ *
+ * Visual redesign (DECISIONS.md): the flat 9-tile grid this card grew into
+ * (current value, invested, gain, XIRR, 4 change figures, Safe SWP) had no
+ * hierarchy - every number the same size, same weight. Restructured into
+ * tiers: a hero Current Value with its XIRR as a colored chip, a compact
+ * secondary line for Invested/Gain, the 4 change figures collapsed into one
+ * small Value-vs-P&L grid (they're naturally a 2x2 matrix - two time
+ * periods crossed with two metrics - not four independent tiles), and Safe
+ * SWP as its own clearly bounded sub-panel, matching the one the Change
+ * grid already needed.
  */
 export function NetWorthDashboard({ view }: { view: NetWorthView }) {
   const { dashboard, breakdown, chartPoints } = view;
@@ -56,82 +66,84 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
   return (
     <>
       <section className="rounded-xl border border-border bg-panel p-5 shadow-md" aria-label="Net worth summary">
-        <div className="mb-3.5 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
           <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>
         </div>
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-            <StatTile label="Current value" value={formatMoney("IN", dashboard.currentValue)} />
-            <StatTile label="Total invested" value={formatMoney("IN", dashboard.totalInvested)} />
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* Hero: the one number everything else supports */}
             <div className="min-w-0">
-              <div className="text-xs text-muted">Overall gain</div>
-              <div
-                className={`mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[22px] font-semibold tabular-nums ${dashboard.gainAbs >= 0 ? "text-pos" : "text-neg"}`}
-              >
-                <span>{formatMoney("IN", dashboard.gainAbs)}</span>
-                <span className="min-w-0 truncate text-sm font-medium" title={`(${formatPct(dashboard.gainPct)})`}>
-                  ({formatPct(dashboard.gainPct)})
+              <div className="text-xs text-muted">Current value</div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className="truncate text-[34px] font-semibold leading-none tabular-nums" title={formatMoney("IN", dashboard.currentValue)}>
+                  {formatMoney("IN", dashboard.currentValue)}
                 </span>
+                {dashboard.xirrPct !== null && (
+                  <Chip variant={dashboard.xirrPct >= 0 ? "green" : "red"}>
+                    {formatPct(dashboard.xirrPct)} XIRR
+                  </Chip>
+                )}
               </div>
             </div>
-            <div className="min-w-0">
-              <div
-                className="text-xs text-muted"
-                title="Pooled XIRR across every Mutual Fund profile + NPS, solved from one combined cash-flow list - not an average of the individual XIRRs"
-              >
-                Combined XIRR
-              </div>
-              {dashboard.xirrPct === null ? (
-                <div className="mt-1 text-[22px] font-semibold text-muted">—</div>
-              ) : (
-                <div
-                  className={`mt-1 truncate text-[22px] font-semibold tabular-nums ${dashboard.xirrPct >= 0 ? "text-pos" : "text-neg"}`}
-                  title={formatPct(dashboard.xirrPct)}
-                >
-                  {formatPct(dashboard.xirrPct)}
+
+            {/* Secondary: what built the hero number */}
+            <div className="grid grid-cols-2 gap-4 border-t border-border pt-3.5">
+              <div className="min-w-0">
+                <div className="text-xs text-muted">Total invested</div>
+                <div className="mt-0.5 truncate text-lg font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested)}>
+                  {formatMoney("IN", dashboard.totalInvested)}
                 </div>
-              )}
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs text-muted">Overall gain</div>
+                <div
+                  className={`mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-lg font-semibold tabular-nums ${dashboard.gainAbs >= 0 ? "text-pos" : "text-neg"}`}
+                >
+                  <span className="truncate">{formatMoney("IN", dashboard.gainAbs)}</span>
+                  <span className="min-w-0 truncate text-xs font-medium text-muted">({formatPct(dashboard.gainPct)})</span>
+                </div>
+              </div>
             </div>
-            <ChangeLine
-              label="Value vs last month"
-              change={dashboard.vsLastMonth}
-              market="IN"
-              title="How much the whole combined portfolio's VALUE changed vs one month ago - every entity's value forward-filled to its latest known figure as of that date. Includes new contributions, not just investment performance."
-            />
-            <ChangeLine
-              label="Value vs same month last year"
-              change={dashboard.vsLastYear}
-              market="IN"
-              title="How much the whole combined portfolio's VALUE changed vs the same month one year ago"
-            />
-            <ChangeLine
-              label="P&L vs last month"
-              change={dashboard.gainVsLastMonth}
-              market="IN"
-              title="How much the combined PROFIT/LOSS itself changed vs one month ago - unlike 'Value vs last month,' this isolates real investment performance from new contributions (a ₹50,000 deposit that lifts value by ₹60,000 is only ₹10,000 of real profit growth)"
-            />
-            <ChangeLine
-              label="P&L vs same month last year"
-              change={dashboard.gainVsLastYear}
-              market="IN"
-              title="How much the combined profit/loss changed vs the same month one year ago"
-            />
-            <div className="min-w-0 sm:col-span-3">
+
+            {/* Change: 4 figures as one 2x2 matrix (period x metric) instead of 4 separate tiles */}
+            <div className="rounded-lg border border-border-strong bg-panel-alt p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Change</div>
+              <div className="grid grid-cols-[auto_1fr_1fr] items-baseline gap-x-4 gap-y-1.5 text-sm">
+                <span />
+                <span className="text-xs text-muted" title="Raw portfolio value change - includes new contributions, not just investment performance">
+                  Value
+                </span>
+                <span className="text-xs text-muted" title="Profit/loss change only - isolates real investment performance from new contributions">
+                  P&amp;L
+                </span>
+
+                <span className="text-xs text-muted">vs last month</span>
+                <ChangeCell change={dashboard.vsLastMonth} />
+                <ChangeCell change={dashboard.gainVsLastMonth} />
+
+                <span className="text-xs text-muted">vs last year</span>
+                <ChangeCell change={dashboard.vsLastYear} />
+                <ChangeCell change={dashboard.gainVsLastYear} />
+              </div>
+            </div>
+
+            {/* Safe SWP: its own sub-panel, same visual tier as Change */}
+            <div className="rounded-lg border border-border-strong bg-panel-alt p-3">
               <div
-                className="text-xs text-muted"
-                title="Safe SWP: the classic 4% rule on your combined net worth, as a monthly amount. Sustain estimate: freezes that amount as a fixed yearly withdrawal and projects it forward at your Combined XIRR."
+                className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted"
+                title="The classic 4% rule on your combined net worth. Sustain estimate: freezes that amount as a fixed yearly withdrawal and projects it forward at your Combined XIRR."
               >
                 Safe SWP*
               </div>
-              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="truncate text-[22px] font-semibold tabular-nums">
-                  {formatMoney("IN", dashboard.safeSwpMonthly)}/mo
-                </span>
-                <span className="text-sm text-muted">{safeSwpSustainText(dashboard.safeSwpSustain)}</span>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="truncate text-lg font-semibold tabular-nums">{formatMoney("IN", dashboard.safeSwpMonthly)}/mo</span>
+                <span className="text-xs text-muted">{safeSwpSustainText(dashboard.safeSwpSustain)}</span>
               </div>
             </div>
           </div>
+
           <div className="min-w-0">
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Combined wealth growth</h3>
             <WealthGrowthChartLazy
@@ -139,7 +151,8 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
             />
           </div>
         </div>
-        <p className="mt-3 text-xs text-muted">
+
+        <p className="mt-4 text-xs text-muted">
           * Safe SWP: the classic &ldquo;4% rule&rdquo; - 4% of the combined current value per year, divided into a
           monthly amount. The sustain estimate freezes that amount as a fixed yearly withdrawal and projects it
           forward at the Combined XIRR above - it is not the same recalculated-every-month figure the 4% rule itself

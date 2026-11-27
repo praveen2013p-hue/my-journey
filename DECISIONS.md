@@ -2420,3 +2420,40 @@ matching the hand calculation exactly. New unit tests also cover: pooling
 gain across staggered entity cadences (one entity's gain forward-filled
 while another updates), and the shared null condition. Full suite 432/432,
 `tsc`/`eslint`/`npm run build` all clean.
+
+## 2026-11-27 - Net Worth Overview visual redesign
+
+User ask: the Overview card had grown to 9 equal-weight tiles (current
+value, invested, gain, XIRR, 4 change figures, Safe SWP) with no visual
+hierarchy - "too much data lying there," arrange it beautifully.
+
+Restructured `components/net-worth/NetWorthDashboard.tsx` into tiers
+instead of a flat grid, no data removed or changed, pure presentation:
+- **Hero**: Current value alone, much larger (34px vs the old uniform
+  22px), with Combined XIRR next to it as a colored `Chip` badge instead
+  of its own separate same-sized tile - XIRR is a rate *about* the hero
+  number, not a peer of it.
+- **Secondary row**: Total invested / Overall gain, smaller than the hero,
+  directly under it (what built that number), separated by a thin
+  border-top rule.
+- **Change sub-panel**: the 4 "vs last month/year × Value/P&L" figures
+  were 4 separate equal-weight tiles - collapsed into one small 2-column
+  × 2-row grid inside a bordered `bg-panel-alt` box, since they're
+  naturally one matrix (two time periods crossed with two metrics), not
+  four independent facts. A new local `ChangeCell` (just the colored
+  amount+pct, no repeated label) renders each cell; column headers
+  ("Value"/"P&L") and row headers ("vs last month"/"vs last year") carry
+  the labeling instead of repeating it 4 times.
+- **Safe SWP**: moved into the same bordered `bg-panel-alt` sub-panel
+  treatment as Change, so the two "extra" groups read as a consistent
+  visual tier below the hero/secondary numbers, not scattered tiles.
+- Wealth-growth chart column unchanged.
+
+Live-verified with realistic multi-month data (2 Mutual Fund profiles +
+NPS) via full-page screenshots at desktop (1440px) and mobile (390px) -
+confirmed the hierarchy reads cleanly and nothing clips/overflows at
+either size, zero console errors. Breakdown table below (separate card)
+left untouched - out of scope for this pass. Full suite 431/432 (the
+same pre-existing, unrelated flaky `sector-backfill-orchestrator.test.ts`
+timeout documented earlier in this file), `tsc`/`eslint`/`npm run build`
+all clean.
