@@ -94,16 +94,28 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
               )}
             </div>
             <ChangeLine
-              label="vs last month"
+              label="Value vs last month"
               change={dashboard.vsLastMonth}
               market="IN"
-              title="How much the whole combined portfolio changed vs one month ago - every entity's value forward-filled to its latest known figure as of that date"
+              title="How much the whole combined portfolio's VALUE changed vs one month ago - every entity's value forward-filled to its latest known figure as of that date. Includes new contributions, not just investment performance."
             />
             <ChangeLine
-              label="vs same month last year"
+              label="Value vs same month last year"
               change={dashboard.vsLastYear}
               market="IN"
-              title="How much the whole combined portfolio changed vs the same month one year ago"
+              title="How much the whole combined portfolio's VALUE changed vs the same month one year ago"
+            />
+            <ChangeLine
+              label="P&L vs last month"
+              change={dashboard.gainVsLastMonth}
+              market="IN"
+              title="How much the combined PROFIT/LOSS itself changed vs one month ago - unlike 'Value vs last month,' this isolates real investment performance from new contributions (a ₹50,000 deposit that lifts value by ₹60,000 is only ₹10,000 of real profit growth)"
+            />
+            <ChangeLine
+              label="P&L vs same month last year"
+              change={dashboard.gainVsLastYear}
+              market="IN"
+              title="How much the combined profit/loss changed vs the same month one year ago"
             />
             <div className="min-w-0 sm:col-span-3">
               <div

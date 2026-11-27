@@ -2382,3 +2382,41 @@ Sources checked for the regulatory and rate claims above:
 - [PFRDA eases NPS exit rules for non-government subscribers, lowers mandatory annuity to 20%](https://www.businesstoday.in/personal-finance/retirement-planning/story/pfrda-eases-nps-exit-rules-for-non-government-subscribers-lowers-mandatory-annuity-to-20-507010-2025-12-17)
 - [NPS changes 2025: 80% withdrawal, more lump sum, less annuity - exit relief](https://www.business-standard.com/finance/personal-finance/nps-changes-2025-80-withdrawal-more-lump-sum-less-annuity-exit-relief-125122200156_1.html)
 - [Annuity rate in NPS 2025: how much pension your corpus can buy](https://www.pnbmetlife.com/articles/retirement/annunity-rate-in-nps-2025-how-much-pension-your-corpus-can-buy.html)
+
+## 2026-11-27 - Net Worth Overview: combined Profit/Loss change vs last month/year
+
+User ask: on Net Worth, show how the combined Profit/Loss (all Mutual Fund
+profiles + NPS) has increased vs last month, and vs last year - distinct
+from the "Value vs last month"/"vs same month last year" tiles already
+there (added earlier this session), which track raw portfolio VALUE.
+
+The distinction matters: a value increase can come from a fresh
+contribution, not from actual investment performance. Example (used as the
+hand-verified test case): investing ₹1,00,000 in January (gain ₹0), then
+adding another ₹50,000 in February while the value rises to ₹1,60,000
+(gain ₹10,000) - the raw value change is +₹60,000, but only ₹10,000 of that
+is real profit growth; the other ₹50,000 is just the new principal. The
+existing "Value vs last month" tile correctly shows +60,000; this new
+metric needed to show +10,000.
+
+- Generalized `combinedValueAtOrBefore` (value-only) into
+  `combinedInvestedAndValueAtOrBefore` (`lib/net-worth-stats.ts`) - same
+  forward-fill-per-entity convention, now also summing each entity's
+  `cumulativeInvested` so the gain (value - invested) at each comparison
+  date can be derived without a second pass over the data.
+- New `gainVsLastMonth`/`gainVsLastYear` fields on `NetWorthDashboard`:
+  `periodChange(currentGain, pastValue - pastInvested)` at the same two
+  comparison dates `vsLastMonth`/`vsLastYear` already use. Null under the
+  identical "nothing to compare against yet" condition.
+- Renamed the existing tiles to "Value vs last month"/"Value vs same month
+  last year" (from the bare "vs last month"/...) so the new "P&L vs last
+  month"/"P&L vs same month last year" tiles sit next to them without being
+  confused for the same thing - each tile's tooltip spells out the
+  distinction explicitly.
+
+Hand-verified with the exact scenario above (live-seeded): displayed "Value
+vs last month: +₹60,000" and "P&L vs last month: +₹10,000" simultaneously,
+matching the hand calculation exactly. New unit tests also cover: pooling
+gain across staggered entity cadences (one entity's gain forward-filled
+while another updates), and the shared null condition. Full suite 432/432,
+`tsc`/`eslint`/`npm run build` all clean.

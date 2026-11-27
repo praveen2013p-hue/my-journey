@@ -107,6 +107,21 @@ export interface NetWorthDashboard {
    */
   vsLastMonth: PeriodChange | null;
   vsLastYear: PeriodChange | null;
+  /**
+   * How much the combined PROFIT/LOSS itself (gainAbs: currentValue minus
+   * totalInvested) changed vs one month/year before latestMonth - distinct
+   * from `vsLastMonth`/`vsLastYear` above, which track the raw portfolio
+   * VALUE. A value increase driven by a fresh contribution isn't the same
+   * as an increase in actual investment performance - e.g. adding ₹50,000
+   * this month while the value rises ₹60,000 is only ₹10,000 of real
+   * profit growth, not ₹60,000. Computed the same forward-filled,
+   * pooled-across-every-entity way as `vsLastMonth`/`vsLastYear` (see
+   * `combinedInvestedAndValueAtOrBefore`), comparing (value - invested) at
+   * each date rather than value alone. Null under the same "nothing to
+   * compare against yet" condition.
+   */
+  gainVsLastMonth: PeriodChange | null;
+  gainVsLastYear: PeriodChange | null;
 }
 
 export interface NetWorthWealthPoint {
@@ -132,23 +147,28 @@ function latestRowAtOrBefore(rows: NetWorthRowLike[], month: string): NetWorthRo
 }
 
 /**
- * Sum of every entity's forward-filled `current_value` as of `month` - an
- * entity with no entry at or before `month` contributes 0 (it genuinely
- * didn't hold any value yet, e.g. not opened yet), UNLESS *no* entity has
- * any entry at or before `month`, in which case there's nothing to compare
- * against at all and this returns null.
+ * Sum of every entity's forward-filled `current_value`/`cumulativeInvested`
+ * as of `month` - an entity with no entry at or before `month` contributes
+ * 0 to both (it genuinely didn't hold anything yet, e.g. not opened yet),
+ * UNLESS *no* entity has any entry at or before `month`, in which case
+ * there's nothing to compare against at all and this returns null.
  */
-function combinedValueAtOrBefore(entities: NetWorthEntity[], month: string): number | null {
+function combinedInvestedAndValueAtOrBefore(
+  entities: NetWorthEntity[],
+  month: string,
+): { invested: number; value: number } | null {
   let anyData = false;
-  let total = 0;
+  let invested = 0;
+  let value = 0;
   for (const e of entities) {
     const row = latestRowAtOrBefore(e.rows, month);
     if (row) {
       anyData = true;
-      total += row.entry.current_value;
+      invested += row.cumulativeInvested;
+      value += row.entry.current_value;
     }
   }
-  return anyData ? total : null;
+  return anyData ? { invested, value } : null;
 }
 
 export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDashboard {
@@ -165,6 +185,8 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
       safeSwpSustain: { status: "no_capital" },
       vsLastMonth: null,
       vsLastYear: null,
+      gainVsLastMonth: null,
+      gainVsLastYear: null,
     };
   }
 
@@ -198,8 +220,8 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
   const rate = computeXirr(flows);
   const xirrPct = rate !== null ? rate * 100 : null;
 
-  const lastMonthValue = combinedValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -1));
-  const lastYearValue = combinedValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -12));
+  const lastMonth = combinedInvestedAndValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -1));
+  const lastYear = combinedInvestedAndValueAtOrBefore(withEntries, shiftMonth(terminalMonth, -12));
 
   return {
     currentValue,
@@ -210,8 +232,10 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
     latestMonth: terminalMonth,
     safeSwpMonthly: computeSafeSwpMonthly(currentValue),
     safeSwpSustain: computeSafeSwpSustainYears(currentValue, xirrPct),
-    vsLastMonth: lastMonthValue !== null ? periodChange(currentValue, lastMonthValue) : null,
-    vsLastYear: lastYearValue !== null ? periodChange(currentValue, lastYearValue) : null,
+    vsLastMonth: lastMonth !== null ? periodChange(currentValue, lastMonth.value) : null,
+    vsLastYear: lastYear !== null ? periodChange(currentValue, lastYear.value) : null,
+    gainVsLastMonth: lastMonth !== null ? periodChange(gainAbs, lastMonth.value - lastMonth.invested) : null,
+    gainVsLastYear: lastYear !== null ? periodChange(gainAbs, lastYear.value - lastYear.invested) : null,
   };
 }
 

@@ -50,6 +50,8 @@ describe("computeNetWorthDashboard", () => {
       safeSwpSustain: { status: "no_capital" },
       vsLastMonth: null,
       vsLastYear: null,
+      gainVsLastMonth: null,
+      gainVsLastYear: null,
     });
   });
 
@@ -193,6 +195,44 @@ describe("computeNetWorthDashboard", () => {
     expect(dashboard.vsLastYear).not.toBeNull();
     expect(dashboard.vsLastYear!.valueChangeAbs).toBe(20000);
     expect(dashboard.vsLastYear!.valueChangePct).toBeCloseTo(20, 6);
+  });
+
+  it("gainVsLastMonth isolates real profit growth from a fresh contribution - hand-verifiable", () => {
+    // Jan: invest 100000, worth 100000 (gain=0). Feb: add another 50000
+    // (invested -> 150000) and the value rises to 160000 (gain=10000).
+    // The raw VALUE change is +60000 (100000 added this month's deposit
+    // plus 10000 of real gain), but the P&L change is only +10000 - the
+    // actual investment performance, excluding the new principal.
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-02-01", amount_added: 50000, current_value: 160000 },
+    ]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.vsLastMonth!.valueChangeAbs).toBe(60000);
+    expect(dashboard.gainVsLastMonth!.valueChangeAbs).toBe(10000);
+  });
+
+  it("gainVsLastMonth pools every entity's gain the same forward-filled way as vsLastMonth", () => {
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-02-01", amount_added: 0, current_value: 110000 }, // gain 0 -> 10000
+    ]);
+    const nps = entity("NPS", "nps", [
+      { month: "2024-01-01", amount_added: 50000, current_value: 45000 }, // gain -5000, unchanged in Feb (no entry yet)
+    ]);
+    const dashboard = computeNetWorthDashboard([self, nps]);
+    // Current combined gain: (110000-100000) + (45000-50000) = 10000 - 5000 = 5000.
+    // Jan combined gain (NPS forward-filled from its only entry): 0 + (-5000) = -5000.
+    expect(dashboard.gainAbs).toBe(5000);
+    expect(dashboard.gainVsLastMonth).not.toBeNull();
+    expect(dashboard.gainVsLastMonth!.valueChangeAbs).toBe(10000); // 5000 - (-5000)
+  });
+
+  it("gainVsLastMonth/gainVsLastYear are null under the same 'nothing to compare against yet' condition as vsLastMonth/vsLastYear", () => {
+    const self = entity("Self", "mutual_fund", [{ month: "2024-01-01", amount_added: 100000, current_value: 100000 }]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.gainVsLastMonth).toBeNull();
+    expect(dashboard.gainVsLastYear).toBeNull();
   });
 });
 
