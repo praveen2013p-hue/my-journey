@@ -28,7 +28,7 @@ function entity(
       totalInvested: latest ? latest.cumulativeInvested : null,
       currentValue: latest ? latest.entry.current_value : null,
       gainAbs: latest ? latest.entry.current_value - latest.cumulativeInvested : null,
-      gainPct: latest && latest.cumulativeInvested !== 0 ? ((latest.entry.current_value - latest.cumulativeInvested) / latest.cumulativeInvested) * 100 : null,
+      gainPct: latest && latest.cumulativeInvested > 0 ? ((latest.entry.current_value - latest.cumulativeInvested) / latest.cumulativeInvested) * 100 : null,
       xirrPct: null, // irrelevant to net-worth-stats - it pools raw flows, never reads this field
     },
     rows: viewRows,
@@ -69,6 +69,21 @@ describe("computeNetWorthDashboard", () => {
     expect(dashboard.totalInvested).toBe(200000);
     expect(dashboard.xirrPct).not.toBeNull();
     expect(dashboard.xirrPct!).toBeCloseTo(10, 0);
+  });
+
+  it("pooled gainPct is null (never an inverted-sign number) when the pooled totalInvested is exactly 0 or negative", () => {
+    // One entity's own net invested has gone negative (a withdrawal bigger
+    // than net invested-to-date), dragging the POOLED total non-positive too,
+    // even though the pooled gainAbs is a real profit.
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2024-02-01", amount_added: 0, withdrawal: 150000, current_value: 10000 },
+    ]);
+    const nps = entity("NPS", "nps", [{ month: "2024-02-01", amount_added: 0, current_value: 1000 }]);
+    const dashboard = computeNetWorthDashboard([self, nps]);
+    expect(dashboard.totalInvested).toBe(-50000);
+    expect(dashboard.gainAbs).toBeGreaterThan(0);
+    expect(dashboard.gainPct).toBeNull();
   });
 
   it("pools genuinely different cash-flow timing correctly, not as an average of individual XIRRs", () => {

@@ -108,7 +108,12 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
   const currentValue = withEntries.reduce((sum, e) => sum + (e.dashboard.currentValue ?? 0), 0);
   const totalInvested = withEntries.reduce((sum, e) => sum + (e.dashboard.totalInvested ?? 0), 0);
   const gainAbs = currentValue - totalInvested;
-  const gainPct = totalInvested !== 0 ? (gainAbs / totalInvested) * 100 : null;
+  // "% return on capital" is only meaningful against a POSITIVE net
+  // invested base - at 0 it's undefined, and if withdrawals have pushed it
+  // negative, dividing by a negative base inverts the sign (a real gain
+  // would show as a large negative %). Null in both cases, never a
+  // guessed/inverted number - same fix as the per-entity dashboards this pools.
+  const gainPct = totalInvested > 0 ? (gainAbs / totalInvested) * 100 : null;
 
   const terminalMonth = withEntries.reduce(
     (latest, e) => (e.dashboard.latestMonth! > latest ? e.dashboard.latestMonth! : latest),

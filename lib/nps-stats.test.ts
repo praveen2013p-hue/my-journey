@@ -44,6 +44,21 @@ describe("buildNpsView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
+  it("gainPct is null (never an inverted-sign number) when cumulativeInvested is exactly 0 or negative", () => {
+    const zeroBase = [entry({ month: "2026-01-01", amount_added: 10000, withdrawal: 10000, current_value: 500 })];
+    expect(buildNpsView(zeroBase).rows[0].cumulativeInvested).toBe(0);
+    expect(buildNpsView(zeroBase).rows[0].gainPct).toBeNull();
+
+    const negativeBase = [
+      entry({ month: "2026-01-01", amount_added: 100000, current_value: 100000 }),
+      entry({ month: "2026-02-01", amount_added: 0, withdrawal: 150000, current_value: 10000 }),
+    ];
+    const row = buildNpsView(negativeBase).rows[1];
+    expect(row.cumulativeInvested).toBe(-50000);
+    expect(row.gainAbs).toBe(60000); // a real profit
+    expect(row.gainPct).toBeNull();
+  });
+
   it("safeSwpMonthly is the classic 4% rule - 4% of that month's own current_value per year, divided into a monthly amount", () => {
     const entries = [entry({ month: "2026-01-01", amount_added: 1200000, current_value: 1200000 })];
     const { rows } = buildNpsView(entries);

@@ -148,7 +148,12 @@ export function buildUsTradingCapitalView(entries: UsTradingCapitalEntryRow[]): 
     running += entry.amount_added - entry.withdrawal;
     runningAdded += entry.amount_added;
     const gainAbs = entry.current_value - running;
-    const gainPct = running !== 0 ? (gainAbs / running) * 100 : null;
+    // "% return on capital" is only meaningful against a POSITIVE net
+    // invested base - at 0 it's undefined, and if a withdrawal has pushed
+    // it negative, dividing by a negative base inverts the sign (a real
+    // gain would show as a large negative %). Null in both cases, never a
+    // guessed/inverted number.
+    const gainPct = running > 0 ? (gainAbs / running) * 100 : null;
 
     const days = daysSinceEpoch(entry.month);
 

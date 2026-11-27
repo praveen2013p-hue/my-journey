@@ -86,7 +86,7 @@ describe("parseMutualFundCsv", () => {
   });
 
   it("normalizes a bare yyyy-mm month to yyyy-mm-01", () => {
-    const csv = `${HEADER}\n2026-05,,,,,,0,,10000,,\n`;
+    const csv = `${HEADER}\n2026-05,,,,,1000,0,,10000,,\n`;
     const result = parseMutualFundCsv(csv);
     expect(result.rejected).toEqual([]);
     expect(result.rows[0].month).toBe("2026-05-01");
@@ -126,6 +126,13 @@ describe("parseMutualFundCsv", () => {
     expect(result.rows[0].input.amount_added).toBe(7000);
     expect(result.rows[0].input.sip_amount).toBeNull();
     expect(result.rows[0].input.lumpsum_amount).toBeNull();
+  });
+
+  it("rejects a row with a blank amount_added and no sip/lumpsum/stp/other breakdown, instead of silently importing it as $0", () => {
+    const csv = `${HEADER}\n2026-01,,,,,,0,,10000,,\n`;
+    const result = parseMutualFundCsv(csv);
+    expect(result.rows).toEqual([]);
+    expect(result.rejected[0].reason).toMatch(/amount_added is missing or not a number/);
   });
 
   it("rejects a negative withdrawal or planned_amount", () => {

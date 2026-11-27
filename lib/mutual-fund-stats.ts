@@ -115,6 +115,7 @@ export type GoalProjection =
   | { status: "reached" }
   | { status: "no_xirr" }
   | { status: "no_growth" }
+  | { status: "no_capital" }
   | { status: "projected"; months: number };
 
 /**
@@ -139,6 +140,9 @@ export type GoalProjection =
  * - `"no_growth"`: the monthly rate implied by the latest XIRR is zero
  *   or negative - projecting forward would mean "never," which isn't a
  *   number to show, it's its own explanatory state.
+ * - `"no_capital"`: currentValue is 0 or negative (e.g. a full withdrawal)
+ *   while the goal is still unmet - `ln(goalAmount / currentValue)` would
+ *   be undefined or infinite here, never a guessed/Infinity timeline.
  * - `"projected"`: the only case with an actual number.
  */
 export function computeGoalProjection(
@@ -147,6 +151,7 @@ export function computeGoalProjection(
   xirrPct: number | null,
 ): GoalProjection {
   if (currentValue >= goalAmount) return { status: "reached" };
+  if (currentValue <= 0) return { status: "no_capital" };
   if (xirrPct === null) return { status: "no_xirr" };
 
   const monthlyRate = Math.pow(1 + xirrPct / 100, 1 / 12) - 1;
@@ -225,7 +230,12 @@ export function buildMutualFundView(entries: MutualFundEntryRow[]): MutualFundVi
     running += entry.amount_added - entry.withdrawal;
     runningAdded += entry.amount_added;
     const gainAbs = entry.current_value - running;
-    const gainPct = running !== 0 ? (gainAbs / running) * 100 : null;
+    // "% return on capital" is only meaningful against a POSITIVE net
+    // invested base - at 0 it's undefined, and if a withdrawal has pushed
+    // it negative, dividing by a negative base inverts the sign (a real
+    // gain would show as a large negative %). Null in both cases, never a
+    // guessed/inverted number.
+    const gainPct = running > 0 ? (gainAbs / running) * 100 : null;
 
     // A contribution is cash leaving the investor's pocket (negative);
     // a withdrawal is cash coming back (positive) - the opposite sign

@@ -45,6 +45,24 @@ describe("buildMutualFundView", () => {
     expect(rows[1].gainPct).toBeCloseTo((800 / 15000) * 100, 5);
   });
 
+  it("gainPct is null (never an inverted-sign number) when cumulativeInvested is exactly 0 or negative", () => {
+    const zeroBase = [entry({ month: "2026-01-01", amount_added: 10000, withdrawal: 10000, current_value: 500 })];
+    expect(buildMutualFundView(zeroBase).rows[0].cumulativeInvested).toBe(0);
+    expect(buildMutualFundView(zeroBase).rows[0].gainPct).toBeNull();
+
+    // A withdrawal larger than net invested-to-date pushes cumulativeInvested
+    // negative - a real gain (gainAbs > 0) here must not render as a large
+    // negative percentage.
+    const negativeBase = [
+      entry({ month: "2026-01-01", amount_added: 100000, current_value: 100000 }),
+      entry({ month: "2026-02-01", amount_added: 0, withdrawal: 150000, current_value: 10000 }),
+    ];
+    const row = buildMutualFundView(negativeBase).rows[1];
+    expect(row.cumulativeInvested).toBe(-50000);
+    expect(row.gainAbs).toBe(60000); // a real profit
+    expect(row.gainPct).toBeNull();
+  });
+
   it("safeSwpMonthly is the classic 4% rule - 4% of that month's own current_value per year, divided into a monthly amount", () => {
     const entries = [entry({ month: "2026-01-01", amount_added: 1200000, current_value: 1200000 })];
     const { rows } = buildMutualFundView(entries);
@@ -253,6 +271,16 @@ describe("computeGoalProjection", () => {
   it("is 'no_growth' when the XIRR implies a zero or negative monthly rate - never 'Infinity' or a guessed number", () => {
     expect(computeGoalProjection(100000, 500000, 0).status).toBe("no_growth");
     expect(computeGoalProjection(100000, 500000, -5).status).toBe("no_growth");
+  });
+
+  it("is 'no_capital' when currentValue is 0 (e.g. a full withdrawal) with a goal still unmet - never Infinity months", () => {
+    const result = computeGoalProjection(0, 500000, 20);
+    expect(result.status).toBe("no_capital");
+    expect(result).not.toHaveProperty("months");
+  });
+
+  it("is 'no_capital' for a negative currentValue too, same as zero", () => {
+    expect(computeGoalProjection(-1000, 500000, 20).status).toBe("no_capital");
   });
 });
 

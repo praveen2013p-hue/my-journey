@@ -155,11 +155,15 @@ export function parseMutualFundCsv(text: string): ParsedMutualFundCsv {
     }
 
     const hasBreakdown = sipAmount !== null || lumpsumAmount !== null || stpAmount !== null || otherAmount !== null;
+    if (!hasBreakdown && amountAddedCell === null) {
+      rejected.push({ rowNumber, reason: "amount_added is missing or not a number (and no sip/lumpsum/stp/other breakdown was given either)." });
+      continue;
+    }
     const sip = hasBreakdown ? (sipAmount ?? 0) : null;
     const lumpsum = hasBreakdown ? (lumpsumAmount ?? 0) : null;
     const stp = hasBreakdown ? (stpAmount ?? 0) : null;
     const other = hasBreakdown ? (otherAmount ?? 0) : null;
-    const amountAdded = hasBreakdown ? (sip ?? 0) + (lumpsum ?? 0) + (stp ?? 0) + (other ?? 0) : (amountAddedCell ?? 0);
+    const amountAdded = hasBreakdown ? (sip ?? 0) + (lumpsum ?? 0) + (stp ?? 0) + (other ?? 0) : (amountAddedCell as number);
 
     const withdrawal = withdrawalCell ?? 0;
     if (withdrawal < 0) {

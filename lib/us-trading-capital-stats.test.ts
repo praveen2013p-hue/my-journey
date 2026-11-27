@@ -46,6 +46,24 @@ describe("buildUsTradingCapitalView - USD annualized return", () => {
   });
 });
 
+describe("buildUsTradingCapitalView - gainPct", () => {
+  it("is null (never an inverted-sign number) when cumulativeInvested is exactly 0 or negative", () => {
+    const zeroBase = [entry({ month: "2023-01-01", amount_added: 1000, withdrawal: 1000, current_value: 50 })];
+    const zeroRow = buildUsTradingCapitalView(zeroBase).rows[0];
+    expect(zeroRow.cumulativeInvested).toBe(0);
+    expect(zeroRow.gainPct).toBeNull();
+
+    const negativeBase = [
+      entry({ month: "2023-01-01", amount_added: 10000, current_value: 10000 }),
+      entry({ month: "2023-02-01", amount_added: 0, withdrawal: 15000, current_value: 1000 }),
+    ];
+    const row = buildUsTradingCapitalView(negativeBase).rows[1];
+    expect(row.cumulativeInvested).toBe(-5000);
+    expect(row.gainAbs).toBe(6000); // a real profit
+    expect(row.gainPct).toBeNull();
+  });
+});
+
 describe("buildUsTradingCapitalView - Real Return (FX-adjusted, INR)", () => {
   it("matches a hand-verified, genuinely different figure from the USD return - proving per-month historical rates are used, not a single end rate rescaling the USD number", () => {
     // Deposit converts at ~80/$; 1 year later the balance is $1100 (10% USD
