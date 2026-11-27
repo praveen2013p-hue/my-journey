@@ -19,6 +19,12 @@ export default async function LoginPage({
   await seedQuotesIfEmpty(QUOTE_SEED);
   const [appSettings, quoteRows] = await Promise.all([getAppSettings(), listActiveQuotes()]);
   const quotes = quoteRows.map((q) => ({ text: q.text, author: q.author }));
+  // This page is always dynamically rendered per-request (never statically
+  // cached/reused), so a fresh random starting quote each load is exactly
+  // the intent, not a purity hazard - must stay a value computed once on
+  // the server and passed down, never recomputed client-side, or SSR and
+  // hydration would pick different quotes and mismatch.
+  // eslint-disable-next-line react-hooks/purity
   const initialIndex = quotes.length > 0 ? Math.floor(Math.random() * quotes.length) : 0;
 
   const allowedEmails = getAllowedEmails();

@@ -40,10 +40,7 @@ export function SidePanel({
   const [chartLoading, setChartLoading] = useState(true);
 
   useEffect(() => {
-    setChartLoading(true);
-    setBars([]);
     if (!row.providerSymbol) {
-      setChartLoading(false);
       return;
     }
     let cancelled = false;
@@ -63,7 +60,6 @@ export function SidePanel({
 
   const [sectorContexts, setSectorContexts] = useState<SectorContextDetail[] | null>(null);
   useEffect(() => {
-    setSectorContexts(null);
     let cancelled = false;
     fetch(`/api/sectors/context?market=${row.market}&ticker=${encodeURIComponent(row.ticker)}&weekEnding=${row.weekEnding}`)
       .then((res) => res.json())
@@ -83,7 +79,6 @@ export function SidePanel({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setNoteLoaded(false);
     let cancelled = false;
     fetch(`/api/notes?market=${row.market}&ticker=${encodeURIComponent(row.ticker)}`)
       .then((res) => res.json())
@@ -230,7 +225,7 @@ export function SidePanel({
           Weekly chart · 30W MA · volume
         </h3>
         {row.providerSymbol === null ? (
-          <p className="text-sm text-muted">No chart — this ticker's provider symbol isn&apos;t mapped yet.</p>
+          <p className="text-sm text-muted">No chart — this ticker&apos;s provider symbol isn&apos;t mapped yet.</p>
         ) : chartLoading ? (
           <p className="text-sm text-muted">Loading chart…</p>
         ) : bars.length === 0 ? (

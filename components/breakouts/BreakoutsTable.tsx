@@ -329,7 +329,7 @@ export function BreakoutsTable({
       </div>
 
       {selectedRow && (
-        <SidePanel row={selectedRow} signalType={signalType} onClose={() => setSelectedId(null)} />
+        <SidePanel key={selectedRow.id} row={selectedRow} signalType={signalType} onClose={() => setSelectedId(null)} />
       )}
     </div>
   );

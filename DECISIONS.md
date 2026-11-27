@@ -2097,3 +2097,63 @@ seeded a real entry + set a goal through the split `GoalTracker` end-to-end
 (save → progress bar → timeline text all correct), confirmed all 6 new
 `loading.tsx` routes render with no errors. Seeded data and scratch files
 cleaned up, no stray dev-server processes.
+
+## 2026-11-27 - Cleared the last 9 pre-existing lint problems
+
+Both passes above kept reporting "9 pre-existing problems, unrelated" and
+moved on, correctly, since neither was in scope to fix them. Closing them out
+now since the user asked for an in-depth review across the whole codebase,
+not just the two confirmed findings.
+
+- **`lib/use-quotes.ts`**: `itemsRef.current = items` was assigned directly
+  in the render body (`react-hooks/refs`) - mutating a ref during render
+  breaks React's render-purity contract (can go stale across an abandoned/
+  retried concurrent render). Moved the assignment into a dependency-less
+  `useEffect` (runs after every render, same effective timing, now safe).
+  This also made the `eslint-disable-next-line react-hooks/exhaustive-deps`
+  on the polling effect provably unnecessary - removed it.
+- **`app/login/page.tsx`**: `Math.random()` called directly in a Server
+  Component's render body (`react-hooks/purity`). First tried moving the
+  random pick into `LoginQuoteRotator` (the client component) via a
+  `useState` lazy initializer - this was wrong and caught by my own live
+  verification: Next.js server-renders client components for the initial
+  HTML too, so the initializer ran once during SSR and again during
+  hydration, picking two different quotes and producing a real hydration
+  mismatch (confirmed via a headless Playwright check before reverting).
+  Reverted to computing `initialIndex` once on the server and passing it
+  down as a prop (the original, correct approach), with a targeted
+  `eslint-disable-next-line react-hooks/purity` and a comment explaining
+  why: this route is always dynamically server-rendered per-request (never
+  statically generated/cached/reused), so a fresh random index per request
+  is the intended behavior, not the render-reuse hazard the rule guards
+  against.
+- **`components/breakouts/SidePanel.tsx`** (3× `react-hooks/set-state-in-effect`):
+  all three data-fetching effects (weekly bars, sector context, note) reset
+  their own state synchronously at the top of the effect before fetching,
+  purely so switching the selected row shows a clean loading state instead
+  of the previous row's stale data. Root-caused instead of patched: gave
+  `<SidePanel>` a `key={selectedRow.id}` at its one call site
+  (`BreakoutsTable.tsx`), so switching rows now cleanly remounts the whole
+  panel - each `useState`'s own initial value (`true`/`[]`/`null`/`false`)
+  is already the correct "fresh" state, so the three manual resets could be
+  deleted outright rather than restructured. Also deleted one now-genuinely-
+  dead reset (`setChartLoading(false)` in the no-provider-symbol branch) -
+  the render already short-circuits on `row.providerSymbol === null` before
+  ever checking `chartLoading`, so that line did nothing observable.
+- **`react/no-unescaped-entities`**: a raw apostrophe in "this ticker's
+  provider symbol" in the same file - escaped to `&apos;s`.
+- **Two `@typescript-eslint/no-unused-vars` warnings** (`lib/webhook/process.ts`,
+  `scripts/seed-sample-alerts.mjs`): both are `const { secret: _secret, ...rest } = x`-
+  style destructuring used only to exclude a key from a `...rest` spread
+  (stripping a webhook secret before logging/storing) - intentionally
+  unused, not a mistake. Rather than two scattered inline disables, added
+  `varsIgnorePattern: "^_"` to `eslint.config.mjs`'s existing
+  `@typescript-eslint/no-unused-vars` rule (alongside the already-standard
+  `argsIgnorePattern: "^_"` for unused function args), so the `_`-prefix
+  convention is honored consistently everywhere, including future code.
+
+`tsc`/`eslint` now fully clean, 0 problems. Full suite 409/409, `npm run build`
+clean. Live-verified: reloaded `/login` 3 times headless, confirmed a
+different quote each time with zero console/hydration errors (the exact
+regression the first, reverted attempt introduced). Scratch scripts removed,
+no stray dev-server processes.

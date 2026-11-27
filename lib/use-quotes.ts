@@ -31,7 +31,9 @@ export function useQuotes(items: QuoteItem[]): Map<string, QuoteInfo> {
   const [quotes, setQuotes] = useState<Map<string, QuoteInfo>>(new Map());
   const itemsKey = items.map((i) => `${i.market}:${i.symbol ?? ""}`).join(",");
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +84,6 @@ export function useQuotes(items: QuoteItem[]): Map<string, QuoteInfo> {
       cancelled = true;
       clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsKey]);
 
   return quotes;
