@@ -98,7 +98,7 @@ export interface MutualFundView {
  * not a one-time plan solved for a target age - this is how the rate is
  * commonly understood and applied in practice.
  */
-const SWP_ANNUAL_RATE_PCT = 4;
+export const SWP_ANNUAL_RATE_PCT = 4;
 
 function periodChange(current: number, previous: number): PeriodChange {
   return {
@@ -107,8 +107,61 @@ function periodChange(current: number, previous: number): PeriodChange {
   };
 }
 
-function computeSafeSwpMonthly(currentValue: number): number {
+export function computeSafeSwpMonthly(currentValue: number): number {
   return (currentValue * (SWP_ANNUAL_RATE_PCT / 100)) / 12;
+}
+
+export type SafeSwpSustainProjection =
+  | { status: "no_capital" }
+  | { status: "no_xirr" }
+  | { status: "invalid_rate" }
+  | { status: "indefinite" }
+  | { status: "projected"; years: number };
+
+/**
+ * "Safe SWP sustains for N years," DECISIONS.md. The 4% rule itself is
+ * recalculated fresh every month off whatever the corpus is then, so
+ * under that rule it never actually hits zero - there's no "years until
+ * depleted" to compute from it directly. This answers a different,
+ * related question instead: freeze TODAY's Safe SWP amount as a fixed
+ * annual withdrawal, project the remaining corpus forward at the
+ * portfolio's own current XIRR, and solve for how many years until it's
+ * gone - the standard retirement-withdrawal depletion formula.
+ *
+ * Closed form: withdrawing a fixed W = 4% * currentValue each year while
+ * the remainder compounds at rate r gives
+ *   corpus(t) = currentValue*(1+r)^t - W*[(1+r)^t - 1]/r
+ * Solving corpus(t) = 0 for t:
+ *   t = ln(W / (W - currentValue*r)) / ln(1 + r)
+ *
+ * Explicit states instead of a guessed/Infinity number, same philosophy
+ * as `computeGoalProjection`:
+ * - `"no_capital"`: currentValue is 0 or negative - nothing to sustain.
+ * - `"no_xirr"`: no since-inception XIRR yet to project from.
+ * - `"invalid_rate"`: an XIRR of -100% or worse (a total/over-wipeout) -
+ *   `ln(1 + r)` is undefined, never a guessed number.
+ * - `"indefinite"`: the current XIRR already meets or beats the 4%
+ *   withdrawal rate, so under this fixed-withdrawal model the corpus
+ *   never depletes (it holds steady or grows) - genuinely "forever,"
+ *   not a huge-but-finite number.
+ * - `"projected"`: the only case with an actual year count. `r === 0` is
+ *   handled as its own branch (the general formula is 0/0 there) - a
+ *   flat, non-compounding corpus funds a fixed 4% annual withdrawal for
+ *   exactly 1/4% = 25 years, independent of the amount.
+ */
+export function computeSafeSwpSustainYears(currentValue: number, xirrPct: number | null): SafeSwpSustainProjection {
+  if (currentValue <= 0) return { status: "no_capital" };
+  if (xirrPct === null) return { status: "no_xirr" };
+
+  const r = xirrPct / 100;
+  const swpRate = SWP_ANNUAL_RATE_PCT / 100;
+  if (r >= swpRate) return { status: "indefinite" };
+  if (1 + r <= 0) return { status: "invalid_rate" };
+  if (r === 0) return { status: "projected", years: 1 / swpRate };
+
+  const annualWithdrawal = swpRate * currentValue;
+  const years = Math.log(annualWithdrawal / (annualWithdrawal - currentValue * r)) / Math.log(1 + r);
+  return { status: "projected", years };
 }
 
 export type GoalProjection =

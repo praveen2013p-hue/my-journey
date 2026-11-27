@@ -12,6 +12,7 @@
  */
 
 import { computeXirr, daysSinceEpoch, type CashFlow } from "./xirr";
+import { computeSafeSwpMonthly, computeSafeSwpSustainYears, type SafeSwpSustainProjection } from "./mutual-fund-stats";
 
 export type NetWorthEntityKind = "mutual_fund" | "nps";
 
@@ -78,6 +79,10 @@ export interface NetWorthDashboard {
   xirrPct: number | null;
   /** The latest month any entity has an entry for - null only when nothing has been entered anywhere yet. */
   latestMonth: string | null;
+  /** 4% of the combined currentValue per year, as a monthly amount - same classic 4% rule each tracker already shows. */
+  safeSwpMonthly: number;
+  /** How many years that Safe SWP amount (frozen at today's figure) would sustain the combined corpus, projected at the combined XIRR - see `computeSafeSwpSustainYears`. */
+  safeSwpSustain: SafeSwpSustainProjection;
 }
 
 export interface NetWorthWealthPoint {
@@ -105,7 +110,16 @@ function latestRowAtOrBefore(rows: NetWorthRowLike[], month: string): NetWorthRo
 export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDashboard {
   const withEntries = entities.filter((e) => e.dashboard.latestMonth !== null);
   if (withEntries.length === 0) {
-    return { currentValue: 0, totalInvested: 0, gainAbs: 0, gainPct: null, xirrPct: null, latestMonth: null };
+    return {
+      currentValue: 0,
+      totalInvested: 0,
+      gainAbs: 0,
+      gainPct: null,
+      xirrPct: null,
+      latestMonth: null,
+      safeSwpMonthly: 0,
+      safeSwpSustain: { status: "no_capital" },
+    };
   }
 
   const currentValue = withEntries.reduce((sum, e) => sum + (e.dashboard.currentValue ?? 0), 0);
@@ -136,7 +150,17 @@ export function computeNetWorthDashboard(entities: NetWorthEntity[]): NetWorthDa
   flows.push({ days: daysSinceEpoch(terminalMonth), amount: terminalValue });
 
   const rate = computeXirr(flows);
-  return { currentValue, totalInvested, gainAbs, gainPct, xirrPct: rate !== null ? rate * 100 : null, latestMonth: terminalMonth };
+  const xirrPct = rate !== null ? rate * 100 : null;
+  return {
+    currentValue,
+    totalInvested,
+    gainAbs,
+    gainPct,
+    xirrPct,
+    latestMonth: terminalMonth,
+    safeSwpMonthly: computeSafeSwpMonthly(currentValue),
+    safeSwpSustain: computeSafeSwpSustainYears(currentValue, xirrPct),
+  };
 }
 
 export function computeNetWorthBreakdown(entities: NetWorthEntity[]): NetWorthBreakdownRow[] {

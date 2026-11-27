@@ -2177,3 +2177,48 @@ Full suite 409/409 (one unrelated, pre-existing flaky timeout in
 `sector-backfill-orchestrator.test.ts` under parallel load - passes cleanly
 in isolation, not touched by this change), `tsc`/`eslint` clean, `npm run
 build` clean.
+
+## 2026-11-27 - Net Worth Overview: "Safe SWP sustains for N years"
+
+User ask: show how long the Safe SWP figure would sustain the combined net
+worth. The 4% rule itself is recalculated fresh off whatever the corpus is
+each month (by design, DECISIONS.md's earlier SWP-model decision), so under
+that rule the corpus never technically hits zero - there's no "years until
+depleted" to read off it directly. Clarified with the user which assumption
+to project under (asked via AskUserQuestion): freeze TODAY's Safe SWP amount
+as a fixed annual withdrawal, and grow the remaining corpus at the current
+Combined XIRR (not a 0%-growth conservative assumption, which would always
+show exactly 25 years for everyone and tell nobody anything personal).
+
+- `computeSafeSwpSustainYears(currentValue, xirrPct)` (new, `lib/mutual-fund-stats.ts`,
+  alongside the existing `computeSafeSwpMonthly`/`SWP_ANNUAL_RATE_PCT`, both
+  now exported): closed-form solution to the standard fixed-withdrawal
+  depletion formula, `t = ln(W / (W - currentValue*r)) / ln(1+r)` where
+  `W = 4% * currentValue`. Explicit states instead of a guessed number, same
+  philosophy as the existing `computeGoalProjection`: `"no_capital"`
+  (currentValue ≤ 0), `"no_xirr"` (no since-inception XIRR yet), `"invalid_rate"`
+  (XIRR ≤ -100%, where `ln(1+r)` is undefined), `"indefinite"` (current XIRR
+  already ≥ 4%, so under a fixed withdrawal the corpus never depletes - a
+  real "forever," not a huge-but-finite number), `"projected"` (the only
+  case with an actual year count; `r === 0` is its own branch since the
+  general formula is 0/0 there - correctly always exactly 25 years,
+  independent of the amount, matching the declined conservative option by
+  construction).
+- Wired into `NetWorthDashboard`/`computeNetWorthDashboard` (`lib/net-worth-stats.ts`):
+  new `safeSwpMonthly`/`safeSwpSustain` fields, reusing the two Mutual-Fund
+  functions directly on the pooled `currentValue`/`xirrPct` rather than
+  duplicating the formula - this is the combined net worth's own number, not
+  a sum/average of each entity's individual Safe SWP.
+- UI: a 5th stat tile on the Net Worth Overview (`components/net-worth/NetWorthDashboard.tsx`),
+  same "Safe SWP*" label/footnote pattern Mutual Funds already uses, with the
+  sustain text shown inline next to the monthly amount.
+
+Hand-verified the closed form itself: a dedicated test plugs the computed
+`years` back into the depletion formula and asserts the resulting corpus is
+≈0 (rather than trusting hand arithmetic), plus the `r=0` branch is checked
+to always equal exactly 25 regardless of amount. Live-verified: seeded two
+months of real Mutual Fund data (3% realized return), confirmed the
+displayed "sustains ~46.7 yrs" matches an independent recomputation of the
+same formula from the actual numbers shown. Full suite 417/417, `tsc`/
+`eslint`/`npm run build` all clean, no stray dev-server processes, scratch
+files removed.

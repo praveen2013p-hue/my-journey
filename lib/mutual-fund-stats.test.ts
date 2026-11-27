@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMutualFundView, computeBenchmarkSeries, computeGoalProjection } from "./mutual-fund-stats";
+import { buildMutualFundView, computeBenchmarkSeries, computeGoalProjection, computeSafeSwpSustainYears } from "./mutual-fund-stats";
 import type { MutualFundEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<MutualFundEntryRow> = {}): MutualFundEntryRow {
@@ -281,6 +281,53 @@ describe("computeGoalProjection", () => {
 
   it("is 'no_capital' for a negative currentValue too, same as zero", () => {
     expect(computeGoalProjection(-1000, 500000, 20).status).toBe("no_capital");
+  });
+});
+
+describe("computeSafeSwpSustainYears", () => {
+  it("projects a finite year count that actually depletes the corpus - verified by plugging the result back into the fixed-withdrawal depletion formula", () => {
+    const currentValue = 100000;
+    const xirrPct = 2; // 2% - below the 4% withdrawal rate, so this must be finite
+    const result = computeSafeSwpSustainYears(currentValue, xirrPct);
+    expect(result.status).toBe("projected");
+    const { years } = result as { status: "projected"; years: number };
+
+    const r = xirrPct / 100;
+    const annualWithdrawal = 0.04 * currentValue;
+    const corpusAtYears =
+      currentValue * Math.pow(1 + r, years) - annualWithdrawal * ((Math.pow(1 + r, years) - 1) / r);
+    expect(corpusAtYears).toBeCloseTo(0, 2);
+  });
+
+  it("is exactly 25 years at 0% growth, independent of the amount - 1/4%", () => {
+    expect((computeSafeSwpSustainYears(100000, 0) as { years: number }).years).toBeCloseTo(25, 10);
+    expect((computeSafeSwpSustainYears(9000000, 0) as { years: number }).years).toBeCloseTo(25, 10);
+  });
+
+  it("is shorter than 25 years once growth turns negative", () => {
+    const result = computeSafeSwpSustainYears(100000, -3);
+    expect(result.status).toBe("projected");
+    expect((result as { years: number }).years).toBeLessThan(25);
+  });
+
+  it("is 'indefinite' when the current XIRR already meets or beats the 4% withdrawal rate", () => {
+    expect(computeSafeSwpSustainYears(100000, 4).status).toBe("indefinite");
+    expect(computeSafeSwpSustainYears(100000, 10).status).toBe("indefinite");
+  });
+
+  it("is 'no_capital' when currentValue is 0 or negative - nothing to sustain", () => {
+    expect(computeSafeSwpSustainYears(0, 5).status).toBe("no_capital");
+    expect(computeSafeSwpSustainYears(-1000, 5).status).toBe("no_capital");
+  });
+
+  it("is 'no_xirr' when there's no since-inception XIRR yet", () => {
+    expect(computeSafeSwpSustainYears(100000, null).status).toBe("no_xirr");
+  });
+
+  it("is 'invalid_rate' for an XIRR of -100% or worse - never a guessed/NaN year count", () => {
+    const result = computeSafeSwpSustainYears(100000, -100);
+    expect(result.status).toBe("invalid_rate");
+    expect(result).not.toHaveProperty("years");
   });
 });
 

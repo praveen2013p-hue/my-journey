@@ -39,7 +39,26 @@ function entity(
 describe("computeNetWorthDashboard", () => {
   it("returns an all-zero, null dashboard when no entity has any entries", () => {
     const dashboard = computeNetWorthDashboard([entity("Self", "mutual_fund", []), entity("NPS", "nps", [])]);
-    expect(dashboard).toEqual({ currentValue: 0, totalInvested: 0, gainAbs: 0, gainPct: null, xirrPct: null, latestMonth: null });
+    expect(dashboard).toEqual({
+      currentValue: 0,
+      totalInvested: 0,
+      gainAbs: 0,
+      gainPct: null,
+      xirrPct: null,
+      latestMonth: null,
+      safeSwpMonthly: 0,
+      safeSwpSustain: { status: "no_capital" },
+    });
+  });
+
+  it("computes Safe SWP (4% of the combined current value) and its sustain-years projection from the pooled XIRR", () => {
+    const self = entity("Self", "mutual_fund", [
+      { month: "2024-01-01", amount_added: 100000, current_value: 100000 },
+      { month: "2025-01-01", amount_added: 0, current_value: 102000 },
+    ]);
+    const dashboard = computeNetWorthDashboard([self]);
+    expect(dashboard.safeSwpMonthly).toBeCloseTo((dashboard.currentValue * 0.04) / 12, 6);
+    expect(dashboard.safeSwpSustain.status).toBe("projected");
   });
 
   it("sums current value and invested across every entity", () => {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { WealthGrowthChartLazy } from "@/components/mutual-funds/WealthGrowthChartLazy";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/month-utils";
+import type { SafeSwpSustainProjection } from "@/lib/mutual-fund-stats";
 import type { NetWorthView } from "@/lib/net-worth-stats";
 
 function StatTile({ label, value, title }: { label: string; value: string; title?: string }) {
@@ -15,6 +16,21 @@ function StatTile({ label, value, title }: { label: string; value: string; title
       </div>
     </div>
   );
+}
+
+function safeSwpSustainText(projection: SafeSwpSustainProjection): string {
+  switch (projection.status) {
+    case "no_capital":
+      return "";
+    case "no_xirr":
+      return "not enough history yet to project";
+    case "invalid_rate":
+      return "XIRR too negative to project";
+    case "indefinite":
+      return "sustains indefinitely at the current XIRR";
+    case "projected":
+      return `sustains ~${projection.years.toFixed(1)} yrs at the current XIRR`;
+  }
 }
 
 /**
@@ -76,6 +92,20 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
                 </div>
               )}
             </div>
+            <div className="min-w-0 sm:col-span-3">
+              <div
+                className="text-xs text-muted"
+                title="Safe SWP: the classic 4% rule on your combined net worth, as a monthly amount. Sustain estimate: freezes that amount as a fixed yearly withdrawal and projects it forward at your Combined XIRR."
+              >
+                Safe SWP*
+              </div>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="truncate text-[22px] font-semibold tabular-nums">
+                  {formatMoney("IN", dashboard.safeSwpMonthly)}/mo
+                </span>
+                <span className="text-sm text-muted">{safeSwpSustainText(dashboard.safeSwpSustain)}</span>
+              </div>
+            </div>
           </div>
           <div className="min-w-0">
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Combined wealth growth</h3>
@@ -84,6 +114,12 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
             />
           </div>
         </div>
+        <p className="mt-3 text-xs text-muted">
+          * Safe SWP: the classic &ldquo;4% rule&rdquo; - 4% of the combined current value per year, divided into a
+          monthly amount. The sustain estimate freezes that amount as a fixed yearly withdrawal and projects it
+          forward at the Combined XIRR above - it is not the same recalculated-every-month figure the 4% rule itself
+          uses, since that version never technically reaches zero.
+        </p>
       </section>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-panel">
