@@ -2325,3 +2325,60 @@ pre-existing flaky timeout in `sector-backfill-orchestrator.test.ts` under
 parallel load, independently reproduced in isolation too and already
 documented as pre-existing test-infra flakiness earlier in this file - not
 touched by this change), `tsc`/`eslint`/`npm run build` all clean.
+
+## 2026-11-27 - "If you retired today" pension estimate on the NPS Overview
+
+User ask: on the NPS Overview specifically (not Mutual Funds, not Net
+Worth), show the exact monthly pension possible if they retired right now,
+applying the real NPS exit-withdrawal rules (lump sum + mandatory annuity
+purchase).
+
+Researched the actual rules first (WebSearch) rather than assume: PFRDA's
+December 2025 Exits and Withdrawals (Amendment) Regulations lowered the
+mandatory annuity share for non-government subscribers from 40% to 20% (up
+to 80% lump sum now allowed); government-sector subscribers were NOT
+changed and remain at a 40% minimum annuity / 60% maximum lump sum. Asked
+the user which they are (AskUserQuestion) rather than guess - answer:
+government sector, so the calculator defaults to 60% lump sum.
+
+The other unknown - what annuity rate the eventual pension actually comes
+out to - genuinely cannot be computed by this app: it depends on the
+specific insurer, plan type (life-only vs with-return-of-purchase-price),
+and the subscriber's age at purchase, and there is no live rate feed
+anywhere in this app. A second WebSearch found current market rates
+cluster roughly 5.5%-7.5% p.a. - used 6% as a reasonable starting default,
+never presented as fact.
+
+Given both the split % and the rate are genuinely user-supplied assumptions
+(not facts this app can look up), built this as a transparent, fully
+editable what-if calculator rather than a fixed black-box number:
+- `computeRetirementPensionEstimate(currentValue, lumpSumPct, annuityRatePct)`
+  (new, `lib/nps-stats.ts`): `lumpSumAmount = currentValue * lumpSumPct/100`,
+  `annuityAmount = currentValue - lumpSumAmount`,
+  `monthlyPension = annuityAmount * annuityRatePct/100 / 12`. Both inputs
+  clamped defensively (0-100 for the %, >=0 for the rate) so a stray
+  out-of-range input produces a sane zero/boundary result instead of a
+  negative number, never silently guessed. Null only when there's no
+  corpus yet (nothing to estimate from).
+- `components/nps/RetirementPensionEstimator.tsx` (new, client component -
+  `NpsDashboard.tsx` itself stays a Server Component, same split-out
+  pattern as `GoalTracker.tsx`): two live-editable inputs (lump sum %,
+  annuity rate %), defaulting to 60%/6%, recomputing instantly with no
+  server round-trip (purely derived from props + local input state - this
+  is a what-if calculator, not a setting to persist, so no migration/API
+  route needed). Shows lump sum amount, annuity purchase amount, and the
+  resulting monthly pension, plus an explicit disclaimer covering both the
+  recent rule change and the rate assumption. Scoped to the NPS Overview
+  only, per the ask - not added to Mutual Funds or Net Worth.
+
+Live-verified: seeded a real ₹10,00,000 NPS corpus, confirmed the default
+60%/6% inputs produce exactly ₹6,00,000 lump sum / ₹4,00,000 annuity /
+₹2,000 monthly pension, then changed the inputs to 40%/7% and confirmed
+₹4,00,000 / ₹6,00,000 / ₹3,500 - both match the formula by hand. Confirmed
+the estimator does NOT appear on `/mutual-funds` or `/net-worth`. Full
+suite 429/429, `tsc`/`eslint`/`npm run build` all clean.
+
+Sources checked for the regulatory and rate claims above:
+- [PFRDA eases NPS exit rules for non-government subscribers, lowers mandatory annuity to 20%](https://www.businesstoday.in/personal-finance/retirement-planning/story/pfrda-eases-nps-exit-rules-for-non-government-subscribers-lowers-mandatory-annuity-to-20-507010-2025-12-17)
+- [NPS changes 2025: 80% withdrawal, more lump sum, less annuity - exit relief](https://www.business-standard.com/finance/personal-finance/nps-changes-2025-80-withdrawal-more-lump-sum-less-annuity-exit-relief-125122200156_1.html)
+- [Annuity rate in NPS 2025: how much pension your corpus can buy](https://www.pnbmetlife.com/articles/retirement/annunity-rate-in-nps-2025-how-much-pension-your-corpus-can-buy.html)

@@ -2,6 +2,7 @@ import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/nps-stats";
 import type { NpsDashboard as Dashboard, NpsEntryView } from "@/lib/nps-stats";
 import { ChangeLine } from "@/components/ChangeLine";
+import { RetirementPensionEstimator } from "./RetirementPensionEstimator";
 import { WealthGrowthChartLazy } from "./WealthGrowthChartLazy";
 
 export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: NpsEntryView[] }) {
@@ -83,6 +84,7 @@ export function NpsDashboard({ dashboard, rows }: { dashboard: Dashboard; rows: 
           </div>
           <ChangeLine label="vs last month" change={dashboard.vsLastMonth} market="IN" />
           <ChangeLine label="vs same month last year" change={dashboard.vsLastYear} market="IN" />
+          <RetirementPensionEstimator currentValue={dashboard.currentValue!} />
         </div>
         <div className="min-w-0">
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Wealth growth</h3>

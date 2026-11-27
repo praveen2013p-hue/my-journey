@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNpsView } from "./nps-stats";
+import { buildNpsView, computeRetirementPensionEstimate } from "./nps-stats";
 import type { NpsEntryRow } from "./db/schema-types";
 
 function entry(overrides: Partial<NpsEntryRow> = {}): NpsEntryRow {
@@ -235,5 +235,45 @@ describe("buildNpsView", () => {
     const { rows } = buildNpsView(entries);
     expect(rows[1].cumulativeAdded).toBe(8000); // 10000 - 2000
     expect(rows[1].cumulativeInvested).toBe(8000); // 10000 + (-2000) - 0
+  });
+});
+
+describe("computeRetirementPensionEstimate", () => {
+  it("splits the corpus into lump sum + annuity, and derives a monthly pension from the annuity rate - hand-verifiable", () => {
+    // 1,000,000 corpus, 60% lump sum (government-sector default) -> lump
+    // sum 600,000, annuity 400,000. At 6% p.a., annual pension = 24,000,
+    // monthly = 2,000 - all exact round numbers by construction.
+    const result = computeRetirementPensionEstimate(1000000, 60, 6);
+    expect(result).not.toBeNull();
+    expect(result!.lumpSumAmount).toBe(600000);
+    expect(result!.annuityAmount).toBe(400000);
+    expect(result!.monthlyPension).toBeCloseTo(2000, 6);
+  });
+
+  it("is null when there's no corpus yet to estimate from", () => {
+    expect(computeRetirementPensionEstimate(0, 60, 6)).toBeNull();
+    expect(computeRetirementPensionEstimate(-1000, 60, 6)).toBeNull();
+  });
+
+  it("clamps an out-of-range lump sum % to [0, 100] rather than producing a negative annuity amount", () => {
+    const over = computeRetirementPensionEstimate(1000000, 150, 6);
+    expect(over!.lumpSumAmount).toBe(1000000);
+    expect(over!.annuityAmount).toBe(0);
+    expect(over!.monthlyPension).toBe(0);
+
+    const under = computeRetirementPensionEstimate(1000000, -50, 6);
+    expect(under!.lumpSumAmount).toBe(0);
+    expect(under!.annuityAmount).toBe(1000000);
+  });
+
+  it("clamps a negative annuity rate to 0 rather than producing a negative pension", () => {
+    const result = computeRetirementPensionEstimate(1000000, 60, -5);
+    expect(result!.monthlyPension).toBe(0);
+  });
+
+  it("100% lump sum means zero annuity purchase and zero monthly pension", () => {
+    const result = computeRetirementPensionEstimate(1000000, 100, 6);
+    expect(result!.annuityAmount).toBe(0);
+    expect(result!.monthlyPension).toBe(0);
   });
 });

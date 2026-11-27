@@ -195,3 +195,38 @@ export function buildNpsView(entries: NpsEntryRow[]): NpsView {
 
   return { rows, dashboard, byYear };
 }
+
+export interface RetirementPensionEstimate {
+  lumpSumAmount: number;
+  annuityAmount: number;
+  monthlyPension: number;
+}
+
+/**
+ * "If I retired today" estimate, DECISIONS.md - deliberately a transparent
+ * what-if calculator, not a fixed formula: NPS exit rules split the corpus
+ * into a lump-sum withdrawal and a mandatory annuity purchase, but the
+ * EXACT split (PFRDA changed the non-government minimum from 40% to 20%
+ * annuity in a December 2025 amendment - government subscribers stayed at
+ * a 40% minimum) and the annuity rate actually offered (varies by insurer,
+ * plan type, and age at purchase - roughly 5.5%-7.5% p.a. as of 2025-26,
+ * no live rate feed exists for this) are both things only the user knows
+ * or can look up, not facts this app can know - so both are caller-supplied
+ * inputs, never hardcoded. `lumpSumPct`/`annuityRatePct` are clamped to a
+ * sane range (0-100, >=0) as a defensive floor, never silently guessed.
+ */
+export function computeRetirementPensionEstimate(
+  currentValue: number,
+  lumpSumPct: number,
+  annuityRatePct: number,
+): RetirementPensionEstimate | null {
+  if (currentValue <= 0) return null;
+  const clampedLumpSumPct = Math.min(100, Math.max(0, lumpSumPct));
+  const clampedAnnuityRatePct = Math.max(0, annuityRatePct);
+
+  const lumpSumAmount = currentValue * (clampedLumpSumPct / 100);
+  const annuityAmount = currentValue - lumpSumAmount;
+  const monthlyPension = (annuityAmount * (clampedAnnuityRatePct / 100)) / 12;
+
+  return { lumpSumAmount, annuityAmount, monthlyPension };
+}
