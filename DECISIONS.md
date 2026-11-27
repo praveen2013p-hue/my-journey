@@ -2222,3 +2222,57 @@ displayed "sustains ~46.7 yrs" matches an independent recomputation of the
 same formula from the actual numbers shown. Full suite 417/417, `tsc`/
 `eslint`/`npm run build` all clean, no stray dev-server processes, scratch
 files removed.
+
+## 2026-11-27 - Two more sidebar segments: "Scanner" and "Trading"
+
+User asked how many segments the sidebar logically needs "as of now," then
+to build the suggested answer. Recommended and built: 3 segments total, plus
+2 standalone anchor items that don't need one each (a segment exists to
+group ≥2 related siblings; a one-of-a-kind page doesn't need a label):
+
+- **Dashboard** - standalone, stays at the top.
+- **Scanner** (new) - Breakouts, Pullbacks, Sectors - finding new signals,
+  pure market screening, no personal data.
+- **Trading** (new) - Journal, US Trading Capital, Weekly Review,
+  Performance - everything about the user's own trades: logging, capital,
+  and reviewing results. US Trading Capital moves here from its previous
+  standalone spot right after Journal - it was already grouped with the
+  trading-side pages conceptually, this just gives that grouping a label.
+- **Investment** (existing, unchanged) - Net Worth, Mutual Funds, NPS.
+- **Settings** - standalone, stays at the bottom.
+
+Implementation:
+- `InvestmentSectionLabel` generalized to `SidebarSectionLabel` (takes an
+  `apiPath` prop) so all three segments share one component instead of
+  three near-identical copies - same flat, non-collapsible, renameable
+  label-between-two-dividers design as "Investment" (DECISIONS.md's earlier
+  hand-sketched correction), never a tree/hierarchy.
+- Two new `user_settings` columns (`nav_scanner_label`, `nav_trading_label`,
+  migration `0014`, defaults "Scanner"/"Trading"), two new setters
+  (`setUserNavScannerLabel`/`setUserNavTradingLabel`, same trim/reject-empty
+  pattern as the existing `setUserNavLongTermLabel` - three small one-liners
+  rather than one generalized setter, since that's genuinely simpler at
+  three call sites), two new API routes mirroring `nav-long-term-label`'s
+  route exactly.
+- The repeated `<Link>` markup across the old `NAV_ITEMS_BEFORE/AFTER`
+  arrays was extracted into a shared `NavLink` component (active-highlight,
+  prefetch-off, collapsed-mode logic lives in exactly one place now),
+  reused for every standalone item and every item inside a segment.
+
+Live-verified: renamed all three segments independently (Scanner → Screener,
+Trading → Active Trading), confirmed each persists after a full page
+reload and doesn't affect the other two labels or the Investment label.
+Visited every page in the new structure with zero console errors (one
+unrelated, pre-existing hydration warning in `RegimeCard` on `/dashboard` -
+a live market-regime widget racing between server and client fetch, not
+touched by and unrelated to this change). Full suite 420/420, `tsc`/
+`eslint`/`npm run build` all clean.
+
+**Paste into Supabase's SQL editor:**
+```sql
+alter table public.user_settings
+  add column if not exists nav_scanner_label text not null default 'Scanner';
+
+alter table public.user_settings
+  add column if not exists nav_trading_label text not null default 'Trading';
+```

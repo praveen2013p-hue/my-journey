@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetStoreForTests } from "./local-store";
-import { getUserSettings, setUserNavLongTermLabel } from "./settings";
+import { getUserSettings, setUserNavLongTermLabel, setUserNavScannerLabel, setUserNavTradingLabel } from "./settings";
 
 const STORE_PATH = path.join(os.tmpdir(), "my-journey-dev-store.json");
 
@@ -32,6 +32,12 @@ describe("getUserSettings", () => {
     const settings = await getUserSettings("praveen@example.com");
     expect(settings.nav_long_term_label).toBe("Investment");
   });
+
+  it("defaults nav_scanner_label to 'Scanner' and nav_trading_label to 'Trading'", async () => {
+    const settings = await getUserSettings("praveen@example.com");
+    expect(settings.nav_scanner_label).toBe("Scanner");
+    expect(settings.nav_trading_label).toBe("Trading");
+  });
 });
 
 describe("setUserNavLongTermLabel", () => {
@@ -49,5 +55,21 @@ describe("setUserNavLongTermLabel", () => {
 
   it("rejects an empty name", async () => {
     await expect(setUserNavLongTermLabel("praveen@example.com", "   ")).rejects.toThrow();
+  });
+});
+
+describe("setUserNavScannerLabel", () => {
+  it("renames the label, trims whitespace, and rejects an empty name", async () => {
+    await setUserNavScannerLabel("praveen@example.com", "  Screener  ");
+    expect((await getUserSettings("praveen@example.com")).nav_scanner_label).toBe("Screener");
+    await expect(setUserNavScannerLabel("praveen@example.com", "   ")).rejects.toThrow();
+  });
+});
+
+describe("setUserNavTradingLabel", () => {
+  it("renames the label, trims whitespace, and rejects an empty name", async () => {
+    await setUserNavTradingLabel("praveen@example.com", "  Active Trading  ");
+    expect((await getUserSettings("praveen@example.com")).nav_trading_label).toBe("Active Trading");
+    await expect(setUserNavTradingLabel("praveen@example.com", "   ")).rejects.toThrow();
   });
 });

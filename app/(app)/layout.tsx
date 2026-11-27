@@ -20,6 +20,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         email={session.email}
         mutualFundProfiles={mutualFundProfiles}
         longTermHoldingLabel={userSettings.nav_long_term_label}
+        scannerLabel={userSettings.nav_scanner_label}
+        tradingLabel={userSettings.nav_trading_label}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-x-clip overflow-y-clip p-4 md:p-7">
         {children}

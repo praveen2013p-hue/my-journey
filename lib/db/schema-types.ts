@@ -180,6 +180,10 @@ export interface UserSettingsRow {
   birth_year: number | null;
   /** Sidebar section label sitting above NPS and Mutual Funds - renameable, defaults to "Investment". */
   nav_long_term_label: string;
+  /** Sidebar section label above Breakouts/Pullbacks/Sectors - renameable, defaults to "Scanner". */
+  nav_scanner_label: string;
+  /** Sidebar section label above Journal/US Trading Capital/Weekly Review/Performance - renameable, defaults to "Trading". */
+  nav_trading_label: string;
   updated_at: string;
 }
 

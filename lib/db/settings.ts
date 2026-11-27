@@ -35,6 +35,8 @@ const DEFAULT_USER_SETTINGS: Omit<UserSettingsRow, "user_id"> = {
   last_seen_alerts_at: null,
   birth_year: null,
   nav_long_term_label: "Investment",
+  nav_scanner_label: "Scanner",
+  nav_trading_label: "Trading",
   updated_at: new Date(0).toISOString(),
 };
 
@@ -97,6 +99,18 @@ export async function setUserNavLongTermLabel(userId: string, label: string): Pr
   const trimmed = label.trim();
   if (!trimmed) throw new Error("Category name can't be empty.");
   await patchUserSettings(userId, { nav_long_term_label: trimmed });
+}
+
+export async function setUserNavScannerLabel(userId: string, label: string): Promise<void> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Category name can't be empty.");
+  await patchUserSettings(userId, { nav_scanner_label: trimmed });
+}
+
+export async function setUserNavTradingLabel(userId: string, label: string): Promise<void> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Category name can't be empty.");
+  await patchUserSettings(userId, { nav_trading_label: trimmed });
 }
 
 /**

@@ -25,22 +25,29 @@ import {
   WeeklyReviewIcon,
 } from "./icons";
 
-const NAV_ITEMS_BEFORE_MUTUAL_FUNDS = [
-  { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
+// Standalone "anchor" items that sit outside every section - a single
+// landing page at the top, a single admin page at the bottom (DECISIONS.md:
+// three segments is the right number right now - Scanner/Trading/Investment
+// - and neither of these is a sibling of anything, so neither gets a label).
+const DASHBOARD_ITEM = { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon };
+const SETTINGS_ITEM = { href: "/settings", label: "Settings", Icon: SettingsIcon };
+
+// "Scanner": finding new signals - pure market screening, no personal data.
+const SCANNER_ITEMS = [
   { href: "/breakouts", label: "Breakouts", Icon: BreakoutsIcon },
   { href: "/pullbacks", label: "Pullbacks", Icon: PullbacksIcon },
   { href: "/sectors", label: "Sectors", Icon: SectorsIcon },
-  { href: "/journal", label: "Journal", Icon: JournalIcon },
-  // Swing-trading capital, not long-term investing - sits with the
-  // trading-side pages above, not under the "Investment" label below
-  // (DECISIONS.md).
-  { href: "/us-trading-capital", label: "US Trading Capital", Icon: UsTradingCapitalIcon },
 ];
 
-const NAV_ITEMS_AFTER_MUTUAL_FUNDS = [
+// "Trading": everything about the user's own trades - logging, capital,
+// and reviewing results. US Trading Capital sits here (not under
+// "Investment" with Mutual Funds/NPS) since it's swing-trading capital,
+// not long-term investing.
+const TRADING_ITEMS = [
+  { href: "/journal", label: "Journal", Icon: JournalIcon },
+  { href: "/us-trading-capital", label: "US Trading Capital", Icon: UsTradingCapitalIcon },
   { href: "/review", label: "Weekly Review", Icon: WeeklyReviewIcon },
   { href: "/performance", label: "Performance", Icon: PerformanceIcon },
-  { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
 const COLLAPSE_STORAGE_KEY = "mj.sidebar.collapsed";
@@ -52,6 +59,8 @@ interface SidebarProps {
   email: string;
   mutualFundProfiles: MutualFundProfileRow[];
   longTermHoldingLabel: string;
+  scannerLabel: string;
+  tradingLabel: string;
 }
 
 /** BRIEF.md §8: green = Stage 2, yellow = Stage 1, red = Stage 3 or 4. */
@@ -64,6 +73,42 @@ function regimeDotClass(stage: Stage): string {
 
 function regimeLabel(stage: Stage): string {
   return stage === null ? "—" : `Stage ${stage}`;
+}
+
+/** One plain nav row - shared by every standalone item and every item inside a segment, so the active-highlight/prefetch/collapsed logic lives in exactly one place. */
+function NavLink({
+  item,
+  collapsed,
+  pathname,
+  onNavigate,
+}: {
+  item: { href: string; label: string; Icon: React.ComponentType<React.SVGProps<SVGSVGElement>> };
+  collapsed: boolean;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const { href, label, Icon } = item;
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      // Every one of these is always on screen on every page (BRIEF.md
+      // layout), so Next's default viewport prefetch was silently
+      // re-rendering and re-fetching every other tab's server data in
+      // the background on every single page view - including live
+      // Yahoo/Kite calls - well before the user ever clicked it
+      // (DECISIONS.md). Off by default; a real click still navigates
+      // immediately, it just isn't pre-warmed.
+      prefetch={false}
+      className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
+        collapsed ? "justify-center px-2.5" : ""
+      } ${isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
+      onClick={onNavigate}
+    >
+      <Icon />
+      {!collapsed && <span>{label}</span>}
+    </Link>
+  );
 }
 
 /**
@@ -219,15 +264,24 @@ function MutualFundsTreeNav({
 }
 
 /**
- * "Investment" - a plain, non-interactive section label sandwiched
- * between two divider lines (DECISIONS.md: a hand-sketched correction
- * after an earlier collapsible-category version was flagged as the
- * wrong idea - "not what i wanted... like hierarchy"). NPS and Mutual
- * Funds sit underneath as ordinary flat nav items, not nested inside
- * this label - it's a heading, not a tree node. Still renameable via a
- * small pencil icon, since that part of the original ask stands.
+ * A plain, non-interactive section label sandwiched between two divider
+ * lines (DECISIONS.md: a hand-sketched correction after an earlier
+ * collapsible-category version was flagged as the wrong idea - "not what
+ * i wanted... like hierarchy"). Its items sit underneath as ordinary flat
+ * nav items, not nested inside this label - it's a heading, not a tree
+ * node. Still renameable via a small pencil icon. Shared by all three
+ * segments (Scanner/Trading/Investment) - each just points `apiPath` at
+ * its own settings field.
  */
-function InvestmentSectionLabel({ label: initialLabel, collapsed }: { label: string; collapsed: boolean }) {
+function SidebarSectionLabel({
+  label: initialLabel,
+  collapsed,
+  apiPath,
+}: {
+  label: string;
+  collapsed: boolean;
+  apiPath: string;
+}) {
   const router = useRouter();
   const [label, setLabel] = useState(initialLabel);
   const [renaming, setRenaming] = useState(false);
@@ -242,7 +296,7 @@ function InvestmentSectionLabel({ label: initialLabel, collapsed }: { label: str
     }
     setSavingLabel(true);
     try {
-      const res = await fetch("/api/settings/nav-long-term-label", {
+      const res = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: trimmed }),
@@ -306,7 +360,14 @@ function InvestmentSectionLabel({ label: initialLabel, collapsed }: { label: str
   );
 }
 
-export function Sidebar({ siteName, email, mutualFundProfiles, longTermHoldingLabel }: SidebarProps) {
+export function Sidebar({
+  siteName,
+  email,
+  mutualFundProfiles,
+  longTermHoldingLabel,
+  scannerLabel,
+  tradingLabel,
+}: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -385,77 +446,38 @@ export function Sidebar({ siteName, email, mutualFundProfiles, longTermHoldingLa
       </div>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="Main">
-        {NAV_ITEMS_BEFORE_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
-          const isActive = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <Link
-              key={href}
-              href={href}
-              // Every one of these is always on screen on every page (BRIEF.md
-              // layout), so Next's default viewport prefetch was silently
-              // re-rendering and re-fetching every other tab's server data in
-              // the background on every single page view - including live
-              // Yahoo/Kite calls - well before the user ever clicked it
-              // (DECISIONS.md). Off by default; a real click still navigates
-              // immediately, it just isn't pre-warmed.
-              prefetch={false}
-              className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
-                collapsed ? "justify-center px-2.5" : ""
-              } ${isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
-              onClick={() => setMobileOpen(false)}
-            >
-              <Icon />
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+        <NavLink item={DASHBOARD_ITEM} collapsed={collapsed} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
 
-        <InvestmentSectionLabel label={longTermHoldingLabel} collapsed={collapsed} />
+        <SidebarSectionLabel label={scannerLabel} collapsed={collapsed} apiPath="/api/settings/nav-scanner-label" />
+        {SCANNER_ITEMS.map((item) => (
+          <NavLink key={item.href} item={item} collapsed={collapsed} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+        ))}
+
+        <SidebarSectionLabel label={tradingLabel} collapsed={collapsed} apiPath="/api/settings/nav-trading-label" />
+        {TRADING_ITEMS.map((item) => (
+          <NavLink key={item.href} item={item} collapsed={collapsed} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+        ))}
+
+        <SidebarSectionLabel label={longTermHoldingLabel} collapsed={collapsed} apiPath="/api/settings/nav-long-term-label" />
 
         {/* A summary of everything underneath this label, so it sits above Mutual Funds/NPS rather than alongside them (DECISIONS.md). */}
-        <Link
-          href="/net-worth"
-          prefetch={false}
-          className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
-            collapsed ? "justify-center px-2.5" : ""
-          } ${pathname === "/net-worth" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
-          onClick={() => setMobileOpen(false)}
-        >
-          <NetWorthIcon />
-          {!collapsed && <span>Net Worth</span>}
-        </Link>
+        <NavLink
+          item={{ href: "/net-worth", label: "Net Worth", Icon: NetWorthIcon }}
+          collapsed={collapsed}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+        />
 
         <MutualFundsTreeNav profiles={mutualFundProfiles} collapsed={collapsed} />
 
-        <Link
-          href="/nps"
-          prefetch={false}
-          className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
-            collapsed ? "justify-center px-2.5" : ""
-          } ${pathname === "/nps" ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
-          onClick={() => setMobileOpen(false)}
-        >
-          <NpsIcon />
-          {!collapsed && <span>NPS</span>}
-        </Link>
+        <NavLink
+          item={{ href: "/nps", label: "NPS", Icon: NpsIcon }}
+          collapsed={collapsed}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+        />
 
-        {NAV_ITEMS_AFTER_MUTUAL_FUNDS.map(({ href, label, Icon }) => {
-          const isActive = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <Link
-              key={href}
-              href={href}
-              prefetch={false}
-              className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors ${
-                collapsed ? "justify-center px-2.5" : ""
-              } ${isActive ? "bg-gold-wash text-gold-light" : "text-muted hover:bg-panel-alt hover:text-text"}`}
-              onClick={() => setMobileOpen(false)}
-            >
-              <Icon />
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+        <NavLink item={SETTINGS_ITEM} collapsed={collapsed} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
       </nav>
 
       <div className={`flex flex-col gap-2 px-1.5 text-sm text-muted ${collapsed ? "items-center" : ""}`}>
