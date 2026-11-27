@@ -9,7 +9,7 @@
 import { addDays, format, subDays } from "date-fns";
 import { listAlerts } from "./db/alerts";
 import { getWeeklyReflection } from "./db/weekly-reflections";
-import { listSectorMetricsForWeek } from "./db/sectors";
+import { getLatestSectorMetricsWeekAtOrBefore, listSectorMetricsForWeek } from "./db/sectors";
 import { listTrades } from "./db/trades";
 import type { Grade, Market, TradeRow } from "./db/schema-types";
 import { closedTradePnl, computeTradeStats } from "./trade-stats";
@@ -56,9 +56,15 @@ async function resolveWeekEnding(requested?: string): Promise<string | null> {
 }
 
 async function focusSectorChangesForMarket(market: Market, weekEnding: string, prevWeekEnding: string) {
+  // Tolerant "at or before" lookup, not an exact-week match - if the prior
+  // week's sector_metrics computation didn't run (a one-off outage), this
+  // falls back to the most recent week that DID compute, rather than
+  // treating it as "no previous data" and mislabeling every continuing
+  // focus sector as "new."
+  const tolerantPrevWeek = await getLatestSectorMetricsWeekAtOrBefore(market, prevWeekEnding);
   const [current, previous] = await Promise.all([
     listSectorMetricsForWeek(market, weekEnding),
-    listSectorMetricsForWeek(market, prevWeekEnding),
+    tolerantPrevWeek ? listSectorMetricsForWeek(market, tolerantPrevWeek) : Promise.resolve([]),
   ]);
   const currentFocus = new Set(current.filter((m) => m.is_focus).map((m) => m.sector));
   const previousFocus = new Set(previous.filter((m) => m.is_focus).map((m) => m.sector));

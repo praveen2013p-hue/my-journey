@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAlertHealth } from "./alert-health";
 import { insertAlertRaw } from "./db/alerts";
 import { __resetStoreForTests } from "./db/local-store";
 
 beforeEach(async () => {
   await __resetStoreForTests();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("getAlertHealth", () => {
@@ -29,5 +33,19 @@ describe("getAlertHealth", () => {
     // Saturday 24 Nov 2026, 10:00 IST = 04:30 UTC — before the noon cutoff.
     const health = await getAlertHealth(new Date("2026-11-21T04:30:00Z"));
     expect(health.missingThisWeek).toBe(false);
+  });
+
+  it("reports the real (stale) lastAlertAt even once the webhook has been silent for more than 2 weeks, instead of null", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
+    await insertAlertRaw({ a: 1 }, true, null);
+    vi.useRealTimers();
+
+    // 2026-11-24 is more than 7 weeks after the insert above - well past
+    // the 2-week window the this-week/last-week counts are bounded to.
+    const health = await getAlertHealth(new Date("2026-11-24T10:00:00Z"));
+    expect(health.lastAlertAt).toBe("2026-10-01T10:00:00.000Z");
+    expect(health.acceptedThisWeek).toBe(0);
+    expect(health.acceptedLastWeek).toBe(0);
   });
 });

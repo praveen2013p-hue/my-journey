@@ -199,6 +199,33 @@ export async function listSectorMetricsForWeek(
   return store.sector_metrics.filter((m) => m.market === market && m.week_ending === weekEnding);
 }
 
+/**
+ * The latest week_ending with any sector_metrics rows, at or before
+ * `targetWeek` - tolerant of a missed week's computation (an outage,
+ * a one-off failure), same "at or before, never require an exact match"
+ * principle as lib/sector-metrics.ts's own `snapshotAtOrBefore`. Null only
+ * when there's no sector_metrics data at or before that date at all.
+ */
+export async function getLatestSectorMetricsWeekAtOrBefore(market: Market, targetWeek: string): Promise<string | null> {
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("sector_metrics")
+      .select("week_ending")
+      .eq("market", market)
+      .lte("week_ending", targetWeek)
+      .order("week_ending", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.week_ending ?? null;
+  }
+  const store = await readStore();
+  const candidates = store.sector_metrics.filter((m) => m.market === market && m.week_ending <= targetWeek);
+  if (candidates.length === 0) return null;
+  return candidates.reduce((latest, m) => (m.week_ending > latest ? m.week_ending : latest), candidates[0].week_ending);
+}
+
 /** Latest sector snapshot's received time, for the data-freshness strip (BRIEF.md §14.2). */
 export async function getLatestSectorSnapshotTime(): Promise<string | null> {
   if (isSupabaseConfigured()) {

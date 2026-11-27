@@ -4,7 +4,7 @@
  * warning if nothing arrived by Saturday noon IST in a normal week.
  */
 
-import { listAlertsRawSince } from "./db/alerts";
+import { getLatestAcceptedRawReceivedAt, listAlertsRawSince } from "./db/alerts";
 
 export interface AlertHealth {
   acceptedThisWeek: number;
@@ -21,15 +21,16 @@ export async function getAlertHealth(now: Date = new Date()): Promise<AlertHealt
   const twoWeeksAgo = new Date(now.getTime() - 2 * ONE_WEEK_MS);
   const oneWeekAgo = new Date(now.getTime() - ONE_WEEK_MS);
 
+  // This fetch is bounded to 2 weeks for the this-week/last-week counts
+  // below, which only ever need that window. `lastAlertAt` must NOT be
+  // derived from it - once the webhook has been silent longer than 2
+  // weeks, that would wrongly report "no alerts ever" instead of the real
+  // (stale) last-alert time, so it uses the dedicated unbounded lookup.
   const rows = await listAlertsRawSince(twoWeeksAgo.toISOString());
   const thisWeek = rows.filter((r) => r.received_at >= oneWeekAgo.toISOString());
   const lastWeek = rows.filter((r) => r.received_at < oneWeekAgo.toISOString());
 
-  const accepted = rows.filter((r) => r.accepted);
-  const lastAlertAt = accepted.reduce<string | null>(
-    (latest, r) => (latest === null || r.received_at > latest ? r.received_at : latest),
-    null,
-  );
+  const lastAlertAt = await getLatestAcceptedRawReceivedAt();
 
   const istNow = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Kolkata",

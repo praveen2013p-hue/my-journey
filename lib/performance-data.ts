@@ -80,8 +80,12 @@ export interface HoldVsSoldRow {
 
 export interface HoldVsSoldSummary {
   rows: HoldVsSoldRow[];
+  /** Both totals are summed over the SAME population - only closed trades with a resolved live price (see coveredTradeCount) - so the comparison is apples-to-apples, never "all closed trades" vs "only the ones with a price." */
   totalActualPnl: number;
   totalHypotheticalHoldPnl: number;
+  /** How many of totalClosedTradeCount closed trades have a resolved live price and so are included in totalActualPnl/totalHypotheticalHoldPnl. Equal when every ticker resolved. */
+  coveredTradeCount: number;
+  totalClosedTradeCount: number;
   pctSoldTooEarly: number | null;
   avgReturnLeftOnTable: number | null;
   avgReturnSavedByExiting: number | null;
@@ -139,8 +143,14 @@ export async function getHoldVsSoldData(userId: string, market: Market, timeFram
     }),
   );
 
-  const totalActualPnl = closed.reduce((s, c) => s + c.closed.pnlAbs, 0);
+  // Both totals below are summed over knownHeld only (closed trades with a
+  // resolved live price), never over every closed trade - otherwise
+  // "Actual P&L" and "Hypothetical hold P&L" would be computed over
+  // different trade populations and the comparison would be misleading
+  // whenever some tickers have no resolved price (DECISIONS.md).
+  const pnlAbsByTrade = new Map(closed.map((c) => [c.trade, c.closed.pnlAbs]));
   const knownHeld = rows.filter((r) => r.heldReturnPct !== null);
+  const totalActualPnl = knownHeld.reduce((sum, r) => sum + (pnlAbsByTrade.get(r.trade) ?? 0), 0);
   const totalHypotheticalHoldPnl = knownHeld.reduce(
     (sum, r) => sum + ((r.heldReturnPct as number) / 100) * r.trade.buy_price * r.trade.quantity,
     0,
@@ -152,6 +162,8 @@ export async function getHoldVsSoldData(userId: string, market: Market, timeFram
     rows,
     totalActualPnl,
     totalHypotheticalHoldPnl,
+    coveredTradeCount: knownHeld.length,
+    totalClosedTradeCount: closed.length,
     pctSoldTooEarly: knownHeld.length > 0 ? (tooEarly.length / knownHeld.length) * 100 : null,
     avgReturnLeftOnTable:
       tooEarly.length > 0 ? tooEarly.reduce((s, r) => s + (r.diffPts as number), 0) / tooEarly.length : null,

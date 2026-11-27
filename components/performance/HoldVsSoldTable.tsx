@@ -15,6 +15,12 @@ export function HoldVsSoldTable({ market, data }: { market: Market; data: HoldVs
         <p className="text-sm text-muted">No closed trades in this time frame yet.</p>
       ) : (
         <>
+          {data.coveredTradeCount < data.totalClosedTradeCount && (
+            <p className="text-xs text-muted">
+              Based on {data.coveredTradeCount} of {data.totalClosedTradeCount} closed trades - the rest have no
+              resolved live price yet, so both totals below exclude them (never a mix of different trade sets).
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <div className="text-xs text-muted">Actual P&amp;L</div>
