@@ -4,6 +4,7 @@ import {
   getLatestMrsForTickers,
   getLatestWeekEnding,
   listAlerts,
+  sanitizeForOrFilter,
   searchTickerSuggestions,
   upsertAlert,
 } from "./alerts";
@@ -138,6 +139,21 @@ describe("searchTickerSuggestions", () => {
 
   it("returns nothing for an empty query", async () => {
     expect(await searchTickerSuggestions("ALL", "")).toEqual([]);
+  });
+
+  it("treats a comma in the search term as a literal substring, never as extra filter syntax", async () => {
+    // Not a realistic ticker, but proves the query doesn't crash or behave
+    // unexpectedly when it contains PostgREST .or()-filter-syntax characters.
+    const results = await searchTickerSuggestions("ALL", "SBI,id.gt.0");
+    expect(results).toEqual([]);
+  });
+});
+
+describe("sanitizeForOrFilter", () => {
+  it("strips commas and parentheses - the characters significant to PostgREST's .or() filter syntax", () => {
+    expect(sanitizeForOrFilter("SBI,id.gt.0")).toBe("SBIid.gt.0");
+    expect(sanitizeForOrFilter("(SBIN)")).toBe("SBIN");
+    expect(sanitizeForOrFilter("SBIN")).toBe("SBIN");
   });
 });
 

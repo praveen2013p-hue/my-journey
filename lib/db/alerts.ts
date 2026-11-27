@@ -485,6 +485,17 @@ export interface TickerSuggestion {
 }
 
 /**
+ * PostgREST's `.or()` filter syntax uses "," to separate conditions and
+ * "()" for grouping, so interpolating a raw search term into one could let
+ * a query like "X,id.gt.0" be parsed as extra filter clauses instead of a
+ * literal substring to match. Real ticker/sector/industry text never
+ * contains these, so stripping them is lossless here and closes it off.
+ */
+export function sanitizeForOrFilter(value: string): string {
+  return value.replace(/[,()]/g, "");
+}
+
+/**
  * Live ticker-search suggestions (debounced on the client). Matches on
  * ticker first; the data model has no company-name field anywhere
  * (TradingView's alert payload only ever sends ticker/exchange/sector/
@@ -505,10 +516,11 @@ export async function searchTickerSuggestions(
 
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseServiceClient();
+    const safeNeedle = sanitizeForOrFilter(needle);
     let dbQuery = supabase
       .from("alerts")
       .select("ticker, market, exchange, sector, industry")
-      .or(`ticker.ilike.%${needle}%,sector.ilike.%${needle}%,industry.ilike.%${needle}%`);
+      .or(`ticker.ilike.%${safeNeedle}%,sector.ilike.%${safeNeedle}%,industry.ilike.%${safeNeedle}%`);
     if (market !== "ALL") dbQuery = dbQuery.eq("market", market);
     const { data, error } = await dbQuery.limit(200);
     if (error) throw error;

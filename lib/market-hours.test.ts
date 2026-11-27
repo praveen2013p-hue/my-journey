@@ -26,4 +26,16 @@ describe("isMarketOpen", () => {
     // Tue 24 Nov 2026 08:00 EST = 13:00 UTC
     expect(isMarketOpen("US", new Date("2026-11-24T13:00:00Z"))).toBe(false);
   });
+
+  it("is open exactly AT the opening minute, closed exactly AT the closing minute (half-open interval)", () => {
+    // Tue 24 Nov 2026 09:15:00 IST = 03:45:00 UTC - exactly market open.
+    expect(isMarketOpen("IN", new Date("2026-11-24T03:45:00Z"))).toBe(true);
+    // Tue 24 Nov 2026 15:30:00 IST = 10:00:00 UTC - exactly market close, already closed.
+    expect(isMarketOpen("IN", new Date("2026-11-24T10:00:00Z"))).toBe(false);
+
+    // Tue 24 Nov 2026 09:30:00 EST = 14:30:00 UTC - exactly market open.
+    expect(isMarketOpen("US", new Date("2026-11-24T14:30:00Z"))).toBe(true);
+    // Tue 24 Nov 2026 16:00:00 EST = 21:00:00 UTC - exactly market close, already closed.
+    expect(isMarketOpen("US", new Date("2026-11-24T21:00:00Z"))).toBe(false);
+  });
 });

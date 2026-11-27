@@ -36,5 +36,8 @@ export function isMarketOpen(market: Market, now: Date = new Date()): boolean {
   const { weekday, hour, minute } = localParts(now, timeZone);
   if (weekday === "Sat" || weekday === "Sun") return false;
   const minutesOfDay = hour * 60 + minute;
-  return minutesOfDay >= openMinute && minutesOfDay <= closeMinute;
+  // Half-open interval: open AT the opening minute, closed AT (not past) the
+  // closing minute - "09:15-15:30"/"09:30-16:00" means 15:30/16:00 is already
+  // closed, not one more open minute.
+  return minutesOfDay >= openMinute && minutesOfDay < closeMinute;
 }

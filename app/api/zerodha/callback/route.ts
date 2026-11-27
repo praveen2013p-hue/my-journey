@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isOwnerEmail } from "@/lib/auth/allowed-emails";
 import { getOptionalSession } from "@/lib/auth/dal";
 import { saveZerodhaSession } from "@/lib/db/provider-session";
 import { exchangeRequestToken } from "@/lib/zerodha/auth";
@@ -10,12 +11,16 @@ export const dynamic = "force-dynamic";
  * (or `?status=...` with no token on a cancelled/failed login). Never
  * throws past this handler - any failure just redirects to Settings with
  * an error flag, per BRIEF.md §10's "never crash, fall back to last close."
+ *
+ * Owner-only, same as every other Zerodha/admin route (`provider_session`
+ * has no user scoping - it's a single global row, so a non-owner
+ * completing this flow would silently overwrite the owner's connection).
  */
 export async function GET(request: Request): Promise<NextResponse> {
   const session = await getOptionalSession();
   const settingsUrl = new URL("/settings", request.url);
 
-  if (!session) {
+  if (!session || !isOwnerEmail(session.email)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

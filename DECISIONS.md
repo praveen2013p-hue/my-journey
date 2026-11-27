@@ -1903,3 +1903,136 @@ overlay, no CSV import/export - none of those were asked for here.
   clean. Live-verified in a real running dev server (sidebar link,
   Overview, year-grouped table, both returns), seeded/cleaned-up data
   and scratch files, no stray dev-server processes left running.
+
+## 2026-11-27 - Code-review pass: 13 bugs fixed across the whole codebase
+
+A requested "in-depth review of each line of code, fix the errors"
+(plus a separate speed-up pass, queued next). Ran 4 independent
+reviews in parallel (financial math, trading/sector analytics,
+DB/API/auth, UI/performance) and fixed every confirmed bug below.
+
+**Stale component state (same-route navigation doesn't remount):**
+- `components/weekly-review/ReflectionBox.tsx` - the textarea's local
+  `text`/`saved` state was seeded once via `useState(initialText)` and
+  never resynced when Prev/Next Week changed `weekEnding` (a
+  search-param-only nav, no remount) - a further edit would silently
+  save a blend of the old week's text onto the new week's record.
+  Fixed by adjusting state during render when `weekEnding` changes
+  (React's documented pattern for this - **not** a `useEffect`, which
+  this repo's stricter `react-hooks/set-state-in-effect` lint rule
+  flags as an error for exactly this "derive state from a changed
+  prop" case; the effect-based first draft of this fix had to be
+  rewritten for that reason).
+- `components/Sidebar.tsx` (`MutualFundsTreeNav`) - the profile list
+  was seeded once from `initialProfiles` and never resynced when the
+  layout re-fetched a fresh array after some *other* action's
+  `router.refresh()` (adding a trade, saving a goal, ...). Same
+  render-time-adjustment fix, keyed on prop reference identity.
+  Live-verified: created a profile via a raw API call (bypassing the
+  sidebar's own optimistic add), then saved a goal elsewhere (which
+  calls `router.refresh()`) - the sidebar picked up the new profile
+  without a full reload.
+- `components/mutual-funds/MutualFundDashboard.tsx` (`GoalTracker`) -
+  same class of bug: switching `?profile=` kept the previous profile's
+  `editing`/`text` state, so a profile with no goal could render
+  through the "goal exists" branch against a `null` `goalAmount`. Same
+  render-time fix, keyed on `profileId`. Live-verified by switching
+  between two seeded profiles with different goal states.
+- `components/breakouts/SidePanel.tsx` - the `sectorContexts` and
+  `note` fetch effects were missing the `cancelled`-flag guard the
+  adjacent `bars` effect (and `ConstituentsPanel.tsx`) already use, so
+  a fast row-switch could let an earlier, slower response overwrite
+  the currently-selected row's panel. Added the same guard, matching
+  the file's own established style exactly.
+
+**Financial math:**
+- `lib/mutual-fund-stats.ts` (`computeGoalProjection`) - a full
+  withdrawal (`currentValue` at or below 0) with a still-positive XIRR
+  fell through to `Math.log(goalAmount / 0)` = `Infinity`, rendered
+  verbatim as "~Infinity months". Added an explicit `"no_capital"`
+  status, checked before the log/division math ever runs - consistent
+  with this file's own "never guess, always an explicit status"
+  convention for `"reached"`/`"no_xirr"`/`"no_growth"`.
+- Sign-inverted `gainPct` when net invested capital goes non-positive
+  (4 near-identical sibling files: `lib/mutual-fund-stats.ts`,
+  `lib/nps-stats.ts`, `lib/us-trading-capital-stats.ts`,
+  `lib/net-worth-stats.ts`, plus the pooled total in the last one) -
+  `gainPct = gainAbs / cumulativeInvested * 100` only guarded against
+  `cumulativeInvested === 0`, so a withdrawal larger than net invested
+  so far (`cumulativeInvested < 0`) inverted a real profit into a
+  large negative percentage shown right next to the correctly-green
+  gain amount. Changed the guard to `> 0` in all 4 (and the pooled
+  Net Worth figure) - "% return on capital" isn't a meaningful number
+  against a zero-or-negative base, so it's `null` (renders as the
+  existing "—") rather than a computed-but-wrong one. A blind `abs()`
+  was considered and rejected - that would hide a genuine loss on a
+  negative base in the other direction, just as wrong.
+- `lib/mutual-fund-csv.ts` (CSV import) - a row with no SIP/lumpsum/
+  STP/other breakdown AND a blank `amount_added` cell was silently
+  imported as a $0 contribution instead of being rejected, unlike the
+  sibling checks already in place for `withdrawal`/`planned_amount`/
+  `current_value` on the same row. Now rejected with a matching
+  message. (One pre-existing test's fixture CSV had a blank
+  `amount_added` cell where a real value was clearly intended for a
+  different assertion - updated it to a real number rather than
+  encode the old silently-wrong behavior as "expected".)
+
+**Data assembly:**
+- `lib/performance-data.ts` (Hold-vs-Sold) - "Actual P&L" summed every
+  closed trade in range, while "Hypothetical hold P&L" summed only
+  trades with a resolved live price - two different populations shown
+  side by side as if comparable. Now both sums run over the same
+  (`knownHeld`) population, and the Overview surfaces a
+  `coveredTradeCount`/`totalClosedTradeCount` note when they're
+  partial, rather than silently comparing mismatched sets.
+- `lib/alert-health.ts` - `lastAlertAt` was derived from a fetch
+  bounded to the last 2 weeks, so a webhook outage longer than that
+  reported "no alerts ever" instead of the real, stale timestamp.
+  Switched just that one field to the existing unbounded
+  `getLatestAcceptedRawReceivedAt()` (already used by
+  `lib/freshness-data.ts` for the same purpose) - the 2-week-bounded
+  fetch stays for the this-week/last-week counts, which do need that
+  window.
+- `lib/weekly-review-data.ts` (focus-sector new/continuing/dropped) -
+  compared against the prior week via an exact-date match, instead of
+  the tolerant "at or before" lookup this codebase already uses
+  elsewhere for the identical kind of week-over-week comparison
+  (`lib/sector-metrics.ts`'s `snapshotAtOrBefore`). A single missed
+  week's computation mislabeled every continuing focus sector as
+  "new." Added `getLatestSectorMetricsWeekAtOrBefore` (new, in
+  `lib/db/sectors.ts`) and used it to resolve the actual prior week
+  to query.
+
+**Auth/security:**
+- `app/api/zerodha/callback/route.ts` - every sibling owner-only route
+  (sector backfill, sector-map-resolve, kite-instrument-search) checks
+  `isOwnerEmail(session.email)`; this one only checked that a session
+  existed. Since `provider_session` is a single global row (no user
+  scoping), a second allow-listed account completing their own Kite
+  login could silently overwrite the owner's working connection. Added
+  the same owner check (defense in depth - the Settings button is
+  already hidden from non-owners, but the Kite login URL itself isn't
+  gated).
+- `lib/db/alerts.ts` (`searchTickerSuggestions`) - the live-search
+  query was interpolated raw into a Supabase `.or()` filter string,
+  so a search term containing `,`/`(`/`)` (PostgREST's filter-syntax
+  reserved characters) could be parsed as extra filter clauses rather
+  than a literal substring. Low real-world impact (`alerts` is global,
+  non-sensitive data, already fully readable without this endpoint),
+  but closed it off by stripping those characters
+  (`sanitizeForOrFilter`, now its own tested function) before
+  interpolating - real ticker/sector/industry text never contains them.
+- `lib/market-hours.ts` - the market-close boundary was inclusive
+  (`<=`), reporting the market open for one extra minute exactly at
+  closing. Changed to `<` for the close comparison only (open stays
+  inclusive - a market opens AT its opening minute).
+
+**Verification:** full suite 409/409 (new/updated tests per item
+above), `tsc`/`eslint` clean (eslint's remaining 6 errors + 3 warnings
+are pre-existing, in files this pass didn't touch - confirmed by
+re-running eslint before and after: same count, same locations),
+`npm run build` clean. Live-verified in a real running dev server:
+ReflectionBox week-switching, Sidebar profile-list refresh after an
+external change, GoalTracker profile-switching, and a Breakouts
+row-click sanity check (no console errors) - seeded/cleaned-up data
+and scratch files, no stray dev-server processes left running.
