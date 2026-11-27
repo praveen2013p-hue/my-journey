@@ -32,6 +32,7 @@ function entity(
       xirrPct: null, // irrelevant to net-worth-stats - it pools raw flows, never reads this field
     },
     rows: viewRows,
+    href: kind === "nps" ? "/nps" : `/mutual-funds?profile=${name}`,
   };
 }
 

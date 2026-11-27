@@ -2157,3 +2157,23 @@ clean. Live-verified: reloaded `/login` 3 times headless, confirmed a
 different quote each time with zero console/hydration errors (the exact
 regression the first, reverted attempt introduced). Scratch scripts removed,
 no stray dev-server processes.
+
+## 2026-11-27 - Net Worth breakdown table: entity names link to their source page
+
+User ask: clicking a name in the Net Worth breakdown table should jump to
+that entity's own page. Added an `href` to `NetWorthEntity`/
+`NetWorthBreakdownRow` (`lib/net-worth-stats.ts`) rather than deriving it in
+the component - a Mutual Fund profile's link needs its `profile_id`
+(`/mutual-funds?profile=<id>`), which only `app/(app)/net-worth/page.tsx`
+has; NPS always links to the flat `/nps`. The breakdown-computation function
+itself stays decoupled from routing concerns (it already deliberately avoids
+importing either tracker's real types) - it just passes the `href` string
+through unchanged.
+
+Live-verified by logging in, seeding a real Mutual Fund entry (Self profile)
+and an NPS entry, then clicking both names in the breakdown table: Self →
+`/mutual-funds?profile=<its real id>`, NPS → `/nps`, both landing correctly.
+Full suite 409/409 (one unrelated, pre-existing flaky timeout in
+`sector-backfill-orchestrator.test.ts` under parallel load - passes cleanly
+in isolation, not touched by this change), `tsc`/`eslint` clean, `npm run
+build` clean.

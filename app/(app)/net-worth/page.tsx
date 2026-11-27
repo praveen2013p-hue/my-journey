@@ -24,11 +24,11 @@ export default async function NetWorthPage() {
 
   const entities: NetWorthEntity[] = profiles.map((profile, i) => {
     const { dashboard, rows } = buildMutualFundView(mfEntriesByProfile[i]);
-    return { name: profile.name, kind: "mutual_fund", dashboard, rows };
+    return { name: profile.name, kind: "mutual_fund", dashboard, rows, href: `/mutual-funds?profile=${profile.id}` };
   });
 
   const npsView = buildNpsView(npsEntries);
-  entities.push({ name: "NPS", kind: "nps", dashboard: npsView.dashboard, rows: npsView.rows });
+  entities.push({ name: "NPS", kind: "nps", dashboard: npsView.dashboard, rows: npsView.rows, href: "/nps" });
 
   const view = computeNetWorthView(entities);
 

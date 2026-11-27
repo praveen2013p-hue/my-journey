@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { WealthGrowthChartLazy } from "@/components/mutual-funds/WealthGrowthChartLazy";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { monthLabel } from "@/lib/month-utils";
@@ -105,7 +106,9 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
             {breakdown.map((row) => (
               <tr key={`${row.kind}-${row.name}`} className="border-b border-border/60">
                 <td className="whitespace-nowrap px-3 py-2.5 font-medium">
-                  {row.name}
+                  <Link href={row.href} className="hover:text-gold-light hover:underline">
+                    {row.name}
+                  </Link>
                   <span className="ml-1.5 text-xs text-muted">{row.kind === "mutual_fund" ? "Mutual Fund" : "NPS"}</span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{formatMoney("IN", row.currentValue)}</td>

@@ -40,6 +40,8 @@ export interface NetWorthEntity {
   dashboard: NetWorthDashboardLike;
   /** Oldest first - same ordering `buildMutualFundView`/`buildNpsView` already produce. */
   rows: NetWorthRowLike[];
+  /** Where clicking this entity's name in the breakdown table should go - that profile's Mutual Funds page, or NPS. */
+  href: string;
 }
 
 export interface NetWorthBreakdownRow {
@@ -50,6 +52,7 @@ export interface NetWorthBreakdownRow {
   gainAbs: number;
   gainPct: number | null;
   xirrPct: number | null;
+  href: string;
 }
 
 export interface NetWorthDashboard {
@@ -145,6 +148,7 @@ export function computeNetWorthBreakdown(entities: NetWorthEntity[]): NetWorthBr
     gainAbs: e.dashboard.gainAbs ?? 0,
     gainPct: e.dashboard.gainPct,
     xirrPct: e.dashboard.xirrPct,
+    href: e.href,
   }));
 }
 
