@@ -34,7 +34,7 @@ export function RetirementPensionEstimator({ currentValue }: { currentValue: num
   }
 
   return (
-    <div className="min-w-0 rounded-lg border border-border-strong bg-panel-alt p-3 sm:col-span-3">
+    <div className="min-w-0 rounded-lg border border-border-strong bg-panel-alt p-3">
       <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
         If you retired today
       </div>

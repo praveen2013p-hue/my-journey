@@ -81,7 +81,7 @@ export function GoalTracker({
 
   if (editing) {
     return (
-      <div className="min-w-0 rounded-lg border border-border-strong bg-panel-alt p-3 sm:col-span-3">
+      <div className="min-w-0 rounded-lg border border-border-strong bg-panel-alt p-3">
         <div className="mb-1.5 text-xs text-muted">{goalAmount === null ? "Set a target corpus" : "Edit target corpus"}</div>
         <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
           <input
@@ -130,7 +130,7 @@ export function GoalTracker({
   }
 
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-panel-alt p-3 sm:col-span-3">
+    <div className="min-w-0 rounded-lg border border-border bg-panel-alt p-3">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="text-xs text-muted">
           Goal: <span className="font-semibold text-text">{formatMoney("IN", goalAmount!)}</span>

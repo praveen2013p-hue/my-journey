@@ -2457,3 +2457,32 @@ left untouched - out of scope for this pass. Full suite 431/432 (the
 same pre-existing, unrelated flaky `sector-backfill-orchestrator.test.ts`
 timeout documented earlier in this file), `tsc`/`eslint`/`npm run build`
 all clean.
+
+## 2026-11-27 - Same visual hierarchy applied to Mutual Funds, NPS, US Trading Capital
+
+User asked for the Net Worth Overview redesign to be applied to the other
+three Overview cards too, which had the identical flat-tile problem.
+
+Same tiering as Net Worth: hero Current Value (34px) with its own return
+figure as a `Chip` badge beside it, a smaller secondary Invested/Gain row,
+a bordered `bg-panel-alt` "Change" sub-panel (vs last month/vs last year -
+these three trackers only have the one metric each, not Net Worth's
+Value-vs-P&L pair, so it's a simple 2-column row of `ChangeLine`s rather
+than a matrix), then each tracker's own extra panel:
+- **Mutual Funds**: Safe SWP sub-panel, then `GoalTracker` (already its
+  own bordered box - removed its now-meaningless `sm:col-span-3`, a
+  leftover from the old 3-column grid it's no longer inside).
+- **NPS**: Safe SWP sub-panel, then `RetirementPensionEstimator` (same
+  stale `sm:col-span-3` removed).
+- **US Trading Capital**: no Safe SWP (doesn't apply to a trading-capital
+  account) - instead "Real Return (₹, FX-adjusted)" got its own sub-panel
+  (it already had the most explanatory text of anything on these cards,
+  via its blocked-reason states, so it earns the same dedicated-box
+  treatment Safe SWP gets elsewhere). Hero chip reads "USD return" instead
+  of "XIRR" to match its own existing terminology.
+
+Live-verified via screenshots on all three pages with realistic seeded
+data (Mutual Funds: goal set + 3 months; NPS: 3 months + the pension
+estimator; US Trading Capital: 3 months with real INR/FX data) - hierarchy
+reads cleanly on all three, no clipping, zero console errors. Full suite
+432/432, `tsc`/`eslint`/`npm run build` all clean.

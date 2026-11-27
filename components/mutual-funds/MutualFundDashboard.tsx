@@ -1,3 +1,4 @@
+import { Chip } from "@/components/Chip";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import { computeBenchmarkSeries, monthLabel } from "@/lib/mutual-fund-stats";
 import type { MutualFundDashboard as Dashboard, MutualFundEntryView } from "@/lib/mutual-fund-stats";
@@ -45,74 +46,76 @@ export function MutualFundDashboard({
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Overview</h2>
         <span className="text-xs text-muted">As of {monthLabel(dashboard.latestMonth)}</span>
       </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* Hero: the one number everything else supports */}
           <div className="min-w-0">
             <div className="text-xs text-muted">Current value</div>
-            <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.currentValue!)}>
-              {formatMoney("IN", dashboard.currentValue!)}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-muted">Total invested</div>
-            <div className="mt-1 truncate text-[22px] font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested!)}>
-              {formatMoney("IN", dashboard.totalInvested!)}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-muted">Overall gain</div>
-            <div
-              className={`mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[22px] font-semibold tabular-nums ${dashboard.gainAbs! >= 0 ? "text-pos" : "text-neg"}`}
-            >
-              <span>{formatMoney("IN", dashboard.gainAbs!)}</span>
-              <span className="min-w-0 truncate text-sm font-medium" title={`(${formatPct(dashboard.gainPct)})`}>
-                ({formatPct(dashboard.gainPct)})
-              </span>
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-muted" title="Annualized return (XIRR), accounting for when each contribution and withdrawal happened">
-              XIRR
-            </div>
-            {dashboard.xirrPct === null ? (
-              <div className="mt-1 text-[22px] font-semibold text-muted">—</div>
-            ) : (
-              <div
-                className={`mt-1 truncate text-[22px] font-semibold tabular-nums ${dashboard.xirrPct >= 0 ? "text-pos" : "text-neg"}`}
-                title={formatPct(dashboard.xirrPct)}
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span
+                className="truncate text-[34px] font-semibold leading-none tabular-nums"
+                title={formatMoney("IN", dashboard.currentValue!)}
               >
-                {formatPct(dashboard.xirrPct)}
-              </div>
-            )}
+                {formatMoney("IN", dashboard.currentValue!)}
+              </span>
+              {dashboard.xirrPct !== null && (
+                <Chip variant={dashboard.xirrPct >= 0 ? "green" : "red"}>{formatPct(dashboard.xirrPct)} XIRR</Chip>
+              )}
+            </div>
           </div>
-          <div className="min-w-0">
+
+          {/* Secondary: what built the hero number */}
+          <div className="grid grid-cols-2 gap-4 border-t border-border pt-3.5">
+            <div className="min-w-0">
+              <div className="text-xs text-muted">Total invested</div>
+              <div className="mt-0.5 truncate text-lg font-semibold tabular-nums" title={formatMoney("IN", dashboard.totalInvested!)}>
+                {formatMoney("IN", dashboard.totalInvested!)}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-muted">Overall gain</div>
+              <div
+                className={`mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-lg font-semibold tabular-nums ${dashboard.gainAbs! >= 0 ? "text-pos" : "text-neg"}`}
+              >
+                <span className="truncate">{formatMoney("IN", dashboard.gainAbs!)}</span>
+                <span className="min-w-0 truncate text-xs font-medium text-muted">({formatPct(dashboard.gainPct)})</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Change: its own small sub-panel instead of two tiles in the flat grid */}
+          <div className="rounded-lg border border-border-strong bg-panel-alt p-3">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">Change</div>
+            <div className="grid grid-cols-2 gap-3">
+              <ChangeLine label="vs last month" change={dashboard.vsLastMonth} market="IN" />
+              <ChangeLine label="vs same month last year" change={dashboard.vsLastYear} market="IN" />
+            </div>
+          </div>
+
+          {/* Safe SWP: its own sub-panel, same visual tier as Change */}
+          <div className="rounded-lg border border-border-strong bg-panel-alt p-3">
             <div
-              className="text-xs text-muted"
+              className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted"
               title="Safe SWP: the classic 4% rule - 4% of the current portfolio value per year, as a monthly amount"
             >
               Safe SWP*
             </div>
-            <div className="mt-1 truncate text-[22px] font-semibold tabular-nums">
-              {formatMoney("IN", dashboard.safeSwpMonthly!)}/mo
-            </div>
+            <div className="truncate text-lg font-semibold tabular-nums">{formatMoney("IN", dashboard.safeSwpMonthly!)}/mo</div>
           </div>
-          <ChangeLine label="vs last month" change={dashboard.vsLastMonth} market="IN" />
-          <ChangeLine label="vs same month last year" change={dashboard.vsLastYear} market="IN" />
-          <div className="col-span-2 sm:col-span-3">
-            <GoalTracker
-              profileId={profileId}
-              goalAmount={goalAmount}
-              currentValue={dashboard.currentValue!}
-              xirrPct={dashboard.xirrPct}
-            />
-          </div>
+
+          <GoalTracker
+            profileId={profileId}
+            goalAmount={goalAmount}
+            currentValue={dashboard.currentValue!}
+            xirrPct={dashboard.xirrPct}
+          />
         </div>
         <div className="min-w-0">
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted">Wealth growth</h3>
           <WealthGrowthChartLazy points={chartPoints} />
         </div>
       </div>
-      <p className="mt-3 text-xs text-muted">
+      <p className="mt-4 text-xs text-muted">
         * Safe SWP: the classic &ldquo;4% rule&rdquo; - 4% of the current portfolio value per year, divided into a
         monthly amount. Recalculated fresh against the latest value, not a fixed plan.
       </p>
