@@ -104,26 +104,48 @@ export function NetWorthDashboard({ view }: { view: NetWorthView }) {
               </div>
             </div>
 
-            {/* Change: 4 figures as one 2x2 matrix (period x metric) instead of 4 separate tiles */}
+            {/* Change: a real table (not a mimicking grid) so the period x metric structure reads clearly */}
             <div className="rounded-lg border border-border-strong bg-panel-alt p-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Change</div>
-              <div className="grid grid-cols-[auto_1fr_1fr] items-baseline gap-x-4 gap-y-1.5 text-sm">
-                <span />
-                <span className="text-xs text-muted" title="Raw portfolio value change - includes new contributions, not just investment performance">
-                  Value
-                </span>
-                <span className="text-xs text-muted" title="Profit/loss change only - isolates real investment performance from new contributions">
-                  P&amp;L
-                </span>
-
-                <span className="text-xs text-muted">vs last month</span>
-                <ChangeCell change={dashboard.vsLastMonth} />
-                <ChangeCell change={dashboard.gainVsLastMonth} />
-
-                <span className="text-xs text-muted">vs last year</span>
-                <ChangeCell change={dashboard.vsLastYear} />
-                <ChangeCell change={dashboard.gainVsLastYear} />
-              </div>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="pb-1.5 text-left text-xs font-medium text-muted"></th>
+                    <th
+                      className="pb-1.5 pl-3 text-right text-xs font-medium text-muted"
+                      title="Raw portfolio value change - includes new contributions, not just investment performance"
+                    >
+                      Value
+                    </th>
+                    <th
+                      className="pb-1.5 pl-3 text-right text-xs font-medium text-muted"
+                      title="Profit/loss change only - isolates real investment performance from new contributions"
+                    >
+                      P&amp;L
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border/60">
+                    <td className="py-1.5 text-left text-xs text-muted">vs last month</td>
+                    <td className="py-1.5 pl-3 text-right">
+                      <ChangeCell change={dashboard.vsLastMonth} />
+                    </td>
+                    <td className="py-1.5 pl-3 text-right">
+                      <ChangeCell change={dashboard.gainVsLastMonth} />
+                    </td>
+                  </tr>
+                  <tr className="border-t border-border/60">
+                    <td className="py-1.5 text-left text-xs text-muted">vs last year</td>
+                    <td className="py-1.5 pl-3 text-right">
+                      <ChangeCell change={dashboard.vsLastYear} />
+                    </td>
+                    <td className="py-1.5 pl-3 text-right">
+                      <ChangeCell change={dashboard.gainVsLastYear} />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             {/* Safe SWP: its own sub-panel, same visual tier as Change */}

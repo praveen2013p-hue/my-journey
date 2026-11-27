@@ -2601,3 +2601,16 @@ still available via a `title` tooltip on it. Card height roughly halved.
 Live-verified at desktop (1440px) and mobile (390px) - reads cleanly at
 both sizes, no overflow, zero console errors. Full suite 435/435,
 `tsc`/`eslint`/`npm run build` all clean.
+
+## 2026-11-27 - Net Worth's Change section as a real table
+
+User asked specifically for the Change section (only) on Net Worth to be
+a clear tabular layout. It was already visually grid-like (a CSS
+`grid-cols-[auto_1fr_1fr]` mimicking a table), but not an actual `<table>`
+element - swapped it for a real `<table>`/`<thead>`/`<tbody>` with "Value"/
+"P&L" as proper column headers and "vs last month"/"vs last year" as row
+headers, same bordered sub-panel wrapper and `ChangeCell` values unchanged.
+Scoped to Net Worth only, per the ask - the other 3 dashboards' simpler
+2-column (not 2x2) Change panels weren't touched. Live-verified at desktop
+and mobile - reads clearly at both sizes. Full suite 435/435, `tsc`/
+`eslint`/`npm run build` all clean.
