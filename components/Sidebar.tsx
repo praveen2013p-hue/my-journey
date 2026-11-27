@@ -21,6 +21,7 @@ import {
   SectorsIcon,
   SettingsIcon,
   ThemeIcon,
+  UsTradingCapitalIcon,
   WeeklyReviewIcon,
 } from "./icons";
 
@@ -30,6 +31,10 @@ const NAV_ITEMS_BEFORE_MUTUAL_FUNDS = [
   { href: "/pullbacks", label: "Pullbacks", Icon: PullbacksIcon },
   { href: "/sectors", label: "Sectors", Icon: SectorsIcon },
   { href: "/journal", label: "Journal", Icon: JournalIcon },
+  // Swing-trading capital, not long-term investing - sits with the
+  // trading-side pages above, not under the "Investment" label below
+  // (DECISIONS.md).
+  { href: "/us-trading-capital", label: "US Trading Capital", Icon: UsTradingCapitalIcon },
 ];
 
 const NAV_ITEMS_AFTER_MUTUAL_FUNDS = [

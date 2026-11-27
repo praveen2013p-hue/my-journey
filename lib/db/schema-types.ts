@@ -293,6 +293,44 @@ export interface NpsEntryRow {
   updated_at: string;
 }
 
+/**
+ * One month's US swing-trading capital snapshot, per user (DECISIONS.md) -
+ * a leaner sibling of MutualFundEntryRow/NpsEntryRow: no SIP/Lumpsum/STP
+ * breakdown, no planned_amount, no Safe SWP - just capital in/out and an
+ * annualized return. The user deposits INR, converted to USD, into a US
+ * brokerage account; two independent return figures are computed from
+ * this row's fields (lib/us-trading-capital-stats.ts):
+ *  - a USD-only annualized return (amount_added/withdrawal/current_value,
+ *    exactly like Mutual Funds/NPS's XIRR) - rupee movement after
+ *    conversion is explicitly out of scope for this one.
+ *  - a Real Return (FX-adjusted, in INR) - uses inr_amount/fx_rate (the
+ *    rate THAT MONTH's deposit converted at) and value_fx_rate (the rate
+ *    as of THAT MONTH's current_value snapshot) to show what the capital
+ *    is actually worth in rupees today vs what was actually paid.
+ */
+export interface UsTradingCapitalEntryRow {
+  id: string;
+  user_id: string;
+  /** yyyy-mm-01 - always the first of the month; there's at most one entry per user per month. */
+  month: string;
+  /** This month's deposit, in USD - the real cash-flow-in for the USD-only annualized return. */
+  amount_added: number;
+  /** Any USD pulled out this month - reduces net invested, same convention as Mutual Funds/NPS. 0 if none. */
+  withdrawal: number;
+  /** The rupee amount actually paid for this month's deposit. Reference-only for the USD return; used directly (in preference to deriving it from amount_added * fx_rate) for Real Return when present. Null if not recorded. */
+  inr_amount: number | null;
+  /** INR-per-USD rate this month's deposit converted at ("conversion rate for this deposit"). Reference-only for the USD return; used to derive an INR-equivalent deposit for Real Return when inr_amount itself isn't given. Null if not recorded. */
+  fx_rate: number | null;
+  /** INR-per-USD rate as of THIS month's current_value snapshot ("today's USD/INR rate") - what this USD balance would be worth in rupees right now. Only the latest entry's value drives the headline Real Return figure, but every entry carries its own so a real-return-over-time view is possible later. Null if not recorded. */
+  value_fx_rate: number | null;
+  current_value: number;
+  notes: string | null;
+  /** Why this month's amount_added is negative (a correction/reversal, say) - null unless amount_added < 0 and the user has explained it. */
+  negative_amount_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StockNoteRow {
   user_id: string;
   market: Market;

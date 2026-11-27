@@ -1800,3 +1800,106 @@ industries.
   sectors get a populated 4-entry array). Full suite 380/380,
   `tsc`/`eslint`/`npm run build` all clean. No DB migration (pure
   derived data from existing sector_snapshots).
+
+## 2026-11-27 - US Trading Capital tracker (USD return + FX-adjusted Real Return)
+
+A new tracker for the user's US swing-trading capital: they deposit
+money in INR, converted to USD, into a US brokerage account at various
+times, and want to see an annualized return at year-end. Individual
+trade records (entries/exits) were already fully covered by the
+existing Journal/Trades/Performance pages (`market: "US"` on every
+trade) - this is purely a new capital-account-level tracker, a leaner
+sibling of Mutual Funds/NPS: no SIP/Lumpsum/STP breakdown, no
+planned_amount, no Safe SWP, no goal tracking, no CAGR, no benchmark
+overlay, no CSV import/export - none of those were asked for here.
+
+- `us_trading_capital_entries` table (migration `0013`), one row per
+  user per month: `amount_added`/`withdrawal` (USD, the real cash
+  flows), `inr_amount`/`fx_rate` (the rupee amount and rate THAT
+  MONTH's deposit converted at), `value_fx_rate` (the rate as of THAT
+  MONTH's `current_value` snapshot - "today's rate"), `current_value`
+  (USD). **Paste into Supabase's SQL editor:**
+  ```sql
+  create table us_trading_capital_entries (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users (id) on delete cascade,
+    month date not null,
+    amount_added numeric not null default 0,
+    withdrawal numeric not null default 0,
+    inr_amount numeric,
+    fx_rate numeric,
+    value_fx_rate numeric,
+    current_value numeric not null,
+    notes text,
+    negative_amount_note text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (user_id, month)
+  );
+  create index us_trading_capital_entries_user_id_idx on us_trading_capital_entries (user_id);
+
+  alter table us_trading_capital_entries enable row level security;
+
+  create policy "user reads own us_trading_capital_entries" on us_trading_capital_entries for select using (user_id = auth.uid());
+  create policy "user writes own us_trading_capital_entries" on us_trading_capital_entries for insert with check (user_id = auth.uid());
+  create policy "user updates own us_trading_capital_entries" on us_trading_capital_entries for update using (user_id = auth.uid());
+  create policy "user deletes own us_trading_capital_entries" on us_trading_capital_entries for delete using (user_id = auth.uid());
+  ```
+- Two independent annualized-return figures, both shown on the
+  Overview (`lib/us-trading-capital-stats.ts`):
+  - **Annualized Return (USD)** - identical XIRR mechanics to Mutual
+    Funds/NPS, entirely in USD. An explicit user choice: rupee
+    movement after each deposit's conversion is out of scope for this
+    figure.
+  - **Real Return (₹, FX-adjusted)** - a second, independently-tracked
+    XIRR over an INR-denominated flow list: each month's deposit
+    converted to INR at THAT MONTH's own rate (`inr_amount` directly
+    when given, else `amount_added * fx_rate`), with the terminal flow
+    being the latest entry's `current_value * value_fx_rate` (today's
+    rate). Deliberately NOT the USD return rescaled by one rate at the
+    end - that would silently ignore that every deposit converted at a
+    different historical rate, defeating the point of a "real" return.
+    `withdrawal` reuses that same month's `fx_rate` (no separate
+    withdrawal-rate field exists - withdrawals are rare/optional for
+    this account type, so this was my own judgment call, not something
+    the request specified).
+  - A month with a nonzero deposit/withdrawal but neither `inr_amount`
+    nor `fx_rate` makes Real Return null from that month onward for
+    every later month too (`realReturnBlockedReason:
+    "missing_deposit_data"`) - the same "coverage broken, stays broken"
+    idiom as `computeBenchmarkSeries`. A row whose own `value_fx_rate`
+    is missing (but every deposit up to it IS known) gets
+    `"missing_current_rate"` instead - two distinct Overview prompts
+    ("Add the INR amount or FX rate for every deposit..." vs "Add
+    today's USD/INR rate...") rather than one generic dash.
+- This was an explicit direct follow-up ask mid-build (the Real Return
+  metric wasn't in the original brief) - it ADDS a second FX-adjusted
+  figure alongside the USD-only one, it doesn't replace it; both are
+  shown side by side on the Overview card.
+- Add-entry form: `inr_amount`/`fx_rate` live auto-fill the USD
+  `amount_added` field (`convertInrToUsd`), always overridable by
+  typing into it directly (deposits don't always convert at a clean
+  rate) - the auto-fill stops recomputing the instant the user edits
+  that field by hand.
+- Sidebar: placed in `NAV_ITEMS_BEFORE_MUTUAL_FUNDS`, right after
+  Journal - this is swing-trading capital, not long-term investing, so
+  it belongs with the trading-side pages, not nested under the
+  "Investment" section with Mutual Funds/NPS.
+- Hand-verified both figures live (not just in unit tests): seeded a
+  $1,000 deposit at ₹83/\$ (Jan 2024), a value-only check-in (Jul
+  2024), and a $1,100 valuation at ₹90/\$ one year later (Jan 2025,
+  2024 being a leap year - 366 days). Independently computed by hand:
+  USD XIRR solves to ≈9.97% (rounds to the displayed "+10.0%" at 1
+  decimal); Real Return solves to ≈19.22% (displayed "+19.2%") - a
+  meaningfully different number from the USD figure, proving the
+  rupee-side math is genuinely using the two different historical
+  rates (not just rescaling the USD return by one multiplier). The
+  live numbers matched both hand calculations exactly.
+- 13 new tests in `lib/us-trading-capital-stats.test.ts`, including
+  the hand-verified 10%-vs-23.75% scenario (a cleaner, round-number
+  version of the same proof above), the `inr_amount`-overrides-`fx_rate`
+  case, both blocked-reason cases, and the zero-flow-month-needs-no-FX-
+  data case. Full suite 393/393, `tsc`/`eslint`/`npm run build` all
+  clean. Live-verified in a real running dev server (sidebar link,
+  Overview, year-grouped table, both returns), seeded/cleaned-up data
+  and scratch files, no stray dev-server processes left running.

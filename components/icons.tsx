@@ -101,6 +101,16 @@ export function NetWorthIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function UsTradingCapitalIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M5.5 9v.01M18.5 15v.01" />
+    </Icon>
+  );
+}
+
 export function LongTermHoldingIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

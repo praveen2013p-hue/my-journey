@@ -38,6 +38,7 @@ import type {
   StrategyTagRow,
   SymbolMapRow,
   TradeRow,
+  UsTradingCapitalEntryRow,
   UserSettingsRow,
   WeeklyReflectionRow,
 } from "./schema-types";
@@ -65,6 +66,7 @@ export interface DevStoreShape {
   mutual_fund_profiles: MutualFundProfileRow[];
   mutual_fund_entries: MutualFundEntryRow[];
   nps_entries: NpsEntryRow[];
+  us_trading_capital_entries: UsTradingCapitalEntryRow[];
   stock_notes: StockNoteRow[];
   weekly_reflections: WeeklyReflectionRow[];
   _seq: Record<string, number>;
@@ -100,6 +102,7 @@ function emptyStore(): DevStoreShape {
     mutual_fund_profiles: [],
     mutual_fund_entries: [],
     nps_entries: [],
+    us_trading_capital_entries: [],
     stock_notes: [],
     weekly_reflections: [],
     _seq: {},
