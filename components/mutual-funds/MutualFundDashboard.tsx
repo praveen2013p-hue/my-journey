@@ -46,10 +46,27 @@ function GoalTracker({
   xirrPct: number | null;
 }) {
   const router = useRouter();
+  const [syncedProfileId, setSyncedProfileId] = useState(profileId);
   const [editing, setEditing] = useState(goalAmount === null);
   const [text, setText] = useState(goalAmount !== null ? String(goalAmount) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Switching Mutual Fund profiles is a same-route, search-param-only
+  // navigation (?profile=...), so this component isn't remounted - without
+  // this, the editor would keep showing the PREVIOUS profile's goal-editor
+  // state (open/closed, typed text) under the newly-selected profile.
+  // Adjusted during render (React's documented pattern for this), not in an
+  // effect - keyed on profileId only: a save() on the SAME profile already
+  // manages editing/text itself, and re-running this on every goalAmount
+  // change (including the one save() itself triggers via router.refresh())
+  // would fight that.
+  if (profileId !== syncedProfileId) {
+    setSyncedProfileId(profileId);
+    setEditing(goalAmount === null);
+    setText(goalAmount !== null ? String(goalAmount) : "");
+    setError(null);
+  }
 
   async function save(amount: number | null) {
     setSubmitting(true);
@@ -123,6 +140,8 @@ function GoalTracker({
     timelineText = "Not enough history yet to project a timeline.";
   } else if (projection.status === "no_growth") {
     timelineText = "Current XIRR doesn't project forward growth - no timeline to show.";
+  } else if (projection.status === "no_capital") {
+    timelineText = "No capital currently invested - no timeline to project.";
   } else {
     const years = projection.months / 12;
     timelineText = `~${Math.ceil(projection.months)} months (${years.toFixed(1)} yrs) to go at the current XIRR`;

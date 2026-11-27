@@ -64,10 +64,18 @@ export function SidePanel({
   const [sectorContexts, setSectorContexts] = useState<SectorContextDetail[] | null>(null);
   useEffect(() => {
     setSectorContexts(null);
+    let cancelled = false;
     fetch(`/api/sectors/context?market=${row.market}&ticker=${encodeURIComponent(row.ticker)}&weekEnding=${row.weekEnding}`)
       .then((res) => res.json())
-      .then((data) => setSectorContexts(data.contexts ?? []))
-      .catch(() => setSectorContexts([]));
+      .then((data) => {
+        if (!cancelled) setSectorContexts(data.contexts ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSectorContexts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [row.market, row.ticker, row.weekEnding]);
 
   const [note, setNote] = useState("");
@@ -76,10 +84,18 @@ export function SidePanel({
 
   useEffect(() => {
     setNoteLoaded(false);
+    let cancelled = false;
     fetch(`/api/notes?market=${row.market}&ticker=${encodeURIComponent(row.ticker)}`)
       .then((res) => res.json())
-      .then((data) => setNote(data.note ?? ""))
-      .finally(() => setNoteLoaded(true));
+      .then((data) => {
+        if (!cancelled) setNote(data.note ?? "");
+      })
+      .finally(() => {
+        if (!cancelled) setNoteLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [row.market, row.ticker]);
 
   function handleNoteChange(value: string) {

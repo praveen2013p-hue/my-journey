@@ -91,6 +91,19 @@ function MutualFundsTreeNav({
   // `profiles` prop, which App Router navigation isn't guaranteed to do
   // for a shared layout on a same-route, search-param-only navigation.
   const [profiles, setProfiles] = useState(initialProfiles);
+  const [syncedInitialProfiles, setSyncedInitialProfiles] = useState(initialProfiles);
+
+  // A router.refresh() anywhere else in the app (adding a trade, saving a
+  // goal, editing strategy tags, ...) makes the server layout re-fetch a
+  // fresh `initialProfiles` array. This component isn't remounted by that
+  // (it's not a navigation), so without this the local state above would
+  // never pick up the new array - keep it in sync, on top of the optimistic
+  // local add on submit. Adjusted during render (React's documented pattern
+  // for this), not in an effect.
+  if (initialProfiles !== syncedInitialProfiles) {
+    setSyncedInitialProfiles(initialProfiles);
+    setProfiles(initialProfiles);
+  }
 
   const [userToggledExpanded, setUserToggledExpanded] = useState<boolean | null>(null);
   const expanded = userToggledExpanded ?? isOnMutualFunds;
