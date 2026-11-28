@@ -104,7 +104,7 @@ export function AddTradeModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Add trade">
           <div className="w-full max-w-lg rounded-xl border border-border bg-panel p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Add trade · {market === "IN" ? "India ₹" : "US $"}</h2>
+              <h2 className="text-lg font-semibold">Add trade · US $</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}

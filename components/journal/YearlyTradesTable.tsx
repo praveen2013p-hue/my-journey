@@ -3,6 +3,7 @@ import { TradingViewLink } from "@/components/TradingViewLink";
 import type { Market } from "@/lib/db/schema-types";
 import { formatMoney, formatPct } from "@/lib/format-money";
 import type { ClosedTradeRowView } from "@/lib/journal-data";
+import { computeYearlyBreakdown } from "@/lib/trade-stats";
 
 /**
  * Closed trades grouped by the year each one closed - like a mutual
@@ -25,25 +26,13 @@ export function YearlyTradesTable({
     );
   }
 
-  const byYear = new Map<string, ClosedTradeRowView[]>();
-  for (const row of closedTrades) {
-    const year = (row.trade.sell_date as string).slice(0, 4);
-    const list = byYear.get(year) ?? [];
-    list.push(row);
-    byYear.set(year, list);
-  }
   // closedTrades already arrives newest-sell-date-first, so each year's
   // rows stay newest-first too.
-  const years = Array.from(byYear.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  const years = computeYearlyBreakdown(closedTrades);
 
   return (
     <div className="flex flex-col gap-5">
-      {years.map(([year, rows]) => {
-        const totalPnl = rows.reduce((sum, r) => sum + r.pnlAbs, 0);
-        const wins = rows.filter((r) => r.pnlAbs > 0).length;
-        const winRate = (wins / rows.length) * 100;
-        const avgDays = rows.reduce((sum, r) => sum + r.holdingDays, 0) / rows.length;
-
+      {years.map(({ year, trades: rows, totalPnl, winRate, avgHoldingDays }) => {
         return (
           <section key={year} className="rounded-xl border border-border bg-panel p-5">
             <div className="mb-3.5 flex flex-wrap items-center gap-3">
@@ -53,7 +42,7 @@ export function YearlyTradesTable({
               </Chip>
               <Chip variant={totalPnl >= 0 ? "green" : "red"}>{formatMoney(market, totalPnl)}</Chip>
               <span className="text-xs text-muted">{winRate.toFixed(0)}% win rate</span>
-              <span className="text-xs text-muted">avg {avgDays.toFixed(0)} days held</span>
+              <span className="text-xs text-muted">avg {avgHoldingDays.toFixed(0)} days held</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">

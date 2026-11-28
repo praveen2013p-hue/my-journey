@@ -174,6 +174,58 @@ export interface StrategyResult {
   totalPnl: number;
 }
 
+export interface YearlyBreakdownGroup<T> {
+  year: string;
+  /** Same order as the input for that year (caller controls overall ordering, e.g. newest-first). */
+  trades: T[];
+  totalPnl: number;
+  winRate: number;
+  avgHoldingDays: number;
+}
+
+/**
+ * Groups closed trades by the year each one closed, with one-pass
+ * per-year totals - like a mutual fund's yearly statement (direct ask,
+ * not in BRIEF.md §7.4 - DECISIONS.md). Generic over T so a caller can
+ * pass a richer row type (e.g. Journal's ClosedTradeRowView, which also
+ * carries exchange/strategy name for display) without this file needing
+ * to know about it. A row with no sell_date (shouldn't happen for a
+ * truly closed trade, but the type doesn't guarantee it) is grouped
+ * under "Unknown" rather than throwing.
+ */
+export function computeYearlyBreakdown<T extends { trade: TradeRow; pnlAbs: number; holdingDays: number }>(
+  closedTrades: T[],
+): YearlyBreakdownGroup<T>[] {
+  const byYear = new Map<string, T[]>();
+  for (const row of closedTrades) {
+    const year = row.trade.sell_date?.slice(0, 4) ?? "Unknown";
+    const list = byYear.get(year) ?? [];
+    list.push(row);
+    byYear.set(year, list);
+  }
+
+  const groups: YearlyBreakdownGroup<T>[] = [];
+  for (const [year, trades] of byYear) {
+    let totalPnl = 0;
+    let wins = 0;
+    let totalDays = 0;
+    for (const t of trades) {
+      totalPnl += t.pnlAbs;
+      if (t.pnlAbs > 0) wins += 1;
+      totalDays += t.holdingDays;
+    }
+    groups.push({
+      year,
+      trades,
+      totalPnl,
+      winRate: (wins / trades.length) * 100,
+      avgHoldingDays: totalDays / trades.length,
+    });
+  }
+
+  return groups.sort((a, b) => (a.year < b.year ? 1 : -1));
+}
+
 /** Groups closed trades by strategy tag (BRIEF.md §7.4 "per-strategy results table"). */
 export function computeStrategyResults(
   closedTrades: ClosedTradeResult[],

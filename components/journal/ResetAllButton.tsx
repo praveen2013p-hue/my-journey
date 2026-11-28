@@ -20,7 +20,7 @@ export function ResetAllButton({ market, tradeCount }: { market: Market; tradeCo
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const marketLabel = market === "IN" ? "India ₹" : "US $";
+  const marketLabel = "US $";
 
   async function handleReset() {
     setSubmitting(true);
@@ -60,8 +60,8 @@ export function ResetAllButton({ market, tradeCount }: { market: Market; tradeCo
             <h2 className="mb-2 text-lg font-semibold text-neg">Reset all {marketLabel} trades?</h2>
             <p className="mb-4 text-sm text-muted">
               This permanently deletes all <b className="text-text">{tradeCount}</b> {marketLabel} trade
-              {tradeCount === 1 ? "" : "s"} in your Journal — open and closed. Your {market === "IN" ? "US" : "India"}{" "}
-              trades are not affected. <b className="text-neg">This cannot be undone.</b>
+              {tradeCount === 1 ? "" : "s"} in your Journal — open and closed.{" "}
+              <b className="text-neg">This cannot be undone.</b>
             </p>
             <label htmlFor="reset-confirm" className="mb-1 block text-xs text-muted">
               Type <b className="text-text">{CONFIRM_WORD}</b> to confirm

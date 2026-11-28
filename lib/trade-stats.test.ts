@@ -4,6 +4,7 @@ import {
   closedTradePnl,
   computeStrategyResults,
   computeTradeStats,
+  computeYearlyBreakdown,
   daysBetween,
   isTradeClosed,
   openTradePnl,
@@ -203,5 +204,43 @@ describe("computeStrategyResults", () => {
     ];
     const results = computeStrategyResults(trades, new Map());
     expect(results[0].tagName).toBe("Unknown tag");
+  });
+});
+
+describe("computeYearlyBreakdown", () => {
+  it("groups closed trades by the year they were sold, newest year first", () => {
+    const trades = [
+      closedTradePnl(trade({ buy_price: 100, quantity: 1, sell_date: "2025-06-20", sell_price: 110 }))!,
+      closedTradePnl(trade({ buy_price: 100, quantity: 1, sell_date: "2025-02-10", sell_price: 90 }))!,
+      closedTradePnl(trade({ buy_price: 100, quantity: 1, sell_date: "2026-01-05", sell_price: 120 }))!,
+    ];
+
+    const groups = computeYearlyBreakdown(trades);
+    expect(groups.map((g) => g.year)).toEqual(["2026", "2025"]);
+
+    const y2025 = groups.find((g) => g.year === "2025")!;
+    expect(y2025.trades).toHaveLength(2);
+    expect(y2025.totalPnl).toBeCloseTo(0, 5); // +10 - 10
+    expect(y2025.winRate).toBeCloseTo(50, 5);
+    expect(y2025.avgHoldingDays).toBe((y2025.trades[0].holdingDays + y2025.trades[1].holdingDays) / 2);
+
+    const y2026 = groups.find((g) => g.year === "2026")!;
+    expect(y2026.trades).toHaveLength(1);
+    expect(y2026.totalPnl).toBeCloseTo(20, 5);
+    expect(y2026.winRate).toBe(100);
+  });
+
+  it("groups a row with no sell_date under 'Unknown' instead of throwing", () => {
+    const openRow = { trade: trade({ sell_date: null }), pnlAbs: 0, holdingDays: 0 };
+    const groups = computeYearlyBreakdown([openRow]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].year).toBe("Unknown");
+  });
+
+  it("preserves input order of trades within a year", () => {
+    const first = closedTradePnl(trade({ sell_date: "2026-01-01", sell_price: 110 }))!;
+    const second = closedTradePnl(trade({ sell_date: "2026-06-01", sell_price: 90 }))!;
+    const groups = computeYearlyBreakdown([first, second]);
+    expect(groups[0].trades).toEqual([first, second]);
   });
 });
