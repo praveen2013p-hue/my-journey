@@ -4,6 +4,7 @@ import { PnlCalendar } from "@/components/journal/PnlCalendar";
 import { ResetAllButton } from "@/components/journal/ResetAllButton";
 import { StrategyResultsTable } from "@/components/journal/StrategyResultsTable";
 import { ClosedTradesTable, OpenTradesTable } from "@/components/journal/TradesTable";
+import { YearlyTradesTable } from "@/components/journal/YearlyTradesTable";
 import { Chip } from "@/components/Chip";
 import { DataFreshnessStrip } from "@/components/DataFreshnessStrip";
 import { PageHeader } from "@/components/PageHeader";
@@ -18,24 +19,25 @@ import { todayInMarketTimezone } from "@/lib/time";
 export default async function JournalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ market?: string; tab?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const session = await verifySession();
   const sp = await searchParams;
-  const market: Market = sp.market === "US" ? "US" : "IN";
-  const tab: "open" | "closed" = sp.tab === "closed" ? "closed" : "open";
+  // Journal is US-only (DECISIONS.md) - India trading isn't logged here.
+  const market: Market = "US";
+  const tab: "open" | "closed" | "yearly" =
+    sp.tab === "closed" ? "closed" : sp.tab === "yearly" ? "yearly" : "open";
 
   const [freshness, data] = await Promise.all([getFreshnessData(), getJournalPageData(session.userId, market)]);
 
-  const tabSuffix = (t: "open" | "closed") => `/journal?market=${market}&tab=${t}`;
-  const marketSuffix = (m: Market) => `/journal?market=${m}&tab=${tab}`;
+  const tabSuffix = (t: "open" | "closed" | "yearly") => `/journal?tab=${t}`;
 
   return (
     <>
       <DataFreshnessStrip {...freshness} />
       <PageHeader
         title="Journal"
-        subtitle="Your own trades · separate from your wife's journal"
+        subtitle="Your own US trades · separate from your wife's journal"
         actions={
           <>
             <AddTradeModal
@@ -47,22 +49,6 @@ export default async function JournalPage({
           </>
         }
       />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href={marketSuffix("IN")}
-          className={`rounded-full border px-3.5 py-1.5 font-medium ${market === "IN" ? "border-gold-border bg-gold-wash-strong text-gold-light" : "border-border-strong text-muted"}`}
-        >
-          India ₹
-        </Link>
-        <Link
-          href={marketSuffix("US")}
-          className={`rounded-full border px-3.5 py-1.5 font-medium ${market === "US" ? "border-gold-border bg-gold-wash-strong text-gold-light" : "border-border-strong text-muted"}`}
-        >
-          US $
-        </Link>
-        <span className="ml-2 text-xs text-muted">India and US are never combined</span>
-      </div>
 
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
         <Card
@@ -114,13 +100,17 @@ export default async function JournalPage({
         >
           Closed <Chip variant="neutral">{data.closedTrades.length}</Chip>
         </Link>
+        <Link
+          href={tabSuffix("yearly")}
+          className={`flex min-h-[44px] items-center gap-2 border-b-2 px-4 font-semibold ${tab === "yearly" ? "border-gold text-gold-light" : "border-transparent text-muted hover:text-text"}`}
+        >
+          Yearly
+        </Link>
       </div>
 
-      {tab === "open" ? (
-        <OpenTradesTable rows={data.openTrades} todayIso={new Date().toISOString().slice(0, 10)} />
-      ) : (
-        <ClosedTradesTable rows={data.closedTrades} />
-      )}
+      {tab === "open" && <OpenTradesTable rows={data.openTrades} todayIso={new Date().toISOString().slice(0, 10)} />}
+      {tab === "closed" && <ClosedTradesTable rows={data.closedTrades} />}
+      {tab === "yearly" && <YearlyTradesTable market={market} closedTrades={data.closedTrades} />}
 
       <StrategyResultsTable market={market} results={data.strategyResults} />
     </>
